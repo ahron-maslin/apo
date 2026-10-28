@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apo"
+version = "0.0.1"
+description = "apo (AI Project Orchestration): a human-in-the-loop dashboard for Claude Code agents. Not released yet; this version only holds the name."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://getapo.pages.dev/"
+
+[project.scripts]
+apo = "apo:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
