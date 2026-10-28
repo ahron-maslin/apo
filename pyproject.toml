@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "apo"
+name = "getapo"
 version = "0.0.1"
 description = "apo (AI Project Orchestration): a human-in-the-loop dashboard for Claude Code agents. Not released yet; this version only holds the name."
 readme = "README.md"
