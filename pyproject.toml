@@ -5,25 +5,43 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "getapo"
 dynamic = ["version"]
-description = "apo (AI Project Orchestration): a local dashboard and MCP server for Claude Code."
+description = "apo (AI Project Orchestration): a local dashboard and MCP server for Claude Code. Agents ask instead of stopping; you answer every project's questions from one queue."
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = ["claude", "claude-code", "mcp", "agents", "dashboard", "human-in-the-loop"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development",
+]
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "jinja2",
-    "python-multipart",
-    "mcp",
-    "cryptography",
-    "markdown",
-    "platformdirs",
+    "fastapi>=0.139",
+    "uvicorn[standard]>=0.51",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.32",
+    "mcp>=1.28,<2",
+    "cryptography>=49",
+    "markdown>=3.10",
+    "platformdirs>=4",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "httpx"]
+dev = ["pytest>=9.1", "pytest-asyncio>=1.4", "httpx>=0.28", "websockets>=16", "build>=1.2"]
 
 [project.urls]
 Homepage = "https://getapo.pages.dev/"
+Source = "https://github.com/ahron-maslin/apo"
+Issues = "https://github.com/ahron-maslin/apo/issues"
 
 [project.scripts]
 apo = "apo.cli:main"
@@ -35,6 +53,18 @@ version = { attr = "apo.__version__" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+apo = [
+    "resources/*.md",
+    "resources/skills/*/*.md",
+    "resources/hooks/*.sh",
+    "web/templates/*.html",
+    "web/static/*",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "wheel: builds the wheel and installs it into a fresh virtualenv; slow, and needs PyPI for the dependencies (leave out with -m 'not wheel')",
+]
