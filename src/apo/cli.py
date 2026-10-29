@@ -1066,17 +1066,17 @@ def main(argv: list[str] | None = None) -> None:
 
     init = sub.add_parser(
         "init",
-        help="Set up this machine: DB location, optional Linear, MCP registration, hook + skill install",
+        help="Set up apo for Claude Code: the data folder, the MCP server, the hooks and the /decisions skill",
     )
     init.add_argument("--yes", action="store_true", help="Non-interactive: use flags/defaults, don't prompt")
-    init.add_argument("--db-path", default=None)
+    init.add_argument("--db-path", default=None, help="Where to keep the database (default: the data folder)")
     init.add_argument("--projects-root", default=None, help="Where your projects live (default ~/projects)")
     init.add_argument("--linear-api-key", default=None)
     init.add_argument("--linear-team", default=None)
-    init.add_argument("--skip-linear", action="store_true")
-    init.add_argument("--skip-mcp", action="store_true")
-    init.add_argument("--skip-hook", action="store_true")
-    init.add_argument("--skip-skill", action="store_true")
+    init.add_argument("--skip-linear", action="store_true", help="Don't ask about Linear")
+    init.add_argument("--skip-mcp", action="store_true", help="Don't register the MCP server")
+    init.add_argument("--skip-hook", action="store_true", help="Don't add the hooks")
+    init.add_argument("--skip-skill", action="store_true", help="Don't install the /decisions skill")
     init.set_defaults(func=_cmd_init)
 
     dashboard = sub.add_parser(

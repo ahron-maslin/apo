@@ -27,12 +27,14 @@ def legacy_data_dir() -> Path:
 
 
 def data_dir() -> Path:
-    """The platform data folder, unless only the old ~/.claude/ai-decision-orchestrator
-    exists: then that one, so an existing install keeps its DB, key and attachments
-    together. Nothing is ever moved."""
+    """The platform data folder, unless an older install's
+    ~/.claude/ai-decision-orchestrator exists and the new folder has no database yet:
+    then the old one, so an existing install keeps its DB, key and attachments
+    together. Nothing is ever moved. (On macOS the new folder doubles as the config
+    folder, so it can exist without holding any data.)"""
     new = default_data_dir()
     legacy = legacy_data_dir()
-    if not new.exists() and legacy.is_dir():
+    if legacy.is_dir() and not (new / "orchestrator.db").exists():
         return legacy
     return new
 

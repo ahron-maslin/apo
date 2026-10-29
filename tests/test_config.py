@@ -158,11 +158,13 @@ def test_an_existing_install_keeps_using_its_old_folder(monkeypatch, legacy):
     assert [p.name for p in legacy.iterdir()] == ["orchestrator.db"]
 
 
-def test_once_the_new_folder_exists_it_is_used(legacy):
+def test_once_the_new_folder_has_a_database_it_is_used(legacy):
     legacy.mkdir(parents=True)
     new = Path(platformdirs.user_data_dir("apo", appauthor=False))
     new.mkdir(parents=True)
+    assert config.data_dir() == legacy
 
+    (new / "orchestrator.db").write_bytes(b"")
     assert config.data_dir() == new
 
 

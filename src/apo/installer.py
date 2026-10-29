@@ -1,141 +1,40 @@
-"""Sets up a teammate's own machine to run their own instance of apo: DB location,
-optional Linear config, MCP server registration, and installing the session-start
-hook + `decisions` skill into their Claude Code config.
+"""`apo init`: sets up this machine to run apo with Claude Code.
 
-Each teammate runs this against their own home directory and their own DB — there is
-no shared server, so nothing here needs auth. It writes into ~/.claude, not into
-whatever checkout ships this code, so config survives independently of the checkout
-(see config.home_env_path()).
+It creates the data folder, saves the answers it asks for in the settings file
+(config.config_file()), and, in the Claude Code profile it runs under
+(CLAUDE_CONFIG_DIR, else ~/.claude): registers the MCP server `apo` at user scope,
+adds the hooks that call the installed `apo`, and copies in the `/decisions` skill.
+
+Run again, it replaces its own entries rather than adding more, and that includes the
+ones an older install left under the old names (the `ai-decision-orchestrator` MCP
+server, `ado session-*` hooks, the hook script and skill linked from a checkout). It
+never touches a hook, a skill or a setting it didn't write.
 """
 import getpass
 import json
+import os
+import shlex
 import shutil
 import subprocess
+import sys
 from datetime import datetime
+from importlib.resources import files
 from pathlib import Path
 
+import apo
+from apo import claude_runtime, config
 
-def write_env_updates(env_path: Path, updates: dict[str, str]) -> None:
-    """Merge `updates` into env_path's KEY=VALUE lines, preserving every other line
-    and overwriting a key already present rather than duplicating it."""
-    lines = env_path.read_text().splitlines() if env_path.exists() else []
-    seen = set()
-    result = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped and not stripped.startswith("#") and "=" in stripped:
-            key = stripped.split("=", 1)[0].strip()
-            if key in updates:
-                result.append(f"{key}={updates[key]}")
-                seen.add(key)
-                continue
-        result.append(line)
-    for key, value in updates.items():
-        if key not in seen:
-            result.append(f"{key}={value}")
-
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-    env_path.write_text("\n".join(result) + "\n")
-
-
-def install_skill_symlink(source: Path, dest: Path) -> str:
-    """Idempotent: a no-op if dest already correctly points at source, and never
-    clobbers something else already there (a foreign skill, a real directory)."""
-    if dest.is_symlink():
-        return "already-linked" if dest.resolve() == source.resolve() else "skipped-exists"
-    if dest.exists():
-        return "skipped-exists"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.symlink_to(source, target_is_directory=source.is_dir())
-    return "created"
-
-
-def _backup(path: Path) -> None:
-    backup_path = path.with_name(f"{path.name}.bak-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
-    backup_path.write_text(path.read_text())
-
-
-def merge_hook(
-    settings_path: Path, event: str, command: str, timeout: int | None = None, backup: bool = True,
-    run_async: bool = False, matcher: str | None = None,
-) -> None:
-    """Read-merge-write one event's hooks array in settings.json: adds `command`
-    without disturbing any other hook already registered there (for this event or any
-    other), without duplicating it on re-run, and takes a timestamped backup before
-    touching an existing file. `timeout` (seconds) matters for hooks that can block
-    the agent's turn (Stop) — a hung process shouldn't hang the user's session.
-    `run_async` is for observe-only hooks: Claude Code runs them in the background,
-    so they never add latency to the agent's turn (their output is ignored).
-
-    Re-running with the same command updates that entry's timeout/async in place, so
-    an older install picks up a changed hook spec on the next `apo init`.
-
-    `backup=False` is for a caller (run(), below) that's about to make several of
-    these calls in one pass and already took a single backup representing the
-    state before any of them ran — taking one here per call would otherwise leave
-    a pile of redundant copies of what is, modulo the merge itself, the same file."""
-    if settings_path.exists():
-        if backup:
-            _backup(settings_path)
-        data = json.loads(settings_path.read_text())
-    else:
-        data = {}
-
-    bucket = data.setdefault("hooks", {}).setdefault(event, [])
-    entry, hook = next(
-        ((e, h) for e in bucket for h in e.get("hooks", []) if h.get("command") == command), (None, None),
-    )
-    if hook is None:
-        hook = {"type": "command", "command": command}
-        entry = {"hooks": [hook]}
-        bucket.append(entry)
-    for key, value in (("timeout", timeout), ("async", True if run_async else None)):
-        if value is None:
-            hook.pop(key, None)
-        else:
-            hook[key] = value
-    # A matcher applies to every hook in its entry, so only manage it on an entry
-    # that holds just this one.
-    if len(entry.get("hooks", [])) == 1:
-        if matcher is None:
-            entry.pop("matcher", None)
-        else:
-            entry["matcher"] = matcher
-
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    settings_path.write_text(json.dumps(data, indent=2) + "\n")
-
-
-def register_mcp_server(command: list[str] | None = None) -> tuple[bool, str]:
-    """Registers the MCP server via the `claude` CLI, pointed at the installed `apo`
-    command (`apo mcp`) rather than a raw path into a checkout. Never raises —
-    a missing `claude` binary or a failed registration (e.g. already registered)
-    degrades to a message instead of crashing the wizard.
-
-    Resolves `apo` to an absolute path when possible, rather than registering the
-    bare name: Claude Code will later exec that command from its own process, whose
-    PATH may not match the shell `apo init` ran in (e.g. a project-only venv that
-    isn't on the system PATH)."""
-    if shutil.which("claude") is None:
-        return False, (
-            "`claude` CLI not found on PATH — register the MCP server manually:\n"
-            "  claude mcp add apo --scope user -- apo mcp"
-        )
-    if command is None:
-        apo_bin = shutil.which("apo") or "apo"
-        command = ["claude", "mcp", "add", "apo", "--scope", "user", "--", apo_bin, "mcp"]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0:
-        return False, result.stderr.strip() or "claude mcp add failed"
-    return True, "Registered the MCP server with Claude Code."
-
+MCP_NAME = "apo"
+LEGACY_MCP_NAME = "ai-decision-orchestrator"
+NUDGE_SCRIPT = "session-decisions-nudge.sh"
+SKILL_MARK = "<!-- Installed by apo"
 
 # Seconds: longer than db.PROMPT_HOLD_SECONDS (an hour).
 PROMPT_HOOK_TIMEOUT = 3660
 
-# (event, `apo` subcommand, merge_hook options). Observe-only hooks are async so they
-# never sit in the agent's turn. Stop stays synchronous with a short timeout: it
-# writes the turn's final state, and a hung Stop hook would BLOCK the agent's turn.
+# (event, `apo` subcommand, hook options). Observe-only hooks are async so they never
+# sit in the agent's turn. Stop stays synchronous with a short timeout: it writes the
+# turn's final state, and a hung Stop hook would BLOCK the agent's turn.
 SESSION_HOOKS = (
     ("SessionStart", "session-start", {}),
     ("PostToolUse", "session-heartbeat", {"run_async": True}),
@@ -156,86 +55,279 @@ SESSION_HOOKS = (
     ("PreToolUse", "session-pretool", {"timeout": PROMPT_HOOK_TIMEOUT, "matcher": "AskUserQuestion|ExitPlanMode"}),
     ("StopFailure", "session-stop-failure", {"run_async": True}),
 )
+_OUR_SUBCOMMANDS = {subcommand for _, subcommand, _ in SESSION_HOOKS}
 
 
-def run(args, home_dir: Path | None = None) -> None:
-    from apo import config
+def packaged(name: str):
+    """A file shipped in the package's resources/ folder."""
+    return files("apo") / "resources" / name
 
-    checkout_root = Path(__file__).resolve().parent / "resources"
-    home_dir = home_dir or Path.home()
-    home_env_path = home_dir / ".claude" / "ai-decision-orchestrator" / ".env"
 
-    db_path = args.db_path
-    if db_path is None and not args.yes:
-        entered = input(f"DB location [{config.default_db_path()}]: ").strip()
-        db_path = entered or None
+def apo_executable() -> str:
+    """The installed `apo`, as an absolute path when it can be found: Claude Code runs
+    hooks and MCP servers from its own process, whose PATH may not be this shell's."""
+    found = shutil.which("apo")
+    if found:
+        return found
+    beside = Path(sys.executable).parent / "apo"
+    return str(beside) if beside.exists() else "apo"
+
+
+def write_env_updates(env_path: Path, updates: dict[str, str]) -> None:
+    """Merge `updates` into env_path's KEY=VALUE lines, preserving every other line
+    and overwriting a key already present rather than duplicating it. The file can
+    hold a Linear key, so only its owner can read it."""
+    lines = env_path.read_text().splitlines() if env_path.exists() else []
+    seen = set()
+    result = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in updates:
+                result.append(f"{key}={updates[key]}")
+                seen.add(key)
+                continue
+        result.append(line)
+    for key, value in updates.items():
+        if key not in seen:
+            result.append(f"{key}={value}")
+
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_private(env_path, "\n".join(result) + "\n")
+
+
+def _write_private(path: Path, text: str) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as out:
+        out.write(text)
+    os.chmod(path, 0o600)
+
+
+def _write_atomically(path: Path, text: str) -> None:
+    tmp = path.with_name(f".{path.name}.apo-tmp")
+    tmp.write_text(text)
+    os.replace(tmp, path)
+
+
+def _backup(path: Path) -> Path:
+    backup_path = path.with_name(f"{path.name}.bak-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    backup_path.write_text(path.read_text())
+    return backup_path
+
+
+def is_our_hook(command: str) -> bool:
+    """A hook this installer, or an older one under the old name, wrote: the nudge
+    script, or `apo`/`ado` with one of the session subcommands, at any path."""
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return False
+    if len(parts) == 1:
+        return Path(parts[0]).name == NUDGE_SCRIPT
+    return len(parts) == 2 and Path(parts[0]).name in ("apo", "ado") and parts[1] in _OUR_SUBCOMMANDS
+
+
+def _hook_entry(command: str, timeout: int | None = None, run_async: bool = False,
+                matcher: str | None = None) -> dict:
+    hook = {"type": "command", "command": command}
+    if timeout is not None:
+        hook["timeout"] = timeout
+    if run_async:
+        hook["async"] = True
+    entry = {"hooks": [hook]}
+    if matcher is not None:
+        entry["matcher"] = matcher
+    return entry
+
+
+def merge_hooks(settings: dict, apo_bin: str, nudge_path: Path) -> dict:
+    """`settings` with every hook of ours (by is_our_hook, any path, either name)
+    removed and the current set added once. Everyone else's hooks stay as they were."""
+    hooks = settings.setdefault("hooks", {})
+    for event in list(hooks):
+        kept = []
+        for entry in hooks[event]:
+            entry_hooks = [h for h in entry.get("hooks", []) if not is_our_hook(h.get("command", ""))]
+            if entry_hooks:
+                kept.append({**entry, "hooks": entry_hooks})
+            elif not entry.get("hooks"):
+                kept.append(entry)
+        if kept:
+            hooks[event] = kept
+        else:
+            del hooks[event]
+    hooks.setdefault("SessionStart", []).append(_hook_entry(shlex.quote(str(nudge_path))))
+    quoted = shlex.quote(apo_bin)
+    for event, subcommand, options in SESSION_HOOKS:
+        hooks.setdefault(event, []).append(_hook_entry(f"{quoted} {subcommand}", **options))
+    return settings
+
+
+def rename_permissions(settings: dict) -> dict:
+    """Allow-list entries for the old server's tools, moved to the new name."""
+    permissions = settings.get("permissions")
+    allow = permissions.get("allow") if isinstance(permissions, dict) else None
+    if not isinstance(allow, list):
+        return settings
+    old = f"mcp__{LEGACY_MCP_NAME}"
+    renamed = []
+    for rule in allow:
+        if isinstance(rule, str) and (rule == old or rule.startswith(old + "__")):
+            rule = f"mcp__{MCP_NAME}" + rule[len(old):]
+        if rule not in renamed:
+            renamed.append(rule)
+    permissions["allow"] = renamed
+    return settings
+
+
+def install_hooks(settings_path: Path, apo_bin: str, nudge_path: Path) -> str:
+    """Rewrites settings.json with our hooks and renamed permissions: backed up once
+    before the first change, written atomically, and left alone if it isn't JSON."""
+    before_text = settings_path.read_text() if settings_path.exists() else None
+    try:
+        settings = json.loads(before_text) if before_text and before_text.strip() else {}
+    except json.JSONDecodeError as exc:
+        return f"skipped: {settings_path} isn't valid JSON ({exc}); fix it and run `apo init` again"
+    if not isinstance(settings, dict):
+        return f"skipped: {settings_path} doesn't hold a JSON object"
+    before = json.loads(json.dumps(settings))
+    after = rename_permissions(merge_hooks(settings, apo_bin, nudge_path))
+    if after == before:
+        return f"already up to date in {settings_path}"
+    backup = _backup(settings_path) if before_text is not None else None
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_atomically(settings_path, json.dumps(after, indent=2) + "\n")
+    return f"written to {settings_path}" + (f" (the old one is saved as {backup.name})" if backup else "")
+
+
+def install_nudge_script(dest: Path) -> Path:
+    """The session-start notice is plain shell, so it runs without Python. It's copied
+    out of the package because a path into an install moves when the install does."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(packaged(f"hooks/{NUDGE_SCRIPT}").read_text())
+    dest.chmod(0o755)
+    return dest
+
+
+def _skill_text() -> str:
+    text = packaged("skills/decisions/SKILL.md").read_text()
+    _, front, body = text.split("---", 2)
+    mark = f"{SKILL_MARK} {apo.__version__}. `apo init` keeps this file up to date, so edits here are overwritten. -->"
+    return f"---{front}---\n\n{mark}\n{body}"
+
+
+def _is_old_skill_link(path: Path) -> bool:
+    """The symlink an older install made into its checkout's skills/decisions."""
+    try:
+        return ".claude/decisions/INDEX.md" in (path / "SKILL.md").read_text()
+    except OSError:
+        return not path.exists()
+
+
+def install_skill(dest_dir: Path) -> str:
+    """A copy of the packaged skill, marked as apo's so a later run knows it may
+    replace it. Someone else's `decisions` skill is left alone."""
+    skill = dest_dir / "SKILL.md"
+    if dest_dir.is_symlink():
+        if not _is_old_skill_link(dest_dir):
+            return f"skipped: {dest_dir} links to a skill apo didn't install"
+        dest_dir.unlink()
+    elif dest_dir.exists() and not (skill.is_file() and SKILL_MARK in skill.read_text()):
+        return f"skipped: {dest_dir} holds a skill apo didn't install"
+    status = "updated" if skill.exists() else "installed"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    skill.write_text(_skill_text())
+    return f"{status} in {dest_dir}"
+
+
+def _manual_mcp_command(apo_bin: str) -> str:
+    return f"claude mcp add {MCP_NAME} --scope user -- {shlex.quote(apo_bin)} mcp"
+
+
+def register_mcp_server(apo_bin: str) -> tuple[bool, str]:
+    """`claude mcp add apo --scope user -- <apo> mcp`, after removing any earlier
+    registration under either name, so a re-run or a moved install updates the entry
+    instead of failing on it. Never raises: a missing `claude` or a failed add comes
+    back as a message."""
+    claude = shutil.which(config.claude_bin())
+    if claude is None:
+        return False, f"`claude` isn't on PATH. Register the MCP server yourself:\n  {_manual_mcp_command(apo_bin)}"
+    replaced = []
+    for name in (LEGACY_MCP_NAME, MCP_NAME):
+        removed = subprocess.run([claude, "mcp", "remove", name, "--scope", "user"], capture_output=True, text=True)
+        if removed.returncode == 0 and name == LEGACY_MCP_NAME:
+            replaced.append(name)
+    result = subprocess.run([claude, "mcp", "add", MCP_NAME, "--scope", "user", "--", apo_bin, "mcp"],
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "claude mcp add failed"
+        return False, f"{detail}\nRegister it yourself:\n  {_manual_mcp_command(apo_bin)}"
+    note = f" (replacing the old {replaced[0]} entry)" if replaced else ""
+    return True, f"registered as `{MCP_NAME}` at user scope{note}"
+
+
+def _ask(prompt: str, args) -> str:
+    return "" if args.yes else input(prompt).strip()
+
+
+def _settings_answers(args) -> dict[str, str]:
+    updates = {}
+    db_path = args.db_path or _ask(f"Where should apo keep its database? [{config.get_db_path()}]: ", args)
     if db_path:
-        write_env_updates(home_env_path, {"APO_DB": str(Path(db_path).expanduser())})
-        print(f"DB location: {db_path}")
-    else:
-        print(f"DB location: {config.default_db_path()} (default)")
+        updates["APO_DB"] = str(Path(db_path).expanduser())
 
-    # The folder the dashboard's New project offers subfolders of (config.get_projects_root).
-    projects_root = args.projects_root
-    if projects_root is None and not args.yes:
-        entered = input(f"Where do your projects live? [{config.get_projects_root()}]: ").strip()
-        projects_root = entered or None
+    projects_root = args.projects_root or _ask(f"Where do your projects live? [{config.get_projects_root()}]: ", args)
     if projects_root:
         root = Path(projects_root).expanduser()
         root.mkdir(parents=True, exist_ok=True)
-        write_env_updates(home_env_path, {"APO_PROJECTS_ROOT": str(root)})
-        print(f"Projects folder: {root}")
-    else:
-        print(f"Projects folder: {config.get_projects_root()}")
+        updates["APO_PROJECTS_ROOT"] = str(root)
 
-    if args.skip_linear:
-        print("Linear skipped (--skip-linear).")
-    else:
+    if not args.skip_linear:
         api_key, team = args.linear_api_key, args.linear_team
-        if not args.yes and not api_key:
-            if input("Configure Linear? [y/N]: ").strip().lower() == "y":
-                api_key = getpass.getpass("Linear API key: ").strip()
-                team = input("Linear team (key or id): ").strip()
+        if not api_key and _ask("Connect Linear now? You can also do it later in the dashboard's Settings. [y/N]: ",
+                                args).lower() == "y":
+            api_key = getpass.getpass("Linear API key: ").strip()
+            team = input("Linear team (key or id): ").strip()
         if api_key and team:
-            write_env_updates(home_env_path, {"APO_LINEAR_API_KEY": api_key, "APO_LINEAR_TEAM": team})
-            print("Linear configured.")
-        else:
-            print("Linear skipped.")
+            updates.update({"APO_LINEAR_API_KEY": api_key, "APO_LINEAR_TEAM": team})
+    return updates
+
+
+def run(args) -> None:
+    updates = _settings_answers(args)
+    if updates:
+        write_env_updates(config.config_file(), updates)
+        print(f"Settings: saved to {config.config_file()}")
+
+    for folder in (config.data_dir(), config.get_db_path().parent):
+        folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+    data = config.get_db_path().parent
+    print(f"Data: {data}")
+
+    profile = claude_runtime.claude_config_dir()
+    apo_bin = apo_executable()
 
     if args.skip_mcp:
-        print("MCP server registration skipped (--skip-mcp).")
+        print("MCP server: skipped (--skip-mcp)")
     else:
-        _, message = register_mcp_server()
-        print(message)
-
-    if args.skip_skill:
-        print("Skill install skipped (--skip-skill).")
-    else:
-        status = install_skill_symlink(
-            checkout_root / "skills" / "decisions", home_dir / ".claude" / "skills" / "decisions",
-        )
-        print(f"Skill install: {status}")
+        print(f"MCP server: {register_mcp_server(apo_bin)[1]}")
 
     if args.skip_hook:
-        print("Hook install skipped (--skip-hook).")
+        print("Hooks: skipped (--skip-hook)")
     else:
-        settings_path = home_dir / ".claude" / "settings.json"
-        # One backup for the whole batch below, taken before any of the seven
-        # merge_hook calls touch the file — each call used to back up on its own,
-        # leaving six redundant copies of the same pre-init state.
-        if settings_path.exists():
-            _backup(settings_path)
-        merge_hook(
-            settings_path, "SessionStart", str(checkout_root / "hooks" / "session-decisions-nudge.sh"),
-            backup=False,
-        )
+        nudge = install_nudge_script(config.data_dir() / "hooks" / NUDGE_SCRIPT)
+        print(f"Hooks: {install_hooks(profile / 'settings.json', apo_bin, nudge)}")
 
-        # Resolved to an absolute path when possible, same reasoning as
-        # register_mcp_server's resolution: Claude Code execs these from its own
-        # process, whose PATH may not match the shell `apo init` ran in.
-        apo_bin = shutil.which("apo") or "apo"
-        for event, subcommand, options in SESSION_HOOKS:
-            merge_hook(settings_path, event, f"{apo_bin} {subcommand}", backup=False, **options)
-        print("Session-tracking + nudge hooks installed.")
+    if args.skip_skill:
+        print("Skill /decisions: skipped (--skip-skill)")
+    else:
+        print(f"Skill /decisions: {install_skill(profile / 'skills' / 'decisions')}")
 
-    print("\napo init complete.")
+    print(f"""
+apo init complete.
+
+Next:
+  - Start a new Claude Code session. Sessions already running keep the tools they started with.
+  - Start the dashboard with `apo dashboard start`, then open http://127.0.0.1:{config.dashboard_port()}
+  - Your data lives in {data}""")
