@@ -4,22 +4,35 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "getapo"
-version = "0.0.1"
-description = "apo (AI Project Orchestration): a human-in-the-loop dashboard for Claude Code agents. Not released yet; this version only holds the name."
+dynamic = ["version"]
+description = "apo (AI Project Orchestration): a local dashboard and MCP server for Claude Code."
 readme = "README.md"
 requires-python = ">=3.10"
-classifiers = [
-    "Development Status :: 1 - Planning",
-    "Environment :: Console",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "jinja2",
+    "python-multipart",
+    "mcp",
+    "cryptography",
+    "markdown",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "httpx"]
 
 [project.urls]
 Homepage = "https://getapo.pages.dev/"
 
 [project.scripts]
-apo = "apo:main"
+apo = "apo.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "apo.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,304 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import icon, ref, linear_badge, due_badge, due_buckets, burnup, stall_warning %}
+{% from "_project_macros.html" import status_labels, status_buttons %}
+
+{% set autonomy_labels = {"ask": "Ask first", "edits": "Accept file edits", "plan": "Plan only"} %}
+{% set autonomy_hints = {"ask": "Agents stop and ask before every edit and command, as a claude you open yourself would.", "edits": "File edits go through; commands still ask.", "plan": "Agents read and plan, and change nothing."} %}
+{% set lane_labels = {"problems": "Problem", "your_move": "Your move", "asks": "Ask pending", "in_transit": "In transit", "review": "Review"} %}
+
+{% block tab %}
+<div class="detail-layout">
+  <div class="project-main">
+    {{ due_buckets(work, "/projects/" ~ p.id ~ "/work?sort=due") }}
+    <section class="surface brief{% if not brief.goal %} brief--empty{% endif %}" aria-label="What this project is for">
+      {% if brief.goal %}
+        <p class="brief-goal">{{ brief.goal }}</p>
+        {% if brief.links %}
+          <p class="brief-links">{% for link in brief.links %}<a class="badge badge--square tone-neutral" href="{{ link.url }}" target="_blank" rel="noopener">{{ icon("external") }}{{ link.label }}</a>{% endfor %}</p>
+        {% endif %}
+      {% else %}
+        <p class="brief-goal">What's this project for?</p>
+        <p class="hint">Why it exists, in a line or two. Agents read it before planning. What you're working toward, and how you'll know it's done, go under Goals.</p>
+      {% endif %}
+      <details class="brief-edit disclosure"{% if not brief.goal %} open{% endif %}>
+        <summary>{{ icon("chevron-right", cls="chev") }}{{ "Edit" if brief.goal else "Write it" }}</summary>
+        <form method="post" action="/projects/{{ p.id }}/brief" class="form-stack">
+          <label class="field-label" for="brief-goal">Purpose</label>
+          <textarea id="brief-goal" class="textarea" name="goal" rows="2" placeholder="Why this project exists, in a line or two">{{ brief.goal or "" }}</textarea>
+          <label class="field-label" for="brief-links">Links, one per line</label>
+          <textarea id="brief-links" class="textarea" name="links" rows="2" data-submit-shortcut placeholder="Repo https://github.com/…&#10;Site https://…">{% for link in brief.links %}{{ link.label }} {{ link.url }}
+{% endfor %}</textarea>
+          <div><button type="submit" class="btn btn--primary btn--sm">Save</button></div>
+        </form>
+      </details>
+    </section>
+
+    <div class="report-actions" aria-label="Status to paste">{{ status_buttons("/projects/" ~ p.id ~ "/status") }}</div>
+
+    <section class="section" aria-labelledby="goals-heading">
+      <div class="section-head"><h2 class="section-title" id="goals-heading">Goals</h2></div>
+      <p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else. A project can have several, one after another.</p>
+      {% if outcomes %}
+        <div class="outcome-list">
+          {% for o in outcomes %}
+            {% set pr = o.progress %}
+            <div class="outcome-card surface">
+              <div class="outcome-card-head">
+                <a class="outcome-title outcome-card-link" href="/outcomes/{{ o.id }}">{{ o.title }}</a>
+                {{ linear_badge(o) }}
+                {{ due_badge(o.due_on) }}
+                {% if o.status == "paused" %}<span class="badge tone-neutral">Paused</span>{% endif %}
+                {% if pr.ready_to_close %}<span class="badge tone-info">Ready to close</span>{% endif %}
+                {{ stall_warning(o.trend) }}
+                <span class="outcome-count">{{ pr.done }}/{{ pr.total }}</span>
+              </div>
+              <span class="progress" aria-hidden="true"><span style="width: {{ (100 * pr.done / pr.total) | round | int if pr.total else 0 }}%"></span></span>
+              {{ burnup(o.trend, 120, 24) }}
+              {% if pr.next %}<p class="outcome-next">Next: {{ pr.next.title }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if not p.archived %}
+        <details class="surface report-bug disclosure">
+          <summary>{{ icon("plus") }}Start a goal</summary>
+          <form method="post" action="/outcomes" class="form-stack">
+            <input type="hidden" name="project" value="{{ p.name }}">
+            <input type="hidden" name="next" value="/projects/{{ p.id }}">
+            <label class="field-label" for="goal-title">What do you want to be true?</label>
+            <input id="goal-title" class="input" name="title" required placeholder="The listing is live and takes payments" autocomplete="off">
+            <label class="field-label" for="goal-done">Done when (optional)</label>
+            <input id="goal-done" class="input" name="done_when" placeholder="A real order goes through">
+            <label class="field-label" for="goal-due">Due (optional)</label>
+            <input id="goal-due" class="input" type="date" name="due_on">
+            <div><button type="submit" class="btn btn--primary btn--sm">Start goal</button></div>
+          </form>
+        </details>
+      {% endif %}
+      <div class="surface linear-goals" id="linear-goals">
+        <h3>Goals from Linear</h3>
+        {% if linear_goals.on or linear_goals.connected %}
+          <p>{% if linear_goals.on %}On.{% else %}Off.{% endif %} A new issue you create in the Linear project “{{ linear_goals.project_name }}” becomes a goal here, and its sub-issues become its steps. Steps you add here become sub-issues.</p>
+          {% if linear_goals.on and not linear_goals.connected %}<p class="muted">Linear isn't connected or its sync is off in <a href="/settings">Settings</a>, so nothing comes in until it's back.</p>{% endif %}
+          <form method="post" action="/projects/{{ p.id }}/linear-goals">
+            <input type="hidden" name="enabled" value="{{ '0' if linear_goals.on else '1' }}">
+            <button type="submit" class="btn btn--{{ 'ghost' if linear_goals.on else 'secondary' }} btn--sm">{{ "Turn off" if linear_goals.on else "Turn on" }}</button>
+          </form>
+          {% if linear_goals.choices is not none %}
+            <form method="post" action="/projects/{{ p.id }}/linear-project" class="linear-project-form">
+              <label class="field-label" for="linear-project">Linear project</label>
+              <select id="linear-project" class="input" name="linear_project">
+                {% for lp in linear_goals.choices %}<option value="{{ lp.id }}"{% if lp.id == linear_goals.selected %} selected{% endif %}>{{ lp.name }}</option>{% endfor %}
+              </select>
+              <p class="field-hint">Issues created there from now on come in; the import starts again from this moment.</p>
+              <div><button type="submit" class="btn btn--secondary btn--sm">Use this project</button></div>
+            </form>
+          {% elif linear_goals.error %}
+            <p class="muted">Couldn't load your Linear projects: {{ linear_goals.error }}</p>
+          {% elif linear_goals.connected %}
+            <p><a href="/projects/{{ p.id }}?choose_linear=1#linear-goals">Choose another Linear project</a></p>
+          {% endif %}
+        {% else %}
+          <p class="muted">Connect Linear in <a href="/settings">Settings</a> to turn issues filed there into goals here.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="needs-heading">
+      <div class="section-head">
+        <h2 class="section-title" id="needs-heading">Needs you</h2>
+        <a class="section-link" href="/?project={{ p.name | urlencode }}" data-hotkey="o">Open in Now <kbd aria-hidden="true">o</kbd></a>
+      </div>
+      <div data-live-region="queue">
+      {% if items %}
+        <ul class="history-list surface project-queue">
+          {% for lane, item in items[:8] %}
+            <li class="history-item">
+              <span class="badge tone-{{ {'problems': 'danger', 'your_move': 'warning', 'review': 'violet', 'in_transit': 'info'}.get(lane, 'neutral') }}">{{ lane_labels[lane] }}</span>
+              <div>
+                {% if item.decision %}<a href="/decisions/{{ item.decision.id }}">{{ ref(item.decision.id) }}{{ item.title }}</a>
+                {% elif item.outcome %}<a href="/outcomes/{{ item.outcome.id }}">{{ item.title }}</a>
+                {% else %}<a href="/projects/{{ p.id }}/agents">{{ item.title }}</a>{% endif %}
+                <div class="now-reason">{{ item.reason }}</div>
+              </div>
+              {% if item.since %}<span class="muted">{{ item.since | ago }}</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% if items | length > 8 %}<p class="hint"><a href="/projects/{{ p.id }}/work">All {{ items | length }} on the Work tab</a></p>{% endif %}
+      {% else %}
+        <p class="hint">Nothing here is waiting on you.</p>
+      {% endif %}
+      </div>
+    </section>
+
+    <section class="section" id="rules" aria-labelledby="agents-here-heading">
+      <div class="section-head"><h2 class="section-title" id="agents-here-heading">How agents work here</h2></div>
+      <p class="hint">What agents may do without asking, and the answers they should give themselves instead of asking you.</p>
+      <form method="post" action="/projects/{{ p.id }}/autonomy" class="surface form-stack agents-here-mode">
+        <label class="field-label" for="autonomy-select">Background sessions started from the dashboard</label>
+        <div class="agents-here-row">
+          <select id="autonomy-select" class="input" name="autonomy">
+            {% for value in autonomies %}<option value="{{ value }}"{% if autonomy == value %} selected{% endif %}>{{ autonomy_labels[value] }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="btn btn--secondary btn--sm">Save</button>
+        </div>
+        <p class="field-hint">{{ autonomy_hints[autonomy] }} Applies to New work's start-now, Apply in background, and resumes. A <code>claude</code> you open yourself keeps your own settings.</p>
+      </form>
+      <h3 class="subsection-title">Standing rules</h3>
+      <p class="hint">Answers you'd give every time. Agents read them before filing, and follow them instead of asking.</p>
+      {% if rule_suggestion %}
+        <div class="surface rule-suggestion">
+          <p>You accepted the agent's recommendation, or told it to use its judgment, on <strong>{{ rule_suggestion.accepted }} of {{ rule_suggestion.answered }}</strong> decisions here in the last {{ rule_suggestion.days }} days. Make it a rule?</p>
+          <blockquote>{{ rule_suggestion.text }}</blockquote>
+          <form method="post" action="/projects/{{ p.id }}/rules" class="inline-form">
+            <input type="hidden" name="text" value="{{ rule_suggestion.text }}">
+            <button type="submit" class="btn btn--primary btn--sm">Make it a rule</button>
+          </form>
+        </div>
+      {% endif %}
+      {% if rules %}
+        <ol class="surface rule-list">
+          {% for r in rules %}
+            <li>
+              <span>{{ r.text }}{% if r.source_decision_id %} <a class="muted" href="/decisions/{{ r.source_decision_id }}">from {{ ref(r.source_decision_id) }}</a>{% endif %}</span>
+              <form method="post" action="/projects/{{ p.id }}/rules/{{ r.id }}/retire" class="inline-form"
+                    data-confirm="Retire this rule? Agents will ask about it again.">
+                <button type="submit" class="btn btn--ghost btn--sm">Retire</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+      {% if not p.archived %}
+        <details class="surface report-bug disclosure">
+          <summary>{{ icon("plus") }}Add a rule</summary>
+          <form method="post" action="/projects/{{ p.id }}/rules" class="form-stack">
+            <label class="field-label" for="rule-text">The rule</label>
+            <textarea id="rule-text" class="textarea" name="text" rows="2" required data-submit-shortcut
+                      placeholder="Pick the cheapest reversible option without asking."></textarea>
+            <div><button type="submit" class="btn btn--primary btn--sm">Add rule</button></div>
+          </form>
+        </details>
+      {% endif %}
+    </section>
+
+    <section class="section" id="what-changed" aria-labelledby="changes-heading">
+      <div class="section-head">
+        <h2 class="section-title" id="changes-heading">What changed</h2>
+        <span class="hint">Last 7 days{% if changes.new %} · <strong>{{ changes.new }} new since you last looked</strong>{% endif %}</span>
+      </div>
+      {% set n = changes.commits | length %}
+      {% if n or changes.prs %}
+        <p class="changes-headline">{{ n }} commit{{ "s" if n != 1 }}
+          {%- if changes.merged %} · {{ changes.merged }} PR{{ "s" if changes.merged != 1 }} merged{% endif %}
+          {%- if changes.opened %} · {{ changes.opened }} PR{{ "s" if changes.opened != 1 }} open{% endif %}</p>
+        <div class="surface changes">
+          {% for day, day_items in changes.days.items() %}
+            <h3 class="changes-day">{{ day }}</h3>
+            <ul class="changes-list">
+              {% for i in day_items[:6] %}
+                <li class="{{ 'is-new' if i.new else '' }}">
+                  {% if i.kind == "pr" %}
+                    <span class="badge tone-{{ 'success' if i.state == 'MERGED' else 'info' }}">{{ "Merged" if i.state == "MERGED" else ("Draft" if i.isDraft else "Open") }} #{{ i.number }}</span>
+                    <a class="changes-subject" href="{{ i.url }}" target="_blank" rel="noopener">{{ i.title }}</a>
+                  {% else %}
+                    <code class="changes-sha" title="{{ i.author }}">{{ i.short }}</code>
+                    <span class="changes-subject">{{ i.subject }}</span>
+                    {% if changes.several_folders %}<span class="muted changes-folder">{{ i.folder }}</span>{% endif %}
+                  {% endif %}
+                </li>
+              {% endfor %}
+              {% if day_items | length > 6 %}<li class="muted">+{{ day_items | length - 6 }} more</li>{% endif %}
+            </ul>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="hint">No commits in the last 7 days.</p>
+      {% endif %}
+    </section>
+
+    <section class="section" aria-labelledby="recent-heading">
+      <div class="section-head">
+        <h2 class="section-title" id="recent-heading">Recently</h2>
+        <a class="section-link" href="/projects/{{ p.id }}/activity">All activity {{ icon("arrow-right") }}</a>
+      </div>
+      <div data-live-region="recent">
+      {% if events %}
+        <ul class="history-list surface activity-list">
+          {% for e in events %}
+            <li class="history-item activity-item importance-{{ e.importance }}">
+              <time datetime="{{ e.occurred_at }}">{{ e.occurred_at | ago }}</time>
+              <div>{% if e.decision_id %}<a href="/decisions/{{ e.decision_id }}">{{ e.summary }}</a>{% else %}{{ e.summary }}{% endif %}
+                {%- if e.repeat and e.repeat > 1 %} <span class="repeat-count">×{{ e.repeat }}</span>{% endif %}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="hint">Nothing recorded yet.</p>
+      {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <aside class="detail-aside project-aside">
+    <section class="surface aside-panel" aria-label="Status and priority">
+      <h2>Status and priority</h2>
+      <p class="status-line">{{ status_labels[status.value] }} — {% if status.overridden %}set by you{% if status.note %}: {{ status.note }}{% endif %}{% else %}{{ status.reason }}{% endif %}</p>
+      {% if status.overridden %}<p class="muted status-suggested">Suggested: {{ status_labels[status.suggested] }} ({{ status.reason }})</p>{% endif %}
+      <form method="post" action="/projects/{{ p.id }}/status" class="form-stack status-form">
+        <label class="field-label" for="status-select">Status</label>
+        <select id="status-select" class="input" name="status">
+          <option value="">Automatic ({{ status_labels[status.suggested] }})</option>
+          {% for value in statuses %}<option value="{{ value }}"{% if status.overridden and status.value == value %} selected{% endif %}>{{ status_labels[value] }}</option>{% endfor %}
+        </select>
+        <input class="input" name="note" value="{{ status.note or '' }}" placeholder="Why (optional)" aria-label="Why">
+        <label class="field-label" for="priority-select">Priority</label>
+        <select id="priority-select" class="input" name="priority">
+          {% for value in priorities %}<option value="{{ value }}"{% if priority == value %} selected{% endif %}>{{ value | capitalize }}</option>{% endfor %}
+        </select>
+        <p class="field-hint">{{ {"hot": "Ranks first in Now and notifies at once.", "normal": "Ranks and notifies as usual.", "background": "Ranks last in Now and never notifies."}[priority] }}</p>
+        <div><button type="submit" class="btn btn--secondary btn--sm">Save</button></div>
+      </form>
+      <p class="report-link"><a href="/projects/{{ p.id }}/report">Weekly report {{ icon("arrow-right") }}</a></p>
+    </section>
+
+    <section class="surface aside-panel" aria-label="At a glance" data-live-region="glance">
+      <h2>At a glance</h2>
+      <dl class="glance">
+        <dt>Needs you</dt><dd><a href="/projects/{{ p.id }}/work">{{ work.needs_you | length }}</a></dd>
+        <dt>Ready for an agent</dt><dd><a href="/projects/{{ p.id }}/work">{{ work.ready | length }}</a></dd>
+        <dt>In progress</dt><dd><a href="/projects/{{ p.id }}/work">{{ work.in_progress | length }}</a></dd>
+        <dt>Waiting</dt><dd><a href="/projects/{{ p.id }}/work">{{ work.waiting | length }}</a></dd>
+        <dt>Done this week</dt><dd><a href="/projects/{{ p.id }}/work">{{ work.done | length }}</a></dd>
+        <dt>Agents running</dt><dd><a href="/projects/{{ p.id }}/agents">{{ running }}</a></dd>
+      </dl>
+    </section>
+
+
+    <details class="surface aside-panel disclosure">
+      <summary>{{ icon("chevron-right", cls="chev") }}Rename</summary>
+      <form method="post" action="/projects/{{ p.id }}/rename" class="form-stack">
+        <label class="field-label" for="rename-to">New name</label>
+        <input id="rename-to" class="input" name="name" value="{{ p.name }}" required autocomplete="off">
+        <p class="field-hint">The old name keeps working for agents that still use it.</p>
+        <div><button type="submit" class="btn btn--secondary btn--sm">Rename</button></div>
+      </form>
+    </details>
+
+    {% if others %}
+      <details class="surface aside-panel disclosure">
+        <summary>{{ icon("chevron-right", cls="chev") }}Merge into another project</summary>
+        <form method="post" action="/projects/{{ p.id }}/merge" class="form-stack"
+              data-confirm="Move everything in {{ p.name }} into the chosen project? {{ p.name }} becomes an alias of it.">
+          <label class="field-label" for="merge-into">Merge {{ p.name }} into</label>
+          <select id="merge-into" class="input" name="into" required>
+            {% for name in others %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+          </select>
+          <div><button type="submit" class="btn btn--secondary btn--sm">Merge</button></div>
+        </form>
+      </details>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

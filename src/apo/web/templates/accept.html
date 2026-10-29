@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, ref, empty_state %}
+{% block title %}Accept in bulk — Switchboard{% endblock %}
+{% block body_class %}page-accept{% endblock %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow">
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">{{ icon("arrow-left") }}Now</a></p>
+      <h1>Accept in bulk</h1>
+      <p class="page-desc">Only recommendations the agent is at least {{ min_confidence }}% sure of, on an option it marked easy to reverse. One-way doors never show up here.</p>
+    </div>
+  </header>
+
+  {% if candidates %}
+    <form method="post" action="/accept" class="form-stack">
+      <ul class="history-list surface accept-list">
+        {% for d in candidates %}
+          <li class="history-item accept-item">
+            <input type="checkbox" name="ids" value="{{ d.id }}" id="accept-{{ d.id }}" checked>
+            <label for="accept-{{ d.id }}">
+              <span class="accept-title">{{ ref(d.id) }}{{ d.title }}</span>
+              <span class="badge badge--square tone-neutral">{{ d.project_name }}</span>
+              <span class="accept-pick">{{ d.pick.label }} <span class="muted">· {{ d.confidence }}% sure · ⇄ reversible</span></span>
+              {% if d.recommendation %}<span class="muted accept-why">{{ d.recommendation }}</span>{% endif %}
+            </label>
+            <a class="section-link" href="/decisions/{{ d.id }}">Open</a>
+          </li>
+        {% endfor %}
+      </ul>
+      <div><button type="submit" class="btn btn--primary">{{ icon("check") }}Accept the checked ones</button></div>
+    </form>
+  {% else %}
+    {% call empty_state("bulb", "Nothing to accept in bulk") %}
+      <p>No open decision has a sure, reversible recommendation right now.</p>
+    {% endcall %}
+  {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,86 @@
+<section class="detail-section" aria-labelledby="work-heading">
+  {% if decision.status == "resolved" %}
+    {% set partial = decision.completion and decision.completion.outcome == "partial" %}
+    <h2 id="work-heading">{{ icon("check-circle") }}{{ "Arrived" if is_wait else ("Partly done" if partial else "Done") }}</h2>
+    {% if decision.answer_text %}<div class="answer-block answer">{{ decision.answer_text }}</div>{% endif %}
+    {% if decision.completion %}
+      <dl class="completion">
+        {% for key, label in (("done", "Done"), ("not_done", "Not done"), ("left_for_human", "Left for you"), ("branch", "Branch")) %}
+          {% if decision.completion[key] %}<dt>{{ label }}</dt><dd>{{ decision.completion[key] }}</dd>{% endif %}
+        {% endfor %}
+      </dl>
+    {% endif %}
+    {% if effort_text %}<p class="muted">Took {{ effort_text }}</p>{% endif %}
+    {% include "_work_location.html" %}
+  {% elif decision.status == "cancelled" %}
+    <h2 id="work-heading">Cancelled</h2>
+  {% else %}
+    {% if is_wait %}
+      <h2 id="work-heading">Waiting on {{ decision.waiting_on or "someone outside" }}</h2>
+      <p class="delivery">{{ icon("info") }}<span>Nobody needs to do anything until it arrives. Mark it when it does.</span></p>
+    {% else %}
+      <h2 id="work-heading">For an agent</h2>
+      <p class="delivery">
+        {{ icon("info") }}
+        <span>
+        {% if decision.status == "in_progress" %}
+          An agent claimed it {% if decision.claimed_at %}{{ decision.claimed_at | ago }} {% endif %}{% if claim_stale %}but its session has ended. Retry puts it back to ready.{% else %}and is working on it.{% endif %}
+        {% elif repository %}
+          Ready in <code>{{ repository.local_path }}/.claude/decisions/INDEX.md</code>. The next session there that runs
+          <code>/decisions</code> claims it, or start one now.
+        {% elif folders %}
+          It has no folder, so no session can see it yet. Choose one under Folder.
+        {% else %}
+          No repository is registered for this project, so no session can see it. Register one with <code>ado repo-add</code>.
+        {% endif %}
+        </span>
+      </p>
+      {% if decision.dispatched_at %}
+        <p class="delivery">
+          {{ icon("terminal") }}
+          <span>Started in the background {{ decision.dispatched_at | ago }}{% if decision.dispatch_agent_id %} —
+            <code>claude attach {{ decision.dispatch_agent_id }}</code> to watch it{% endif %}.</span>
+        </p>
+      {% endif %}
+      {% if launch_error %}
+        <div class="alert tone-danger" role="alert">
+          {{ icon("alert") }}
+          <div class="alert-body"><span class="alert-title">Couldn't start it</span><p>{{ launch_error }}</p></div>
+        </div>
+      {% endif %}
+      {% if decision.status == "open" and repository %}
+        <form method="post" action="/decisions/{{ decision.id }}/start" class="apply-form">
+          <button type="submit" class="btn btn--primary btn--sm">{{ icon("zap") }}Start a background session on it</button>
+          <span class="field-hint">Runs <code>/decisions #{{ decision.id }}</code> in {{ repository.local_path | home }}.</span>
+        </form>
+      {% endif %}
+    {% endif %}
+    <form method="post" action="/items/{{ decision.id }}/done" class="form-stack work-done">
+      <input type="hidden" name="next" value="/decisions/{{ decision.id }}">
+      <label class="field-label" for="done-note">{{ "Arrived?" if is_wait else "Did it yourself?" }}</label>
+      <input id="done-note" class="input" name="note" placeholder="Note (optional)" autocomplete="off">
+      <div><button type="submit" class="btn btn--secondary btn--sm">{{ "Mark arrived" if is_wait else "Mark done" }}</button></div>
+    </form>
+  {% endif %}
+  {% if not is_wait and decision.kind == "task" and decision.status in ("in_progress", "cancelled", "resolved") %}
+    <form method="post" action="/items/{{ decision.id }}/retry" class="form-stack work-retry">
+      <input type="hidden" name="next" value="/decisions/{{ decision.id }}">
+      <label class="field-label" for="retry-note">Not right, or stuck?</label>
+      <input id="retry-note" class="input" name="note" placeholder="Why (optional)" autocomplete="off">
+      <div><button type="submit" class="btn btn--secondary btn--sm">Retry</button></div>
+    </form>
+  {% endif %}
+  {% if attempts %}
+    <h3 id="history-heading">History</h3>
+    <ol class="attempt-history">
+      {% for a in attempts %}
+        <li>
+          <strong>{{ {"claimed": "Claimed", "completed": "Partly done" if a.outcome == "partial" else "Completed", "released": "Released", "retried": "Retried"}[a.event] }}</strong>
+          <time datetime="{{ a.at }}">{{ a.at | ago }}</time>
+          {% if a.actor == "human" %}by you{% elif a.session_id %}by session <code>{{ a.session_id[:8] }}</code>{% endif %}
+          {% if a.note %}<div class="muted">{{ a.note }}</div>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</section>

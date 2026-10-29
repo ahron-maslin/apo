@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, empty_state %}
+{% from "_project_macros.html" import filter_bar, label_chips %}
+{% block title %}{% if q %}{{ q }} — {% endif %}Search — Switchboard{% endblock %}
+{% block body_class %}page-search{% endblock %}
+
+{% set group_labels = {"item": "Items", "session": "Sessions", "outcome": "Outcomes", "transcript": "In transcripts"} %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow">
+  <header class="page-header">
+    <div>
+      <h1>Search</h1>
+      <p class="page-desc">Questions, answers, context, session recaps and outcomes — any part of a word matches.</p>
+    </div>
+  </header>
+
+  <form method="get" action="/search" class="search-form" role="search">
+    <label class="sr-only" for="search-q">Search</label>
+    <input id="search-q" class="input" type="search" name="q" value="{{ q }}" placeholder="stripe webhook" autofocus autocomplete="off" data-search-shortcut>
+    <label class="search-deep"><input type="checkbox" name="deep" value="1" {% if deep %}checked{% endif %}> Search transcripts too</label>
+    <button type="submit" class="btn btn--primary btn--sm">{{ icon("search") }}Search</button>
+    <div class="search-filters">
+      <label class="field-label" for="f-status">Status</label>
+      <select id="f-status" class="input" name="status">
+        <option value="">Any</option>
+        {% for s in ["open", "in_progress", "answered", "resolved", "cancelled", "active", "paused", "ended"] %}
+          <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s | replace("_", " ") }}</option>
+        {% endfor %}
+      </select>
+      <label class="field-label" for="f-project">Project</label>
+      <select id="f-project" class="input" name="project">
+        <option value="">Any</option>
+        {% for n in project_names %}<option value="{{ n }}" {% if filters.project.lower() == n.lower() %}selected{% endif %}>{{ n }}</option>{% endfor %}
+      </select>
+      <label class="field-label" for="f-owner">Owner</label>
+      <select id="f-owner" class="input" name="owner">
+        <option value="">Any</option>
+        {% for v, l in [("me", "Me"), ("agent", "An agent"), ("external", "Someone else")] %}
+          <option value="{{ v }}" {% if filters.owner == v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+      <label class="field-label" for="f-label">Label</label>
+      <select id="f-label" class="input" name="label">
+        <option value="">Any</option>
+        {% for l in filter_labels %}<option value="{{ l }}" {% if filters.label == l %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+      <label class="field-label" for="f-since">Created from</label>
+      <input id="f-since" class="input" type="date" name="since" value="{{ filters.since }}">
+      <label class="field-label" for="f-until">to</label>
+      <input id="f-until" class="input" type="date" name="until" value="{{ filters.until }}">
+    </div>
+  </form>
+
+  {% from "_bulk.html" import views_panel %}
+  {{ views_panel(request) }}
+
+  {% if error %}<p class="hint tone-danger" role="alert">{{ error }} (dates are YYYY-MM-DD)</p>{% endif %}
+
+  {% if q or filtered %}
+    {% if groups %}
+      <div data-keylist>
+      {% for kind, hits in groups.items() %}
+        <section class="section" aria-labelledby="search-{{ kind }}">
+          <div class="section-head"><h2 class="section-title" id="search-{{ kind }}">{{ group_labels[kind] }} <span class="muted">{{ hits | length }}</span></h2></div>
+          <ul class="history-list surface search-results">
+            {% for h in hits %}
+              <li class="search-hit" data-keyitem>
+                <div class="search-hit-head">
+                  <a href="{{ h.href }}">{{ h.title | highlight(terms) }}</a>
+                  {% if h.project_name %}<span class="badge badge--square tone-neutral">{{ h.project_name }}</span>{% endif %}
+                  <span class="badge tone-neutral">{{ h.subkind if h.kind == "item" else h.status }}{% if h.kind == "item" %} · {{ h.status }}{% endif %}</span>
+                  {% if h.kind == "item" %}{{ label_chips(h.labels, "/search") }}{% endif %}
+                </div>
+                {% if h.snippet %}<p class="search-snippet">{{ h.snippet | highlight(terms) }}</p>{% endif %}
+                {% if h.resume_command and h.status == "ended" %}
+                  <div class="copy-command">
+                    <code>{{ h.resume_command }}</code>
+                    <button type="button" class="btn btn--secondary btn--sm" data-copy="{{ h.resume_command }}">Copy</button>
+                  </div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endfor %}
+      </div>
+    {% else %}
+      {% call empty_state("search", "Nothing matches") %}
+        <p>{% if not deep and not filtered %}Try <a href="/search?q={{ q | urlencode }}&deep=1">searching transcripts too</a>.{% else %}Not in any item, recap, outcome or transcript.{% endif %}</p>
+      {% endcall %}
+    {% endif %}
+  {% endif %}
+</main>
+{% endblock %}

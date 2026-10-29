@@ -1,0 +1,20 @@
+{#
+  Bring back a session that ended: resume it in the background (it picks up where it
+  left off), or carry on yourself in VS Code or a terminal. Expects `s` and, to come
+  back to the page it was clicked on, `card_back`.
+#}
+{% from "_macros.html" import icon %}
+<div class="session-actions">
+  <form method="post" action="/sessions/{{ s.id }}/continue">
+    <input type="hidden" name="how" value="resume">
+    {% if card_back %}<input type="hidden" name="next" value="{{ card_back }}">{% endif %}
+    <button type="submit" class="btn btn--secondary btn--sm"
+            title="Resume it in the background, picking up where it left off. To tell it something first, open it.">{{ icon("refresh") }}Resume</button>
+  </form>
+  <a class="btn btn--ghost btn--sm" href="vscode://anthropic.claude-code/open?session={{ s.claude_session_id | urlencode }}"
+     title="Open this session in VS Code's Claude Code panel (from WSL, VS Code has to be connected to this distro)">{{ icon("external") }}VS Code</a>
+  {% if s.resume_command %}
+    <button type="button" class="btn btn--ghost btn--sm" data-copy="{{ s.resume_command }}"
+            title="{{ s.resume_command }}">{{ icon("terminal") }}Copy terminal command</button>
+  {% endif %}
+</div>

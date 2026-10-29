@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, ref, folder_select, linear_badge, due_badge, burnup, stall_warning %}
+{% block title %}{{ outcome.title }} — Switchboard{% endblock %}
+{% block body_class %}page-outcome{% endblock %}
+
+{% set owner_labels = {"me": "You", "agent": "Agent", "external": "Waiting"} %}
+{% set here = "/outcomes/" ~ outcome.id %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/projects#goals">Goals</a> › <a href="/projects/{{ outcome.project_id }}">{{ outcome.project_name }}</a></nav>
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Outcome · {{ outcome.status }}{% if outcome.created_by == "agent" %} · started by an agent{% endif %}</span>
+      <h1>{{ outcome.title }}</h1>
+      {% if outcome.linear_url %}<p class="page-desc">{{ linear_badge(outcome) }} Planned in Linear. Its sub-issues are the steps, a step added here becomes one, and closing a step or the goal carries across both ways.</p>{% endif %}
+      {% if outcome.description %}<p class="page-desc outcome-description">{{ outcome.description }}</p>{% endif %}
+      {% if outcome.done_when %}<p class="page-desc"><strong>Done when:</strong> {{ outcome.done_when }}</p>{% endif %}
+      <form method="post" action="/outcomes/{{ outcome.id }}/due" class="inline-form due-form">
+        {{ due_badge(outcome.due_on) }}
+        <label class="sr-only" for="outcome-due">Due date</label>
+        <input id="outcome-due" class="input input--sm" type="date" name="due_on" value="{{ outcome.due_on or '' }}">
+        <button type="submit" class="btn btn--secondary btn--sm">{{ "Change due date" if outcome.due_on else "Set a due date" }}</button>
+      </form>
+    </div>
+    <form method="post" action="/outcomes/{{ outcome.id }}/status" class="outcome-status-buttons">
+      {% if outcome.status != "achieved" %}<button type="submit" name="status" value="achieved" class="btn btn--{{ 'primary' if progress.ready_to_close else 'secondary' }} btn--sm">{{ icon("check") }}Mark achieved</button>{% endif %}
+      {% if outcome.status == "active" %}<button type="submit" name="status" value="paused" class="btn btn--ghost btn--sm">Pause</button>{% endif %}
+      {% if outcome.status in ("paused", "achieved", "dropped") %}<button type="submit" name="status" value="active" class="btn btn--ghost btn--sm">Reopen</button>{% endif %}
+    </form>
+    {% if outcome.status != "dropped" %}
+      <form method="post" action="/outcomes/{{ outcome.id }}/status" class="inline-form" data-confirm="Drop this outcome? Its open steps are cancelled{% if outcome.linear_url %}, and so is {{ outcome.linear_identifier }} in Linear{% endif %}.">
+        <input type="hidden" name="status" value="dropped">
+        <button type="submit" class="btn btn--ghost btn--sm">Drop</button>
+      </form>
+    {% endif %}
+  </header>
+
+  <div class="outcome-summary">
+    <span class="progress" aria-hidden="true"><span style="width: {{ (100 * progress.done / progress.total) | round | int if progress.total else 0 }}%"></span></span>
+    <span>{{ progress.done }} of {{ progress.total }} done{% if progress.next %} · next: <span class="owner-pill owner-{{ progress.next_owner }}">{{ owner_labels[progress.next_owner] }}</span> {{ progress.next.title }}{% elif progress.ready_to_close %} · every step is done{% endif %}</span>
+  </div>
+
+  {% if trend.days | length > 1 %}<div class="outcome-trend">{{ burnup(trend, 240, 48) }} {{ stall_warning(trend) }}</div>{% endif %}
+
+  <ol class="checklist-steps surface">
+    {% for s in progress.steps %}
+      <li class="step step-{{ s.status }}{{ ' is-blocked' if s.blocked_by and not s.done else '' }}">
+        <span class="step-check" aria-hidden="true">{% if s.done %}{{ icon("check") }}{% elif s.status == "cancelled" %}✕{% elif s.status == "in_progress" %}⟳{% else %}○{% endif %}</span>
+        <div class="step-main">
+          <div class="step-head">
+            <a href="/decisions/{{ s.id }}" class="step-title">{{ ref(s.id) }}{{ s.title }}</a>
+            <span class="owner-pill owner-{{ s.owner }}">{{ owner_labels[s.owner] }}{% if s.owner == "external" and s.waiting_on %}: {{ s.waiting_on }}{% endif %}</span>
+            {% if s.linear_step %}<a class="badge badge--square tone-neutral" href="{{ s.linear_step.url }}" target="_blank" rel="noopener" title="Open in Linear">{{ s.linear_step.identifier }}{{ icon("external") }}</a>{% endif %}
+          </div>
+          <p class="step-meta">
+            {%- if s.status == "cancelled" %}Cancelled{% if s.cancel_reason %} — {{ s.cancel_reason }}{% endif %}
+            {%- elif s.done %}Done{% if s.answer_text and s.answer_text != "Done." %} — {{ s.answer_text }}{% endif %}
+            {%- elif s.status == "in_progress" %}In progress (an agent claimed it {{ s.claimed_at | ago }})
+            {%- elif s.blocked_by %}After {% for b in s.blocked_by %}#{{ b }} {{ titles.get(b, "") }}{{ ", " if not loop.last }}{% endfor %}
+            {%- elif s.owner == "agent" %}Ready for an agent — it's in the repo's .claude/decisions/ as READY
+            {%- elif s.owner == "external" %}Waiting{% if s.follow_up_at %} · check on it {{ s.follow_up_at | clock_day }}{% endif %}
+            {%- else %}Your move{% endif -%}
+          </p>
+          {% if s.done and s.work_location and s.work_location.merged is false %}
+            <p class="step-meta">Work is {{ s.work_location | work_location | code_spans }}.</p>
+          {% endif %}
+          {% if not s.done and s.status != "cancelled" %}
+            <div class="step-actions">
+              {% if s.owner in ("me", "external") %}
+                <form method="post" action="/items/{{ s.id }}/done" class="inline-form">
+                  <input type="hidden" name="next" value="{{ here }}">
+                  <button type="submit" class="btn btn--secondary btn--sm">{{ icon("check") }}{{ "It arrived" if s.owner == "external" else "Done" }}</button>
+                </form>
+              {% endif %}
+              {% if s.owner in ("me", "agent") %}
+                <form method="post" action="/items/{{ s.id }}/assign" class="inline-form">
+                  <input type="hidden" name="next" value="{{ here }}">
+                  <input type="hidden" name="owner" value="{{ 'agent' if s.owner == 'me' else 'me' }}">
+                  <button type="submit" class="btn btn--ghost btn--sm">{{ "Give to an agent" if s.owner == "me" else "Take it" }}</button>
+                </form>
+              {% endif %}
+              <form method="post" action="/items/{{ s.id }}/cancel" class="inline-form">
+                <input type="hidden" name="next" value="{{ here }}">
+                <button type="submit" class="btn btn--ghost btn--sm">Cancel</button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
+      </li>
+    {% else %}
+      <li class="step muted">No steps yet — add the first below.</li>
+    {% endfor %}
+  </ol>
+
+  <section class="section" aria-labelledby="add-step-heading">
+    <div class="section-head"><h2 class="section-title" id="add-step-heading">Add a step</h2></div>
+    {% if outcome.linear_url %}<p class="hint">It also becomes a sub-issue of {{ outcome.linear_identifier }} in Linear.</p>{% endif %}
+    <form method="post" action="/outcomes/{{ outcome.id }}/steps" class="surface form-stack">
+      <label class="field-label" for="step-title">Step</label>
+      <input id="step-title" class="input" name="title" required placeholder="Add the DNS TXT record">
+      <div class="form-row">
+        <div>
+          <label class="field-label" for="step-owner">Who does it</label>
+          <select id="step-owner" class="input" name="owner">
+            <option value="me">You</option>
+            <option value="agent">An agent</option>
+            <option value="external">Someone outside (a wait)</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="step-after">After (optional)</label>
+          <select id="step-after" class="input" name="blocked_by">
+            <option value="">—</option>
+            {% for s in progress.steps if not s.done and s.status != "cancelled" %}<option value="{{ s.id }}">#{{ s.id }} {{ s.title }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <label class="field-label" for="step-detail">Details (optional — for an agent step, this is its brief)</label>
+      <textarea id="step-detail" class="textarea" name="detail" rows="2"></textarea>
+      <label class="field-label" for="step-waiting">Waiting on (for a wait)</label>
+      <input id="step-waiting" class="input" name="waiting_on" placeholder="Apple review, the client, DNS propagation…">
+      {% if folders | length > 1 %}{{ folder_select(folders, folder_default, "step-folder") }}{% endif %}
+      <div><button type="submit" class="btn btn--primary">Add step</button></div>
+    </form>
+  </section>
+
+  {% if sessions %}
+    <section class="section" aria-labelledby="outcome-sessions-heading">
+      <div class="section-head"><h2 class="section-title" id="outcome-sessions-heading">Sessions on this</h2></div>
+      <ul class="history-list surface">
+        {% for s in sessions %}
+          <li class="history-item"><span class="badge">{{ s.display_status }}</span>
+            <div><a href="/projects/agents#session-card-{{ s.id }}">{{ s.title or s.claude_session_id[:8] }}</a></div>
+            <time datetime="{{ s.last_seen_at }}">{{ s.last_seen_at | ago }}</time></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

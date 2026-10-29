@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "_macros.html" import ref, due_badge %}
+{% block title %}This week — Switchboard{% endblock %}
+{% block body_class %}page-report{% endblock %}
+
+{% macro entries(label, rows) -%}
+{%- if rows %}
+  <h3>{{ label }}</h3>
+  <ul class="report-list">{{ caller() }}</ul>
+{%- endif %}
+{%- endmacro %}
+
+{% macro session_li(s) -%}
+<li><a href="/projects/agents#session-card-{{ s.id }}">{{ s.title or s.claude_session_id[:8] }}</a> <span class="badge tone-neutral">{{ s.verdict }}</span>{% if s.verdict_reason %} <span class="muted">{{ s.verdict_reason }}</span>{% endif %}</li>
+{%- endmacro %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow report">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/projects">Projects</a> › This week</nav>
+  <header class="page-header">
+    <div>
+      <h1>{{ "Last week" if mode == "last" else ("Custom range" if mode == "range" else "This week") }}</h1>
+      <p class="page-desc">{{ first.strftime("%a %b") }} {{ first.day }} to {{ last.strftime("%a %b") }} {{ last.day }}, across all projects</p>
+    </div>
+    <div class="report-actions">
+      <a class="btn btn--{{ 'secondary' if mode == 'this' else 'ghost' }} btn--sm" href="/projects/week">This week</a>
+      <a class="btn btn--{{ 'secondary' if mode == 'last' else 'ghost' }} btn--sm" href="/projects/week?week=last">Last week</a>
+    </div>
+  </header>
+  <form method="get" action="/projects/week" class="week-range">
+    <label class="field-label" for="week-start">From</label>
+    <input id="week-start" class="input input--sm" type="date" name="start" value="{{ first.isoformat() }}" required>
+    <label class="field-label" for="week-end">To</label>
+    <input id="week-end" class="input input--sm" type="date" name="end" value="{{ last.isoformat() }}" required>
+    <button type="submit" class="btn btn--secondary btn--sm">Show range</button>
+  </form>
+
+  <dl class="report-numbers surface week-totals">
+    <div><dt>Finished</dt><dd class="num">{{ week.totals.finished }}</dd></div>
+    <div><dt>Slipped</dt><dd class="num">{{ week.totals.slipped }}</dd></div>
+    <div><dt>Waiting on you</dt><dd class="num">{{ week.totals.stuck }}</dd></div>
+  </dl>
+
+  {% for p in week.projects %}
+    {% set c = p.counts %}
+    {% if c.finished or c.slipped or c.stuck %}
+    <section class="surface report-project" aria-labelledby="week-{{ p.project.id }}">
+      <div class="report-head">
+        <h2 id="week-{{ p.project.id }}"><a href="/projects/{{ p.project.id }}">{{ p.project.name }}</a></h2>
+        <span class="muted">{{ c.finished }} finished · {{ c.slipped }} slipped · {{ c.stuck }} waiting on you</span>
+      </div>
+
+      {% call entries("Finished", c.finished) %}
+        {% for g in p.finished.goals %}<li><span class="badge tone-success">Goal</span> <a href="/outcomes/{{ g.id }}">{{ g.title }}</a></li>{% endfor %}
+        {% for i in p.finished["items"] %}<li><a href="/decisions/{{ i.id }}">{{ ref(i.id) }}{{ i.title }}</a></li>{% endfor %}
+        {% for s in p.finished.sessions %}{{ session_li(s) }}{% endfor %}
+      {% endcall %}
+
+      {% call entries("Slipped", c.slipped) %}
+        {% for i in p.slipped.overdue %}<li><a href="/decisions/{{ i.id }}">{{ ref(i.id) }}{{ i.title }}</a> {{ due_badge(i.due_on) }}</li>{% endfor %}
+        {% for s in p.slipped.sessions %}{{ session_li(s) }}{% endfor %}
+        {% for i in p.slipped.reopened %}<li><a href="/decisions/{{ i.id }}">{{ ref(i.id) }}{{ i.title }}</a> <span class="muted">reopened</span></li>{% endfor %}
+        {% for i in p.slipped.retried %}<li><a href="/decisions/{{ i.id }}">{{ ref(i.id) }}{{ i.title }}</a> <span class="muted">retried</span></li>{% endfor %}
+      {% endcall %}
+
+      {% call entries("Waiting on you", c.stuck) %}
+        {% for b in p.stuck %}<li><a href="/decisions/{{ b.id }}">{{ ref(b.id) }}{{ b.title }}</a> <span class="muted">waiting {{ b.waited_hours }}h</span></li>{% endfor %}
+      {% endcall %}
+    </section>
+    {% endif %}
+  {% endfor %}
+  {% if not (week.totals.finished or week.totals.slipped or week.totals.stuck) %}
+    <p class="hint">Nothing finished, slipped or waiting in this range.</p>
+  {% endif %}
+</main>
+{% endblock %}

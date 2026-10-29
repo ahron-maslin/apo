@@ -1,0 +1,59 @@
+{#
+  The prompt a background session's hook is holding for the dashboard (s.prompt):
+  a permission, a question, or a plan. `compact` is the card's version: permission
+  buttons inline, anything longer on the session's page.
+#}
+{% set p = s.prompt %}
+{% set back = back if back is defined else "/sessions/" ~ s.id %}
+<div class="prompt-box prompt-{{ p.kind }}" id="prompt">
+  {% if p.kind == "permission" %}
+    <p class="prompt-ask">Allow <code>{{ p.detail or p.tool }}</code>?</p>
+    <form method="post" action="/sessions/{{ s.id }}/prompt" class="prompt-form">
+      <input type="hidden" name="prompt_id" value="{{ p.id }}">
+      <input type="hidden" name="next" value="{{ back }}">
+      {% if not compact %}<input class="input" name="message" placeholder="Why not (optional, sent with Deny)" aria-label="Why not">{% endif %}
+      <div class="prompt-buttons">
+        <button type="submit" name="choice" value="allow" class="btn btn--primary btn--sm">Allow</button>
+        <button type="submit" name="choice" value="deny" class="btn btn--secondary btn--sm">Deny</button>
+        <button type="submit" name="choice" value="terminal" class="btn btn--ghost btn--sm" title="Let Claude Code's own dialog show instead, for claude attach">In the terminal</button>
+      </div>
+    </form>
+  {% elif compact %}
+    <p class="prompt-ask">{{ "It has a plan for you to approve." if p.kind == "plan" else p.detail }}</p>
+    <a class="btn btn--primary btn--sm" href="/sessions/{{ s.id }}#prompt">{{ "Review the plan" if p.kind == "plan" else "Answer" }} {{ icon("arrow-right") }}</a>
+  {% elif p.kind == "question" %}
+    <form method="post" action="/sessions/{{ s.id }}/prompt" class="prompt-form form-stack">
+      <input type="hidden" name="prompt_id" value="{{ p.id }}">
+      <input type="hidden" name="next" value="{{ back }}">
+      {% for q in p.questions %}
+        {% set qi = loop.index0 %}
+        <fieldset class="prompt-question">
+          <legend>{{ q.question }}</legend>
+          {% for o in q.options %}
+            <label class="prompt-option">
+              <input type="{{ 'checkbox' if q.multiSelect else 'radio' }}" name="answer-{{ qi }}" value="{{ o.label }}">
+              <span><strong>{{ o.label }}</strong>{% if o.description %} <span class="muted">— {{ o.description }}</span>{% endif %}</span>
+            </label>
+          {% endfor %}
+          <input class="input" name="other-{{ qi }}" placeholder="Or in your own words" aria-label="Your own answer to: {{ q.question }}">
+        </fieldset>
+      {% endfor %}
+      <div class="prompt-buttons">
+        <button type="submit" name="choice" value="answer" class="btn btn--primary btn--sm">Answer</button>
+        <button type="submit" name="choice" value="terminal" class="btn btn--ghost btn--sm" formnovalidate>In the terminal</button>
+      </div>
+    </form>
+  {% elif p.kind == "plan" %}
+    <div class="prompt-plan">{{ p.plan or "The plan is in the session's plan file." }}</div>
+    <form method="post" action="/sessions/{{ s.id }}/prompt" class="prompt-form form-stack">
+      <input type="hidden" name="prompt_id" value="{{ p.id }}">
+      <input type="hidden" name="next" value="{{ back }}">
+      <textarea class="textarea" name="message" rows="2" placeholder="What to change (sent with Keep planning)" aria-label="What to change"></textarea>
+      <div class="prompt-buttons">
+        <button type="submit" name="choice" value="allow" class="btn btn--primary btn--sm">Approve the plan</button>
+        <button type="submit" name="choice" value="deny" class="btn btn--secondary btn--sm">Keep planning</button>
+        <button type="submit" name="choice" value="terminal" class="btn btn--ghost btn--sm">In the terminal</button>
+      </div>
+    </form>
+  {% endif %}
+</div>

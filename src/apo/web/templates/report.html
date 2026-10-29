@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, ref, due_badge %}
+{% from "_project_macros.html" import status_labels, status_buttons %}
+{% block title %}Weekly report: {{ title }} — Switchboard{% endblock %}
+{% block body_class %}page-report{% endblock %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow report">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{{ back }}">{{ title }}</a> › Weekly report</nav>
+  <header class="page-header">
+    <div>
+      <h1>Weekly report: {{ title }}</h1>
+      <p class="page-desc">{{ start.strftime("%a %b") }} {{ start.day }} to {{ last.strftime("%a %b") }} {{ last.day }}</p>
+    </div>
+    <div class="report-actions">
+      <a class="btn btn--ghost btn--sm" href="{{ base }}?end={{ prev_end }}">Previous week</a>
+      {% if next_end %}<a class="btn btn--ghost btn--sm" href="{{ base }}{% if next_end != 'today' %}?end={{ next_end }}{% endif %}">Next week</a>{% endif %}
+      <button type="button" class="btn btn--secondary btn--sm" data-copy="{{ markdown }}">Copy as Markdown</button>
+      {{ status_buttons(status_base, "since=" ~ start.date().isoformat() ~ "&until=" ~ last.date().isoformat()) }}
+      <button type="button" class="btn btn--secondary btn--sm" onclick="window.print()">Print</button>
+    </div>
+  </header>
+
+  {% for r in reports %}
+    <section class="surface report-project" aria-labelledby="report-{{ r.project.id }}">
+      <div class="report-head">
+        <h2 id="report-{{ r.project.id }}">{% if reports | length > 1 %}<a href="/projects/{{ r.project.id }}/report?end={{ end_day.isoformat() }}">{{ r.project.name }}</a>{% else %}{{ r.project.name }}{% endif %}</h2>
+        <span class="badge tone-neutral">{{ status_labels[r.status.value] }}</span>
+        <span class="muted">{{ r.status.note or r.status.reason }}</span>
+      </div>
+
+      <dl class="report-numbers">
+        <div><dt>Done</dt><dd class="num">{{ r.done | length }}</dd></div>
+        <div><dt>Decided</dt><dd class="num">{{ r.decided | length }}</dd></div>
+        <div><dt>Filed</dt><dd class="num">{{ r.filed }}</dd></div>
+        <div><dt>Agents waited on you</dt><dd class="num">{{ r.waited_hours }}h</dd></div>
+        <div><dt>Median answer</dt><dd class="num">{% if r.median_answer_minutes is not none %}{{ r.median_answer_minutes // 60 }}h {{ r.median_answer_minutes % 60 }}m{% else %}—{% endif %}</dd></div>
+        <div><dt>Commits</dt><dd class="num">{{ r.commits }}{% if r.prs_merged %} · {{ r.prs_merged }} PR{{ "s" if r.prs_merged != 1 }}{% endif %}</dd></div>
+      </dl>
+      <p class="report-trend muted">Done per week, last 4 weeks: {{ r.trend | join(" · ") }}</p>
+
+      {% if r.done or r.goals_achieved %}
+        <h3>Done</h3>
+        <ul class="report-list">
+          {% for g in r.goals_achieved %}<li><span class="badge tone-success">Goal</span> <a href="/outcomes/{{ g.id }}">{{ g.title }}</a></li>{% endfor %}
+          {% for i in r.done %}<li><a href="/decisions/{{ i.id }}">{{ ref(i.id) }}{{ i.title }}</a>{% if i.labels and "bug" in i.labels %} <span class="badge badge--square tone-danger">bug</span>{% endif %}</li>{% endfor %}
+        </ul>
+      {% endif %}
+      {% if r.decided %}
+        <h3>Decided</h3>
+        <ul class="report-list">
+          {% for d in r.decided %}<li><a href="/decisions/{{ d.id }}">{{ ref(d.id) }}{{ d.title }}</a> <span class="muted">→ {{ d.answer_text | truncate(160) }}</span></li>{% endfor %}
+        </ul>
+      {% endif %}
+      {% if r.blocked or r.overdue %}
+        <h3>Blocked on you, or overdue</h3>
+        <ul class="report-list">
+          {% for b in r.blocked %}<li><a href="/decisions/{{ b.id }}">{{ ref(b.id) }}{{ b.title }}</a> <span class="muted">waiting {{ b.waited_hours }}h</span></li>{% endfor %}
+          {% for o in r.overdue %}<li><a href="/decisions/{{ o.id }}">{{ ref(o.id) }}{{ o.title }}</a> {{ due_badge(o.due_on) }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+      {% if not (r.done or r.goals_achieved or r.decided or r.blocked or r.overdue) %}
+        <p class="hint">Nothing was done, decided or blocked this week.</p>
+      {% endif %}
+    </section>
+  {% endfor %}
+</main>
+{% endblock %}

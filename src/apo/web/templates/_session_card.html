@@ -1,0 +1,115 @@
+{% set card_back = request.url.path if request is defined else "" %}
+{% from "_macros.html" import icon, ref %}
+<article class="session-card status-{{ s.display_status }}" id="session-card-{{ s.id }}" data-session-id="{{ s.claude_session_id }}"
+         data-status="{{ s.display_status }}" title="{{ s.repository_name or s.cwd or '' }} — last seen {{ s.last_seen_human }}">
+  <div class="session-card-top">
+    <span class="badge status-pill status-{{ s.display_status }}"><span class="dot"></span><span class="status-text">{{ s.status_label }}</span></span>
+    {% if s.verdict_label and s.verdict_label != s.status_label %}<span class="badge verdict verdict-{{ s.verdict }}" title="{{ s.verdict_reason }}">{{ s.verdict_label }}</span>{% endif %}
+    {% if s.stale %}<span class="badge tone-neutral stale-flag" title="Working, but no activity for {{ s.quiet_minutes }} minutes — a long-running command, or hung">Quiet {{ s.quiet_minutes }}m</span>{% endif %}
+    <span class="badge tone-neutral context-size" title="Context its next turn sends the model again"{% if not s.context_label %} hidden{% endif %}>{{ s.context_label or "" }}</span>
+    <a class="session-details-link" href="/sessions/{{ s.id }}">Details {{ icon("arrow-right") }}</a>
+  </div>
+  <h3 class="session-title"{% if not s.title %} hidden{% endif %}>{{ s.title or "" }}</h3>
+  {% if s.verdict_reason %}<p class="verdict-reason muted">{{ s.verdict_reason }}</p>{% endif %}
+  {% if s.parent %}<p class="session-family muted">Started by <a href="/sessions/{{ s.parent.id }}">{{ s.parent.title or s.parent.claude_session_id[:8] }}</a></p>{% endif %}
+  {% if s.children %}
+    <p class="session-family muted">{{ s.children_summary }}:
+      {% for c in s.children %}<a href="/sessions/{{ c.id }}" title="{{ c.state }}">{{ c.title or c.claude_session_id[:8] }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  {% endif %}
+
+  {% if s.prompt %}
+    <div class="session-blocker tone-warning">
+      <span class="session-blocker-label"><span>{{ {"permission": "Waiting for your permission", "question": "Waiting for your answer", "plan": "Waiting for you to approve a plan"}[s.prompt.kind] }}</span></span>
+      {% with compact=true, back=card_back or "/sessions/" ~ s.id %}{% include "_prompt_form.html" %}{% endwith %}
+    </div>
+  {% elif s.display_status in ("waiting_permission", "waiting_input", "errored", "usage_limit") %}
+    <div class="session-blocker tone-{{ 'danger' if s.display_status == 'errored' else ('info' if s.display_status == 'usage_limit' else 'warning') }}">
+      <span class="session-blocker-label">
+        <span>{% if s.display_status == "waiting_permission" %}Waiting for your permission in the terminal{% elif s.display_status == "waiting_input" %}Waiting for your answer in the terminal{% elif s.display_status == "usage_limit" %}Waiting for the usage limit to reset{% else %}Stopped on an API error{% endif %}</span>
+      </span>
+      <span class="session-blocker-title">{% if s.display_status == "usage_limit" %}Claude Code continues it by itself when the limit resets{% elif s.display_status == "errored" %}{{ s.last_error or "Claude Code didn't say which" }}{% else %}{{ s.waiting_detail or "" }}{% endif %}</span>
+    </div>
+  {% endif %}
+
+  {% if s.current_blocker_id %}
+    <a class="session-blocker tone-{{ 'violet' if s.blocker_kind == 'action' else 'warning' }}" href="/decisions/{{ s.current_blocker_id }}">
+      <span class="session-blocker-label">
+        <span>{{ "Waiting on you to act" if s.blocker_kind == 'action' else "Waiting on your decision" }}</span>
+        <span class="go">{{ "Open" if s.blocker_kind == 'action' else "Answer" }} {{ icon("arrow-right") }}</span>
+      </span>
+      <span class="session-blocker-title">{{ ref(s.current_blocker_id) }}{{ s.blocker_title }}{% if s.open_request_count > 1 %} <span class="muted">+{{ s.open_request_count - 1 }} more</span>{% endif %}</span>
+    </a>
+    {% if s.blocker_linear_push_error %}
+      <span class="sync-note error-badge" title="{{ s.blocker_linear_push_error }}">{{ icon("alert") }}Didn't sync to Linear — <a href="/settings">check Settings</a></span>
+    {% endif %}
+  {% endif %}
+
+  <div class="session-recap"{% if not s.last_summary and not s.last_prompt %} hidden{% endif %}>
+    <div class="session-prompt"{% if not s.last_prompt %} hidden{% endif %}>
+      <div class="recap-label">{{ icon("message") }}You asked</div>
+      <span class="session-prompt-text" title="{{ s.last_prompt or '' }}">{{ s.last_prompt or "" }}</span>
+    </div>
+    <div class="session-summary"{% if not s.last_summary %} hidden{% endif %}>
+      <div class="recap-label">{{ icon("terminal") }}Last done <span class="session-summary-when">{{ s.last_summary_human or "" }}</span></div>
+      <div class="session-summary-text" id="summary-{{ s.id }}">{{ s.last_summary or "" }}</div>
+      <button type="button" class="link-btn" data-recap-toggle aria-controls="summary-{{ s.id }}" aria-expanded="false" hidden>Show more</button>
+    </div>
+  </div>
+
+  {% if not s.last_summary and not s.last_prompt %}
+    <div class="session-path">{{ icon("folder") }}<span>{{ s.repository_name or s.cwd or "unknown path" }}</span></div>
+  {% endif %}
+
+  {% if s.checklist %}
+  <details class="checklist disclosure">
+    <summary>
+      {{ icon("chevron-right", cls="chev") }}
+      <span>Checklist</span>
+      <span class="checklist-progress">
+        <span class="num">{{ s.checklist_done }}/{{ s.checklist | length }}</span>
+        <span class="progress" aria-hidden="true"><span style="width: {{ (100 * s.checklist_done / (s.checklist | length)) | round | int }}%"></span></span>
+      </span>
+    </summary>
+    <ul>
+      {% for item in s.checklist %}
+        <li class="{{ 'done' if item.status == 'done' else '' }}">
+          {% if item.status == 'done' %}
+            <span class="check check--done" aria-hidden="true">{{ icon("check") }}</span>
+            <span><span class="item-title">{{ item.title }}</span>{% if item.completed_by %} <span class="by">· {{ {"human": "by you", "agent": "by Claude"}.get(item.completed_by, "by " ~ item.completed_by) }}</span>{% endif %}</span>
+          {% else %}
+            <form class="complete-item" method="post" action="/sessions/{{ s.id }}/checklist/{{ item.id }}/complete"
+                  data-enhance="swap" data-swap-target="#session-card-{{ s.id }}" data-loading-text="">
+              {% if card_back %}<input type="hidden" name="next" value="{{ card_back }}">{% endif %}
+              <button type="submit" class="check" aria-label="Mark &quot;{{ item.title }}&quot; done">{{ icon("check") }}</button>
+            </form>
+            <span class="item-title">{{ item.title }}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    <form class="add-item" method="post" action="/sessions/{{ s.id }}/checklist"
+          data-enhance="swap" data-swap-target="#session-card-{{ s.id }}" data-loading-text="">
+      {% if card_back %}<input type="hidden" name="next" value="{{ card_back }}">{% endif %}
+      <label for="checklist-add-{{ s.id }}" class="sr-only">Add a checklist step</label>
+      <input id="checklist-add-{{ s.id }}" class="input" type="text" name="title" placeholder="Add a step…" required autocomplete="off">
+      <button type="submit" class="btn btn--secondary btn--sm btn--icon" aria-label="Add step">{{ icon("plus") }}</button>
+    </form>
+  </details>
+  {% endif %}
+
+  {% if s.status != "ended" %}
+    <div class="session-actions">
+      <a class="btn btn--ghost btn--sm" href="vscode://anthropic.claude-code/open?session={{ s.claude_session_id | urlencode }}"
+         title="Open this session in VS Code's Claude Code panel (from WSL, VS Code has to be connected to this distro)">{{ icon("external") }}VS Code</a>
+      {% if s.agent_kind == "background" and s.agent_id %}
+        <form method="post" action="/sessions/{{ s.id }}/stop"
+              data-confirm="Stop this background session? Its conversation is kept — claude attach {{ s.agent_id }} reopens it.">
+          {% if card_back %}<input type="hidden" name="next" value="{{ card_back }}">{% endif %}
+          <button type="submit" class="btn btn--ghost btn--sm">{{ icon("x") }}Stop</button>
+        </form>
+      {% endif %}
+    </div>
+  {% else %}
+    {% include "_resume_actions.html" %}
+  {% endif %}
+</article>

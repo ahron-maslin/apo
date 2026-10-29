@@ -1,8 +1,3 @@
-import sys
+"""apo (AI Project Orchestration): a local dashboard and MCP server for Claude Code."""
 
-__version__ = "0.0.1"
-
-
-def main():
-    print("apo isn't released yet. See https://getapo.pages.dev/", file=sys.stderr)
-    return 1
+__version__ = "0.1.0"

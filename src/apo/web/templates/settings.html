@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Settings — Switchboard{% endblock %}
+{% block body_class %}page-settings{% endblock %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow">
+  <header class="page-header">
+    <div>
+      <h1>Settings</h1>
+      <p class="page-desc">Where decisions get mirrored, so you can answer them from the tools you already use.</p>
+    </div>
+  </header>
+
+  <section class="settings-section" aria-labelledby="connectors-heading">
+    <div class="section-head">
+      <h2 class="section-title" id="connectors-heading">Connectors</h2>
+      <p class="section-desc hint">
+        Connect a provider below, then turn sync on or off without touching its credentials.
+        A future connector (Jira, Slack) shows up here the same way, automatically.
+      </p>
+    </div>
+
+    {% for c in connectors %}
+      <div class="connector-block surface" id="connector-{{ c.name }}">
+        <div class="connector-row">
+          <div class="connector-logo" aria-hidden="true">{{ c.name[:1] }}</div>
+          <div class="connector-info">
+            <div class="connector-name">
+              <span class="provider">{{ c.name }}</span>
+              {% if c.display_name %}
+                <span class="badge tone-success"><span class="dot"></span>Connected</span>
+              {% elif c.connected_via_env %}
+                <span class="badge tone-info"><span class="dot"></span>Via .env</span>
+              {% else %}
+                <span class="badge tone-neutral"><span class="dot"></span>Not connected</span>
+              {% endif %}
+            </div>
+            {% if c.display_name %}
+              <div class="connector-meta">Connected as {{ c.display_name }}</div>
+            {% elif c.connected_via_env %}
+              <div class="connector-meta">Configured via environment (.env) — connect below to manage it here instead</div>
+            {% else %}
+              <div class="connector-meta">Not configured</div>
+            {% endif %}
+          </div>
+          <form class="toggle-form" method="post" action="/settings/connectors/{{ c.name }}/toggle"
+                data-enhance="swap" data-swap-target="#connector-{{ c.name }}" data-loading-text=""
+                data-success-toast="{{ c.name | capitalize }} sync turned {{ 'off' if c.enabled else 'on' }}">
+            <span class="switch-label" aria-hidden="true">Sync {{ "on" if c.enabled else "off" }}</span>
+            <button type="submit" class="switch" role="switch" aria-checked="{{ 'true' if c.enabled else 'false' }}"
+                    aria-label="Sync with {{ c.name | capitalize }}"
+                    title="{{ 'Turn sync off' if c.enabled else 'Turn sync on' }}"></button>
+          </form>
+        </div>
+
+        {% if c.error %}
+          <div class="alert tone-danger connector-error" role="alert">
+            {{ icon("alert") }}<div class="alert-body">{{ c.error }}</div>
+          </div>
+        {% endif %}
+
+        {% if c.has_credential_form %}
+          <div class="connector-body">
+          {% if c.display_name %}
+            <div class="connector-actions form-row-actions">
+              <form method="post" action="/settings/integrations/{{ c.name }}/test" data-enhance="indicate" data-loading-text="Testing…">
+                <button type="submit" class="btn btn--secondary">{{ icon("refresh") }}Test connection</button>
+              </form>
+              <span class="spacer"></span>
+              <form method="post" action="/settings/integrations/{{ c.name }}/disconnect" data-enhance="indicate" data-loading-text="Disconnecting…"
+                    data-confirm="Disconnect {{ c.name | capitalize }}? Decisions will stop syncing until you reconnect.">
+                <button type="submit" class="btn btn--danger">{{ icon("unplug") }}Disconnect</button>
+              </form>
+            </div>
+          {% else %}
+            <form class="credential-form" method="post" action="/settings/integrations/{{ c.name }}/connect"
+                  data-enhance="indicate" data-loading-text="Connecting…">
+              <div class="field">
+                <label for="{{ c.name }}-api_key">API key</label>
+                {% if c.name == 'linear' %}
+                  <p class="field-hint" id="{{ c.name }}-api_key-hint">
+                    In Linear: your avatar &rarr; Settings &rarr; Security &amp; access &rarr; Personal API keys &rarr; New API key.
+                    Paste it here — Linear only shows the value once.
+                  </p>
+                {% endif %}
+                <input id="{{ c.name }}-api_key" class="input" name="api_key" type="password" autocomplete="off"
+                       {% if c.name == 'linear' %}aria-describedby="{{ c.name }}-api_key-hint"{% endif %}
+                       value="{{ c.submitted.api_key if c.submitted else '' }}" required>
+              </div>
+              <div class="field">
+                <label for="{{ c.name }}-team">Team (key or id)</label>
+                {% if c.name == 'linear' %}
+                  <p class="field-hint" id="{{ c.name }}-team-hint">
+                    The short identifier Linear prefixes issue numbers with, e.g. <code>ENG</code> in <code>ENG-123</code> —
+                    set under that team's own Settings &rarr; General &rarr; Identifier. The team's internal id also works.
+                  </p>
+                {% endif %}
+                <input id="{{ c.name }}-team" class="input" name="team" type="text" autocomplete="off" spellcheck="false"
+                       {% if c.name == 'linear' %}aria-describedby="{{ c.name }}-team-hint" placeholder="ENG"{% endif %}
+                       value="{{ c.submitted.team if c.submitted else '' }}" required>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn--primary">{{ icon("plug") }}Connect</button>
+              </div>
+            </form>
+          {% endif %}
+          </div>
+        {% endif %}
+
+        {% if c.name == 'linear' %}
+          <p class="connector-meta linear-goals-note">
+            <strong>Goals from Linear:</strong>
+            {% if linear_goal_projects %}on for {% for lp in linear_goal_projects %}<a href="/projects/{{ lp.id }}#linear-goals">{{ lp.name }}</a>{{ ", " if not loop.last }}{% endfor %}.
+            {% else %}off for every project.{% endif %}
+            Turn it on for a project on its Overview: a new issue you create in its Linear project (the one with its name, unless you pick another there) becomes a goal, and its sub-issues its steps.
+          </p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
+  <section class="settings-section" aria-labelledby="notify-heading">
+    <div class="section-head">
+      <h2 class="section-title" id="notify-heading">Notifications</h2>
+    </div>
+    <div class="surface notify-settings">
+      <p>Browser notifications for moves that have waited {{ notify.after }} minutes (or sit in a pinned project). At most
+        {{ notify.daily }} a day, {{ notify.gap }} minutes apart, one per project per hour, and none while you're mid-prompt
+        in a session. One reminder after {{ notify.remind }} hours, then it only ranks.</p>
+      <p class="notify-status" data-notify-status>Checking this browser…</p>
+      <button type="button" class="btn btn--secondary btn--sm" data-notify-toggle hidden></button>
+      <form method="post" action="/settings/notify-hours" class="notify-hours">
+        <label class="field-label" for="notify-start">Active hours</label>
+        <input id="notify-start" class="input" type="number" name="start" min="0" max="23" value="{{ notify.start }}" required>
+        <span>to</span>
+        <input id="notify-end" class="input" type="number" name="end" min="1" max="24" value="{{ notify.end }}" required aria-label="Active hours end">
+        <button type="submit" class="btn btn--ghost btn--sm">Save</button>
+      </form>
+    </div>
+  </section>
+</main>
+{% endblock %}

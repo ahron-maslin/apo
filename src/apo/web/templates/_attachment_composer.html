@@ -1,0 +1,150 @@
+{#
+  Shared answer composer: paste/drop/pick screenshots, preview them, and (when
+  editable) the answer textarea itself — all inside one container so a paste
+  anywhere in here (focus in the textarea included) is caught by a single
+  listener in static/app.js (App.initAttachmentComposer).
+
+  Expected context variables, set by the including template before `{% include %}`:
+    composer_decision_id   int, required
+    composer_attachments   list of attachment rows (id, filename, ...), required
+    composer_editable      bool — show the add-control + answer form
+    composer_show_headings bool — show the visible "Your answer" label (detail page)
+    composer_thumb_compact bool — use the smaller thumbnail size (index cards)
+    composer_id_suffix     string — appended to the textarea id, for uniqueness
+                            when several composers render on one page
+    composer_placeholder   string — textarea placeholder (optional)
+    composer_submit_label  string — submit button text (only used if editable)
+    composer_decision      the decision dict (parsed options) — enables the one-click
+                            quick answers; the textarea then doubles as their note
+    composer_next          path to return to after answering (optional)
+#}
+{% from "_macros.html" import icon %}
+{% macro thumbs(attachments, editable, compact) -%}
+  {%- for a in attachments -%}
+    <div class="attachment" data-attachment-id="{{ a.id }}">
+      <button type="button" class="attachment-open" data-attachment-open data-src="/attachments/{{ a.id }}"
+              data-filename="{{ a.filename }}" aria-label="View {{ a.filename }}">
+        <img class="attachment-thumb{{ ' attachment-thumb--compact' if compact else '' }}"
+             src="/attachments/{{ a.id }}" alt="{{ a.filename }}" loading="lazy">
+      </button>
+      {%- if editable %}
+      <button type="button" class="attachment-remove" data-attachment-remove aria-label="Remove {{ a.filename }}">{{ icon("x") }}</button>
+      {%- endif %}
+    </div>
+  {%- endfor -%}
+{%- endmacro %}
+<div class="attachment-composer" data-attachment-composer data-decision-id="{{ composer_decision_id }}"
+     {% if composer_thumb_compact %}data-thumb-size="compact"{% endif %}>
+  {% if composer_editable %}
+    <form method="post" action="/decisions/{{ composer_decision_id }}/answer" data-enhance="indicate" data-secret-check
+          data-loading-text="Sending…" data-flash="Answer sent — it's been written to the repo for the next session to pick up."
+          data-flash-path="/decisions/{{ composer_decision_id }}">
+      {% if composer_next %}<input type="hidden" name="next" value="{{ composer_next }}">{% endif %}
+      {% set d = composer_decision %}
+      {% set is_action_composer = d and d.kind == "action" %}
+      {% if d %}
+        {# formnovalidate: a quick answer is complete on its own; the box is only its note. #}
+        {% if is_action_composer and d.action_spec %}
+          {% set spec = d.action_spec %}
+          <div class="action-spec">
+            {% if spec.where %}
+              <a class="btn btn--secondary btn--sm action-where" href="{{ spec.where }}" target="_blank" rel="noopener">{{ icon("external") }}Open where to do it</a>
+            {% endif %}
+            {% if spec.steps %}<ol class="action-steps">{% for step in spec.steps %}<li>{{ step }}</li>{% endfor %}</ol>{% endif %}
+            {% set spec_values = spec.get("values") %}
+            {% if spec_values %}
+              <dl class="action-values">
+                {% for v in spec_values %}
+                  <dt>{{ v.label }}</dt>
+                  <dd><code>{{ v.value }}</code><button type="button" class="btn btn--ghost btn--sm" data-copy="{{ v.value }}">Copy</button></dd>
+                {% endfor %}
+              </dl>
+            {% endif %}
+            {% if spec.inputs %}
+              <div class="action-inputs">
+                {% for field in spec.inputs %}
+                  <label class="field-label" for="input-{{ field.name }}{{ composer_id_suffix }}">{{ field.label or field.name }}{% if field.secret %} <span class="muted">— kept in the local secret store, never in the repo</span>{% endif %}</label>
+                  <input class="input" id="input-{{ field.name }}{{ composer_id_suffix }}" name="input_{{ field.name }}"
+                         type="{{ 'password' if field.secret else 'text' }}" autocomplete="off">
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if spec.done_when %}<p class="hint"><strong>Done when:</strong> {{ spec.done_when }}</p>{% endif %}
+            {% if spec.verify %}
+              {% set c = spec.verify %}
+              <p class="hint">{{ icon("check-circle") }} Done checks it first:
+                {% if c.type == "dns" %}{{ c.record_type or "A" }} record for <code>{{ c.name }}</code>{% if c.contains %} containing <code>{{ c.contains }}</code>{% endif %}
+                {% elif c.type == "http" %}<code>{{ c.url }}</code> returns {{ c.status or 200 }}{% if c.contains %} with “{{ c.contains }}”{% endif %}
+                {% elif c.type == "file" %}<code>{{ c.path }}</code> exists in the repo
+                {% elif c.type == "env" %}<code>{{ c.name }}</code> is set in the repo's .env
+                {% elif c.type == "pr_merged" %}the PR is merged{% endif %}.
+              </p>
+            {% endif %}
+          </div>
+        {% endif %}
+        <div class="quick-answers" role="group" aria-label="Quick answers" data-quick-answers>
+          {% if is_action_composer %}
+            <div class="quick-row">
+              {% if not composer_skip_primary %}<button type="submit" name="choice" value="done" class="btn btn--primary btn--sm" formnovalidate data-quick-key="e">{{ icon("check") }}Done</button>{% endif %}
+              <button type="submit" name="choice" value="clarify" class="btn btn--secondary btn--sm" formnovalidate data-needs-note title="Write what's unclear in the box first">I'm stuck…</button>
+              <button type="submit" name="choice" value="decline" class="btn btn--ghost btn--sm" formnovalidate>Can't do this</button>
+            </div>
+          {% else %}
+            {% if d.options %}
+              <div class="option-buttons">
+                {% for o in d.options %}
+                  <button type="submit" name="option" value="{{ loop.index0 }}" formnovalidate data-quick-key="{{ loop.index }}"
+                          class="option-btn{{ ' is-recommended' if d.recommended_option == loop.index0 else '' }}">
+                    <kbd aria-hidden="true">{{ loop.index }}</kbd>
+                    <span class="option-btn-body">
+                      <span class="option-btn-label">{{ o.label }}</span>
+                      {% if o.consequence %}<span class="option-btn-meta">Agent will: {{ o.consequence }}</span>{% endif %}
+                      {% if o.detail %}<span class="option-btn-meta">{{ o.detail }}</span>{% endif %}
+                    </span>
+                    {% if o.reversible is sameas true %}<span class="option-btn-door" title="Easy to reverse">⇄</span>
+                    {% elif o.reversible is sameas false %}<span class="option-btn-door" title="Hard to reverse">⟶</span>{% endif %}
+                  </button>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <div class="quick-row">
+              {% if d.recommendation and not composer_skip_primary %}
+                <button type="submit" name="choice" value="recommendation" class="btn btn--primary btn--sm" formnovalidate data-quick-key="y"
+                        title="{{ d.recommendation }}">{{ icon("bulb") }}Accept recommendation{% if composer_show_keys %} <kbd aria-hidden="true">y</kbd>{% endif %}</button>
+              {% endif %}
+              <button type="submit" name="choice" value="delegate" class="btn btn--secondary btn--sm" formnovalidate data-quick-key="d"
+                      title="Let the agent use its judgment">You decide</button>
+              <button type="submit" name="choice" value="clarify" class="btn btn--secondary btn--sm" formnovalidate data-needs-note
+                      title="Write what you need to know in the box first">Need more info</button>
+              <button type="submit" name="choice" value="decline" class="btn btn--ghost btn--sm" formnovalidate>Decline</button>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+      <label for="answer_text{{ composer_id_suffix }}" class="{{ 'field-label' if composer_show_headings else 'sr-only' }}">{{ "Note (optional)" if is_action_composer else "Your answer" }}</label>
+      <div class="composer-box">
+        <div class="drop-overlay" aria-hidden="true">{{ icon("image") }} Drop to attach</div>
+        <textarea class="textarea" id="answer_text{{ composer_id_suffix }}" name="answer_text" data-submit-shortcut
+                  {% if composer_placeholder %}placeholder="{{ composer_placeholder }}"{% endif %}{% if not is_action_composer %} required{% endif %}></textarea>
+        <div class="attachments" data-attachments-grid>{{ thumbs(composer_attachments, true, composer_thumb_compact) }}</div>
+        <div class="composer-toolbar">
+          <div class="attachment-dropzone" data-attachment-dropzone{% if composer_attachments | length >= 6 %} hidden{% endif %}>
+            <label class="btn btn--ghost btn--sm attachment-add-btn">
+              <input type="file" multiple accept="image/png,image/jpeg,image/gif,image/webp"
+                     class="sr-only" data-attachment-input>
+              {{ icon("paperclip") }}<span>Attach screenshot</span>
+            </label>
+            <span class="attachment-hint">or paste / drop &middot; up to 6, 10MB each</span>
+          </div>
+          <div class="composer-submit">
+            <span class="kbd-hint" aria-hidden="true"><kbd data-mod-key>Ctrl</kbd><kbd>&crarr;</kbd></span>
+            <button type="submit" data-default-submit class="btn {{ 'btn--secondary' if d else 'btn--primary' }}"
+                    {% if is_action_composer %}name="choice" value="done"{% endif %}>{{ composer_submit_label }}</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  {% else %}
+    <div class="attachments" data-attachments-grid>{{ thumbs(composer_attachments, false, composer_thumb_compact) }}</div>
+  {% endif %}
+</div>

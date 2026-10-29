@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Lightning round — Switchboard{% endblock %}
+{% block body_class %}page-round{% endblock %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow round" data-round>
+  {% if item %}
+    <header class="round-head">
+      <div>
+        <h1>Lightning round</h1>
+        <p class="page-desc">{{ position }} of {{ total }} · ~{{ minutes_left | round(0, "ceil") | int }} min left</p>
+      </div>
+      <div class="round-nav">
+        <a class="btn btn--ghost btn--sm" href="{{ skip_url }}" data-round-skip>Skip <kbd aria-hidden="true">n</kbd></a>
+        <a class="btn btn--ghost btn--sm" href="/" data-round-exit>Exit <kbd aria-hidden="true">Esc</kbd></a>
+      </div>
+    </header>
+    <span class="progress round-progress" aria-hidden="true"><span style="width: {{ (100 * (position - 1) / total) | round | int }}%"></span></span>
+
+    <div class="now-list surface round-card">
+      {% set lane = "your_move" %}{% set glyph = "●" %}
+      {% set item_next = here %}{% set item_open_answer = item.kind in ("decision", "action") %}
+      {% include "_now_item.html" %}
+    </div>
+
+    <p class="hint round-keys">
+      <kbd>↵</kbd> accept / done · <kbd>1</kbd>–<kbd>9</kbd> pick an option · <kbd>d</kbd> you decide ·
+      <kbd>s</kbd> snooze till tomorrow · <kbd>n</kbd> skip · <kbd>Esc</kbd> exit
+    </p>
+  {% else %}
+    <section class="round-done surface">
+      <h1>Round done</h1>
+      <p class="page-desc">{{ handled }} of {{ total }} handled{% if total - handled %}, {{ total - handled }} skipped{% endif %}.</p>
+      <p>
+        <a class="btn btn--primary btn--sm" href="/">Back to Now</a>
+        <a class="btn btn--secondary btn--sm" href="/round?minutes=5">Another 5 minutes</a>
+      </p>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_script %}<script src="{{ asset('round.js') }}" defer></script>{% endblock %}

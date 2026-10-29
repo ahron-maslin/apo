@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}{{ s.title or s.claude_session_id[:8] }} — Switchboard{% endblock %}
+{% block body_class %}page-session{% endblock %}
+
+{% set labels = {"prompt": "You", "assistant": "Claude", "recap": "Recap"} %}
+
+{% block content %}
+<main id="main-content" class="page page--narrow">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    {% if s.project_id %}<a href="/projects/{{ s.project_id }}/agents">{{ s.project_name }} · Agents</a>{% else %}<a href="/projects/agents">Agents</a>{% endif %}
+  </nav>
+  <header class="page-header">
+    <div>
+      <span class="badge status-pill status-{{ s.display_status }}"><span class="dot"></span><span class="status-text">{{ s.status_label }}</span></span>
+      {% if s.verdict_label and s.verdict_label != s.status_label %}<span class="badge verdict verdict-{{ s.verdict }}" title="{{ s.verdict_reason }}">{{ s.verdict_label }}</span>{% endif %}
+      <h1>{{ s.title or "Session " ~ s.claude_session_id[:8] }}</h1>
+      <p class="page-desc">
+        <code>{{ (s.cwd or s.repository_name or "unknown folder") | home }}</code>
+        {% if conversation and conversation.model %} · {{ conversation.model }}{% endif %}
+        · last seen {{ s.last_seen_human }}
+      </p>
+      <p class="page-desc">
+        <code class="terminal-command">{{ s.terminal_command }}</code>
+        <button type="button" class="btn btn--ghost btn--sm" data-copy="{{ s.terminal_command }}" title="Copy this command, then paste it in a terminal to open the session">Copy command</button>
+      </p>
+      {% if s.verdict_reason %}<p class="page-desc verdict-reason">{{ s.verdict_reason }}</p>{% endif %}
+      {% if s.parent %}<p class="page-desc">Started by <a href="/sessions/{{ s.parent.id }}">{{ s.parent.title or s.parent.claude_session_id[:8] }}</a></p>{% endif %}
+      {% if s.children %}
+        <p class="page-desc">Started {{ s.children | length }} session{{ "s" if s.children | length != 1 }} ({{ s.children_summary }}):
+          {% for c in s.children %}<a href="/sessions/{{ c.id }}">{{ c.title or c.claude_session_id[:8] }}</a> <span class="muted">{{ c.state }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
+      {% set context = (conversation.context_tokens if conversation else none) or s.context_tokens %}
+      {% if context %}
+        <p class="page-desc context-line"><strong>{{ context | tokens }}</strong> tokens of context: the next turn sends all of it to the model again, cheaply if it's within a few minutes of the last one.</p>
+      {% endif %}
+    </div>
+    <div class="session-page-actions">
+      <form method="post" action="/sessions/{{ s.id }}/recap" class="inline-form" data-enhance="indicate" data-loading-text="Writing a recap…">
+        <button type="submit" class="btn btn--secondary btn--sm" title="A short summary of the transcript from a small model, through your Claude Code sign-in">Generate recap</button>
+      </form>
+      {% if s.status != "ended" %}
+        <a class="btn btn--ghost btn--sm" href="vscode://anthropic.claude-code/open?session={{ s.claude_session_id | urlencode }}">{{ icon("external") }}VS Code</a>
+        {% if s.agent_kind == "background" and s.agent_id %}
+          <form method="post" action="/sessions/{{ s.id }}/stop" class="inline-form"
+                data-confirm="Stop this background session? Its conversation is kept — claude attach {{ s.agent_id }} reopens it.">
+            <input type="hidden" name="next" value="/sessions/{{ s.id }}">
+            <button type="submit" class="btn btn--ghost btn--sm">{{ icon("x") }}Stop</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </div>
+  </header>
+
+  <div data-live-region="session">
+  {% if s.prompt %}
+    <section class="section" aria-labelledby="prompt-heading">
+      <div class="section-head"><h2 class="section-title" id="prompt-heading">{{ {"permission": "It needs your permission", "question": "It has a question", "plan": "It has a plan for you to approve"}[s.prompt.kind] }}</h2>
+        <span class="hint">asked {{ s.prompt.asked_at | ago }}</span></div>
+      <div class="surface">{% with compact=false %}{% include "_prompt_form.html" %}{% endwith %}</div>
+    </section>
+  {% endif %}
+  {% if s.last_summary %}
+    <section class="section" aria-labelledby="recap-heading">
+      <div class="section-head">
+        <h2 class="section-title" id="recap-heading">Recap</h2>
+        {% if s.last_summary_human %}<span class="hint">{{ s.last_summary_human }}</span>{% endif %}
+      </div>
+      <p class="surface session-page-recap">{{ s.last_summary }}</p>
+    </section>
+  {% endif %}
+
+  {% if s.checklist %}
+    <section class="section" aria-labelledby="checklist-heading">
+      <div class="section-head"><h2 class="section-title" id="checklist-heading">Checklist <span class="count-chip">{{ s.checklist_done }}/{{ s.checklist | length }}</span></h2></div>
+      <ul class="surface session-page-checklist">
+        {% for item in s.checklist %}<li class="{{ 'done' if item.status == 'done' else '' }}">{{ item.title }}</li>{% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <section class="section" aria-labelledby="conversation-heading">
+    <div class="section-head">
+      <h2 class="section-title" id="conversation-heading">Conversation</h2>
+      {% if conversation and conversation.truncated %}<span class="hint">The latest part; the start of a long session isn't shown</span>{% endif %}
+    </div>
+    {% if not conversation %}
+      <p class="hint">No transcript found for this session in your Claude Code profiles.</p>
+    {% elif not conversation.entries %}
+      <p class="hint">Nothing in the transcript yet.</p>
+    {% else %}
+      <ol class="conversation">
+        {% for block in conversation.blocks %}
+          {% if block.kind == "tools" %}
+            <li class="conversation-tools">
+              <details class="disclosure">
+                <summary>{{ icon("chevron-right", cls="chev") }}{{ block["items"] | length }} tool call{{ "s" if block["items"] | length != 1 }}</summary>
+                <ul>{% for t in block["items"] %}<li><code>{{ t.text }}</code></li>{% endfor %}</ul>
+              </details>
+            </li>
+          {% else %}
+            <li class="conversation-entry conversation-{{ block.kind }}">
+              <div class="conversation-meta"><strong>{{ labels[block.kind] }}</strong>{% if block.at %} <time datetime="{{ block.at }}">{{ block.at | ago }}</time>{% endif %}</div>
+              <div class="conversation-text">{{ block.text }}</div>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    {% endif %}
+  </section>
+  </div>
+
+  <section class="section" id="continue" aria-labelledby="continue-heading">
+    <div class="section-head"><h2 class="section-title" id="continue-heading">Continue</h2></div>
+    {% if plan.allowed %}
+      {% set options = [("resume", "Continue this session", "Resumes it with your message. It keeps everything it knows, and re-reads all of it."),
+                        ("fresh", "Continue in a fresh session", "A new session from a short handoff: your message, what this one was asked, its recap and where its transcript is. Tracked on the Work tab.")] %}
+      {% if plan.recommend == "fresh" %}{% set options = options | reverse | list %}{% endif %}
+      <form method="post" action="/sessions/{{ s.id }}/continue" class="surface form-stack continue-form">
+        <label class="field-label" for="continue-message">What should it do next?</label>
+        <textarea id="continue-message" class="textarea" name="message" rows="3" data-submit-shortcut
+                  placeholder="Leave it empty to continue this session from where it left off."></textarea>
+        <p class="field-hint"><strong>Recommended: {{ options[0][1] | lower }}.</strong> {{ plan.reason }}</p>
+        <div class="continue-buttons">
+          {% for how, label, hint in options %}
+            <button type="submit" class="btn {{ 'btn--primary' if loop.first else 'btn--secondary' }} btn--sm" name="how" value="{{ how }}" title="{{ hint }}">{{ label }}</button>
+          {% endfor %}
+        </div>
+      </form>
+    {% else %}
+      <p class="hint">{{ plan.why_not }}</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}
+
+{% block extra_script %}<script src="{{ asset('live.js') }}" defer></script>{% endblock %}

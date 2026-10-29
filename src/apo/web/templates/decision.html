@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, ref, decision_status_badge, kind_badge, linear_badge, folder_select, due_badge %}
+{% block title %}{{ decision.title }} — Switchboard{% endblock %}
+{% block body_class %}page-decision{% endblock %}
+
+{% block content %}
+{% set is_action = decision.kind == 'action' %}
+{% set is_task = decision.kind == 'task' %}
+{% set is_wait = decision.kind == 'wait' %}
+<main id="main-content" class="page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="/projects/decisions">Decisions</a>
+    {{ icon("chevron-right") }}
+    {% if project_name %}
+      <a class="back-link" href="/projects/{{ decision.project_id }}/decisions">{{ project_name }}</a>
+      {{ icon("chevron-right") }}
+    {% endif %}
+    <span aria-current="page">{{ ref(decision.id) }}</span>
+  </nav>
+
+  <div class="detail-layout">
+    <article class="detail-main" data-composer-keys>
+      <header class="detail-title-row">
+        <div class="badges">
+          {{ decision_status_badge("ready" if is_task and decision.status == "open" else ("waiting" if is_wait and decision.status == "open" else decision.status)) }}
+          {{ kind_badge(decision.kind) }}
+          {{ linear_badge(decision) }}
+        </div>
+        <h1 class="detail-title">{{ decision.title }}</h1>
+      </header>
+
+      {% if decision.summary and decision.summary != decision.question %}
+        <p class="lead summary">{{ decision.summary }}</p>
+        <div class="question-block">
+          <span class="eyebrow">{{ "The ask" if is_action else ("The brief" if is_task else "The question") }}</span>
+          <p class="question">{{ decision.question }}</p>
+        </div>
+      {% elif decision.question != decision.title %}
+        <p class="lead">{{ decision.question }}</p>
+      {% endif %}
+
+      {% if is_task and attachments %}
+        {% set composer_decision_id = decision.id %}
+        {% set composer_attachments = attachments %}
+        {% set composer_editable = false %}
+        {% set composer_thumb_compact = false %}
+        {% include "_attachment_composer.html" %}
+      {% endif %}
+
+      {% if decision.options and decision.answer_text %}
+        <section class="detail-section" aria-labelledby="options-heading">
+          <h2 id="options-heading">Options</h2>
+          <ol class="option-list">
+            {% for o in decision.options %}
+              <li class="option{{ ' is-chosen' if decision.answer_option == loop.index0 else '' }}">
+                <div>
+                  <span class="option-label">{{ o.label }}{% if decision.answer_option == loop.index0 %} <span class="badge tone-success">Chosen</span>{% endif %}</span>
+                  {% if o.consequence %}<span class="option-detail">Agent will: {{ o.consequence }}</span>{% endif %}
+                  {% if o.detail %}<span class="option-detail">{{ o.detail }}</span>{% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ol>
+        </section>
+      {% endif %}
+
+      {% if decision.recommendation %}
+        <section class="detail-section" aria-labelledby="reco-heading">
+          <div class="reco-card">
+            <h2 class="reco-card-head" id="reco-heading">{{ icon("bulb") }}Suggested recommendation</h2>
+            <p class="recommendation">{{ decision.recommendation }}</p>
+            {% if decision.confidence %}
+              <div class="confidence">
+                <span>Confidence</span>
+                <span class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ decision.confidence }}"
+                      aria-label="Confidence"><span style="width: {{ [decision.confidence, 100] | min }}%"></span></span>
+                <strong>{{ decision.confidence }}%</strong>
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% set plan = decision.resume_plan %}
+      {% if decision.context or decision.why_it_matters or decision.blocked_work or decision.safe_work or plan %}
+        <details class="context-panel disclosure full-context" {{ "open" if not decision.summary }}>
+          <summary>
+            {{ icon("chevron-right", cls="chev") }}
+            <span class="summary-text">
+              <strong>Full context</strong>
+              <span class="muted">The resuming agent's handoff — already written into the repo</span>
+            </span>
+          </summary>
+          <div class="context-body prose">
+            {% if decision.context %}
+              <div><h3>Context</h3><p>{{ decision.context }}</p></div>
+            {% endif %}
+            {% if decision.why_it_matters %}
+              <div><h3>Why it matters</h3><p>{{ decision.why_it_matters }}</p></div>
+            {% endif %}
+            {% if decision.blocked_work %}
+              <div><h3>Blocked work</h3><ul>{% for f in decision.blocked_work %}<li>{{ f }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if decision.safe_work %}
+              <div><h3>Safe remaining work</h3><ul>{% for f in decision.safe_work %}<li>{{ f }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if plan %}
+              <div>
+                <h3>Resume plan</h3>
+                {% if plan.objective %}<p><strong>Objective:</strong> {{ plan.objective }}</p>{% endif %}
+                {% if plan.remaining_steps %}
+                  <ol>{% for s in plan.remaining_steps %}<li>{{ s }}</li>{% endfor %}</ol>
+                {% endif %}
+                {% if plan.expected_outcome %}
+                  <p><strong>Expected outcome:</strong> {{ plan.expected_outcome }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </details>
+      {% endif %}
+
+      {% if is_task or is_wait %}
+        {% include "_work_status.html" %}
+      {% elif decision.answer_text %}
+        <section class="detail-section" aria-labelledby="answer-heading">
+          <h2 id="answer-heading">{{ icon("check-circle") }}Answer</h2>
+          <div class="answer-block answer">{{ decision.answer_text }}</div>
+          {% if attachments %}
+            <div class="answer-attachments">
+              {% set composer_decision_id = decision.id %}
+              {% set composer_attachments = attachments %}
+              {% set composer_editable = false %}
+              {% set composer_show_headings = false %}
+              {% set composer_thumb_compact = false %}
+              {% set composer_id_suffix = '' %}
+              {% include "_attachment_composer.html" %}
+            </div>
+          {% endif %}
+          <p class="delivery">
+            {{ icon("info") }}
+            <span>
+            {% if repository %}
+              {% if decision.status == 'resolved' %}
+                Done — the work was picked up and closed out.
+              {% elif decision.delivery == 'delivered' %}
+                Delivered to the session that asked{% if decision.delivered_at %}, {{ decision.delivered_at | ago }}{% endif %}.
+                It applies the answer when you carry on in that session.
+              {% elif transit and transit.live_session %}
+                Written to <code>{{ repository.local_path }}/.claude/decisions/</code>. A session is open in
+                that repo — the one that asked hears about it on its next prompt; any other can run
+                <code>/decisions</code>.
+              {% else %}
+                Written to <code>{{ repository.local_path }}/.claude/decisions/</code>.
+                Nothing is running in that repo to pick it up{% if transit and not transit.stuck %} yet{% endif %} — apply it in the background, or start a session there yourself:
+              {% endif %}
+            {% elif folders %}
+              This item has no folder, so the answer wasn't written to disk. Pick one under Folder.
+            {% else %}
+              No repository is registered for this project, so the answer wasn't written to disk.
+              Register one with <code>cli.py repo-add</code>.
+            {% endif %}
+            </span>
+          </p>
+          {% if decision.status == 'resolved' %}{% include "_work_location.html" %}{% endif %}
+          {% if launch_error %}
+            <div class="alert tone-danger" role="alert">
+              {{ icon("alert") }}
+              <div class="alert-body"><span class="alert-title">Couldn't start it</span><p>{{ launch_error }}</p></div>
+            </div>
+          {% endif %}
+          {% if decision.status == 'answered' and decision.dispatched_at %}
+            <p class="delivery">
+              {{ icon("terminal") }}
+              <span>Applying in background since {{ decision.dispatched_at | ago }}{% if decision.dispatch_agent_id %} —
+                <code>claude attach {{ decision.dispatch_agent_id }}</code> to watch it{% endif %}.</span>
+            </p>
+          {% endif %}
+          {% if apply and not apply.error and transit and not transit.live_session %}
+            <form method="post" action="/decisions/{{ decision.id }}/apply" class="apply-form"
+                  {% if apply.needs_approval %}data-confirm="This answer came from Linear, not from you here. Start an agent with it?"{% endif %}>
+              {% if apply.needs_approval %}<input type="hidden" name="approved" value="1">{% endif %}
+              <button type="submit" class="btn btn--primary btn--sm">{{ icon("zap") }}{{ "Approve and apply in background" if apply.needs_approval else "Apply in background" }}</button>
+              <span class="field-hint">
+                {{ "Resumes the session that asked" if apply.resume else "Starts a new background session in the repo" }} with
+                <code>{{ apply.prompt }}</code>. Any permission prompt shows up in <code>claude agents</code>.
+              </span>
+            </form>
+          {% endif %}
+          {% if transit and transit.resume_command and not transit.live_session and decision.delivery != 'delivered' %}
+            <div class="copy-command">
+              <code>{{ transit.resume_command }}</code>
+              <button type="button" class="btn btn--secondary btn--sm" data-copy="{{ transit.resume_command }}">Copy</button>
+            </div>
+          {% endif %}
+        </section>
+      {% else %}
+        <section class="detail-section" aria-labelledby="compose-heading">
+          <h2 id="compose-heading">{{ "Confirm it's done" if is_action else "Your answer" }}</h2>
+          {% if unverified %}
+            <div class="alert tone-warning" role="alert">
+              {{ icon("alert") }}
+              <div class="alert-body">
+                <span class="alert-title">Not verified yet</span>
+                <p>{{ unverified }}</p>
+                <form method="post" action="/decisions/{{ decision.id }}/answer" class="alert-actions">
+                  <input type="hidden" name="choice" value="done">
+                  <input type="hidden" name="force" value="1">
+                  <button type="submit" class="btn btn--secondary btn--sm">Mark done anyway</button>
+                </form>
+              </div>
+            </div>
+          {% endif %}
+          {% set composer_decision_id = decision.id %}
+          {% set composer_attachments = attachments %}
+          {% set composer_editable = true %}
+          {% set composer_show_headings = false %}
+          {% set composer_thumb_compact = false %}
+          {% set composer_id_suffix = '' %}
+          {% set composer_placeholder = "Add a note for the session (optional context, what you changed)…" if is_action else "Pick a quick answer above (anything typed here goes with it as a note), or write your own answer." %}
+          {% set composer_submit_label = "Confirm done" if is_action else "Send answer" %}
+          {% set composer_decision = decision %}
+          {% set composer_show_keys = true %}
+          {% include "_attachment_composer.html" %}
+        </section>
+      {% endif %}
+
+      <section class="detail-section" id="notes" aria-labelledby="notes-heading">
+        <h2 id="notes-heading">Notes{% if notes %} <span class="count-chip">{{ notes | length }}</span>{% endif %}</h2>
+        {% if note_error %}<p class="is-error" role="alert">{{ note_error }}</p>{% endif %}
+        {% if notes %}
+          <ul class="history-list surface notes-list">
+            {% for n in notes %}
+              <li class="history-item">
+                <div>
+                  <span class="owner-pill owner-{{ 'me' if n.author == 'human' else 'agent' }}">{{ "You" if n.author == "human" else (n.author if n.author == "agent" else "Agent " ~ n.author[:8]) }}</span>
+                  <time class="muted" datetime="{{ n.created_at }}">{{ n.created_at | ago }}</time>
+                  <div class="note-body" style="white-space: pre-wrap">{{ n.body }}</div>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="hint">No notes yet. Whatever you add here goes into this item's file, so the next session working it reads it.</p>
+        {% endif %}
+        <form method="post" action="/decisions/{{ decision.id }}/notes" class="form-stack">
+          <label class="field-label" for="note-body">Add a note</label>
+          <textarea id="note-body" class="textarea" name="body" rows="3" required></textarea>
+          <div><button type="submit" class="btn btn--secondary btn--sm">Add note</button></div>
+        </form>
+      </section>
+    </article>
+
+    <aside class="detail-aside" aria-label="Decision details">
+      <section class="surface aside-panel">
+        <h2>Progress</h2>
+        {% set answered = decision.answer_text %}
+        {% set resolved = decision.status == 'resolved' %}
+        <ol class="timeline">
+          <li class="is-done">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">{{ "Added by you" if decision.requested_by == "human" else "Filed by a session" }}</div>
+              <div class="step-meta"><time datetime="{{ decision.created_at }}">{{ decision.created_at | ago }}</time></div>
+            </div>
+          </li>
+          {% if is_task or is_wait %}
+          {% set live = decision.status in ("open", "in_progress") %}
+          {% if is_wait %}
+          <li class="{{ 'is-current' if live else ('is-done' if resolved else '') }}">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div><div class="step-title">Waiting on {{ decision.waiting_on or "someone outside" }}</div></div>
+          </li>
+          {% else %}
+          <li class="{{ 'is-current' if decision.status == 'open' else ('is-done' if decision.claimed_at or resolved else '') }}">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">Ready for an agent</div>
+              {% if decision.status == "open" %}<div class="step-meta">{{ repository.name if repository else "No folder yet" }}</div>{% endif %}
+            </div>
+          </li>
+          <li class="{{ 'is-current' if decision.status == 'in_progress' else ('is-done' if decision.claimed_at and resolved else '') }}">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">Claimed by an agent</div>
+              {% if decision.claimed_at %}<div class="step-meta"><time datetime="{{ decision.claimed_at }}">{{ decision.claimed_at | ago }}</time></div>{% endif %}
+            </div>
+          </li>
+          {% endif %}
+          <li class="{{ 'is-done' if resolved else '' }}">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">{{ "Arrived" if is_wait else "Done" }}</div>
+              {% if resolved and decision.resolved_at %}<div class="step-meta"><time datetime="{{ decision.resolved_at }}">{{ decision.resolved_at | ago }}</time>{% if decision.answer_source == "human" or decision.answer_source == "dashboard" %} · by you{% endif %}</div>{% endif %}
+            </div>
+          </li>
+          {% else %}
+          <li class="{{ 'is-done' if answered else 'is-current' }}">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">{{ ("Confirmed" if is_action else "Answered") if answered else ("Waiting on you" ) }}</div>
+              <div class="step-meta">
+                {% if answered %}
+                  {% if decision.answered_at %}<time datetime="{{ decision.answered_at }}">{{ decision.answered_at | ago }}</time>{% endif %}
+                  {% if decision.answer_source %}· via {{ decision.answer_source | capitalize }}{% endif %}
+                {% else %}Answer below{% if decision.linear_identifier %} or in Linear{% endif %}{% endif %}
+              </div>
+            </div>
+          </li>
+          <li class="{{ 'is-done' if resolved else ('is-current' if answered else '') }}">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">Picked up &amp; resolved</div>
+              <div class="step-meta">
+                {% if resolved and decision.resolved_at %}<time datetime="{{ decision.resolved_at }}">{{ decision.resolved_at | ago }}</time>
+                {% elif answered %}Next session in the repo picks it up
+                {% else %}After you answer{% endif %}
+              </div>
+            </div>
+          </li>
+          {% endif %}
+        </ol>
+      </section>
+
+      <section class="surface aside-panel">
+        <h2>Details</h2>
+        <dl class="meta-list">
+          <dt>Reference</dt><dd>{{ ref(decision.id) }}</dd>
+          <dt>Type</dt><dd>{{ {"action": "Action", "task": "Task", "wait": "Wait"}.get(decision.kind, "Decision") }}</dd>
+          {% if project_name %}
+            <dt>Project</dt><dd><a href="/projects/{{ decision.project_id }}">{{ project_name }}</a></dd>
+          {% endif %}
+          {% if decision.linear_identifier %}
+            <dt>Linear</dt><dd><a href="{{ decision.linear_url }}" target="_blank" rel="noopener">{{ decision.linear_identifier }} {{ icon("external") }}</a></dd>
+          {% elif decision.linear_push_error %}
+            <dt>Linear</dt><dd><a href="/settings" class="is-error" title="{{ decision.linear_push_error }}">Push failed</a></dd>
+          {% endif %}
+          {% if repository %}
+            <dt>Folder</dt><dd><span class="mono" title="{{ repository.local_path }}">{{ repository.name }}</span></dd>
+          {% elif folders %}
+            <dt>Folder</dt><dd><span class="is-error">No folder</span></dd>
+          {% endif %}
+          {% if decision.confidence %}
+            <dt>Confidence</dt><dd class="num">{{ decision.confidence }}%</dd>
+          {% endif %}
+          {% if decision.due_on %}
+            <dt>Due</dt><dd>{{ due_badge(decision.due_on) }}</dd>
+          {% endif %}
+        </dl>
+        {% if rule_draft %}
+          <details class="disclosure make-rule">
+            <summary>{{ icon("chevron-right", cls="chev") }}Make this a standing rule</summary>
+            <form method="post" action="/projects/{{ decision.project_id }}/rules" class="form-stack move-folder">
+              <input type="hidden" name="source_decision_id" value="{{ decision.id }}">
+              <input type="hidden" name="next" value="/decisions/{{ decision.id }}">
+              <label class="field-label" for="rule-text">Agents will follow this instead of asking</label>
+              <textarea id="rule-text" class="textarea" name="text" rows="4">{{ rule_draft }}</textarea>
+              <div><button type="submit" class="btn btn--secondary btn--sm">Add rule</button></div>
+            </form>
+          </details>
+        {% endif %}
+        {% if can_undo %}
+          <form method="post" action="/items/{{ decision.id }}/undo" class="inline-form">
+            <button type="submit" class="btn btn--secondary btn--sm">Undo last change</button>
+          </form>
+        {% endif %}
+        {% if decision.status in ("resolved", "cancelled") %}
+          <form method="post" action="/items/{{ decision.id }}/reopen" class="inline-form">
+            <button type="submit" class="btn btn--secondary btn--sm">Reopen</button>
+          </form>
+        {% endif %}
+        {% if decision.status in ("open", "in_progress") %}
+          <details class="disclosure cancel-item">
+            <summary>{{ icon("chevron-right", cls="chev") }}Cancel this {{ {"action": "action", "task": "task", "wait": "wait"}.get(decision.kind, "decision") }}</summary>
+            <form method="post" action="/items/{{ decision.id }}/cancel" class="form-stack move-folder">
+              <input type="hidden" name="next" value="/decisions/{{ decision.id }}">
+              <label class="field-label" for="cancel-reason">Reason, written into the repo for the agent (optional)</label>
+              <input id="cancel-reason" class="input" name="reason" placeholder="Not needed any more">
+              <div><button type="submit" class="btn btn--secondary btn--sm">Cancel it</button></div>
+            </form>
+          </details>
+        {% endif %}
+        {% if decision.previous_answer %}
+          <p class="field-hint">Earlier answer, set aside when this was reopened: {{ decision.previous_answer }}</p>
+        {% endif %}
+        <details class="disclosure edit-item">
+          <summary>{{ icon("chevron-right", cls="chev") }}Edit title and description</summary>
+          <form method="post" action="/decisions/{{ decision.id }}/edit" class="form-stack">
+            <label class="field-label" for="edit-title">Title</label>
+            <input id="edit-title" class="input" name="title" value="{{ decision.title }}" required>
+            <label class="field-label" for="edit-description">Description</label>
+            <textarea id="edit-description" class="textarea" name="description" rows="2">{{ decision.summary or decision.question }}</textarea>
+            {% if decision.summary and decision.summary != decision.question %}
+              <label class="field-label" for="edit-details">{{ "The brief" if is_task else "The question" }}</label>
+              <textarea id="edit-details" class="textarea" name="details" rows="4">{{ decision.question }}</textarea>
+            {% endif %}
+            <div><button type="submit" class="btn btn--secondary btn--sm">Save</button></div>
+          </form>
+        </details>
+        {% if decision.status not in ("resolved", "cancelled") %}
+          <form method="post" action="/decisions/{{ decision.id }}/due" class="inline-form due-form">
+            <label class="sr-only" for="item-due">Due date</label>
+            <input id="item-due" class="input input--sm" type="date" name="due_on" value="{{ decision.due_on or '' }}">
+            <button type="submit" class="btn btn--secondary btn--sm">{{ "Change due date" if decision.due_on else "Set a due date" }}</button>
+          </form>
+        {% endif %}
+        {% if dependencies.blockers or dependencies.dependents or dependency_candidates %}
+          <div class="dependencies" id="dependencies">
+            <h3>Blocked by</h3>
+            {% if dependencies.blockers %}
+              <ul>
+                {% for b in dependencies.blockers %}
+                  <li>
+                    <a href="/decisions/{{ b.id }}">{{ ref(b.id) }}{{ b.title }}</a>{% if b.done %} <span class="muted">(done)</span>{% endif %}
+                    {% if decision.status not in ("resolved", "cancelled") %}
+                      <form method="post" action="/decisions/{{ decision.id }}/blockers/{{ b.id }}/remove" class="inline-form">
+                        <button type="submit" class="btn btn--ghost btn--sm" aria-label="Remove blocker #{{ b.id }}">Remove</button>
+                      </form>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}<p class="muted">Nothing.</p>{% endif %}
+            {% if dependency_candidates %}
+              <form method="post" action="/decisions/{{ decision.id }}/blockers" class="inline-form">
+                <label class="sr-only" for="add-blocker">Add a blocker</label>
+                <select id="add-blocker" class="input input--sm" name="blocker">
+                  {% for c in dependency_candidates %}<option value="{{ c.id }}">#{{ c.id }} {{ c.title }}</option>{% endfor %}
+                </select>
+                <button type="submit" class="btn btn--secondary btn--sm">Add blocker</button>
+              </form>
+            {% endif %}
+            {% if dependencies.dependents %}
+              <h3>Blocks</h3>
+              <ul>{% for d in dependencies.dependents %}<li><a href="/decisions/{{ d.id }}">{{ ref(d.id) }}{{ d.title }}</a></li>{% endfor %}</ul>
+            {% endif %}
+          </div>
+        {% endif %}
+        <div id="labels" class="item-labels">
+          <span class="field-label">Labels</span>
+          {% for label in decision.labels %}
+            <form method="post" action="/decisions/{{ decision.id }}/labels/remove" class="inline-form label-chip-form">
+              <input type="hidden" name="label" value="{{ label }}">
+              <a class="badge badge--square label-chip tone-{{ 'danger' if label in ('bug', 'urgent') else 'neutral' }}" href="/projects/{{ decision.project_id }}/work?label={{ label | urlencode }}">{{ label }}</a>
+              <button type="submit" class="btn btn--ghost btn--sm" aria-label="Remove label {{ label }}">&times;</button>
+            </form>
+          {% else %}<span class="muted">None</span>{% endfor %}
+          <form method="post" action="/decisions/{{ decision.id }}/labels" class="inline-form">
+            <label class="sr-only" for="item-label">Add a label</label>
+            <input id="item-label" class="input input--sm" name="label" placeholder="api" maxlength="32" autocomplete="off">
+            <button type="submit" class="btn btn--secondary btn--sm">Add label</button>
+          </form>
+        </div>
+        {% if decision.status not in ("resolved", "cancelled") and (folders | length > 1 or (folders and not repository)) %}
+          <form method="post" action="/decisions/{{ decision.id }}/repository" class="form-stack move-folder">
+            {{ folder_select(folders, folder_default, "move-folder", label="Move to folder" if repository else "Choose a folder") }}
+            <p class="field-hint">Agents find this in that folder's <code>.claude/decisions/INDEX.md</code>.</p>
+            <div><button type="submit" class="btn btn--secondary btn--sm">{{ "Move" if repository else "Save" }}</button></div>
+          </form>
+        {% endif %}
+      </section>
+    </aside>
+  </div>
+</main>
+{% endblock %}

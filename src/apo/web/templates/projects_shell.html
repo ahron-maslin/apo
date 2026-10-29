@@ -1,0 +1,91 @@
+{#
+  Every page under Projects. The sidebar picks the scope — All projects, or one
+  project (`p`) — and the tabs pick the view. Each link keeps the other one: a
+  project in the sidebar opens on the current tab; a tab stays in the current scope.
+#}
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% from "_project_macros.html" import health_dot, pin_form, health_labels, status_chip with context %}
+{% block title %}{{ p.name if p else "All projects" }} — Switchboard{% endblock %}
+{% block body_class %}page-project{% endblock %}
+
+{% set tabs = [("overview", "Overview", ""), ("work", "Work", "/work"), ("decisions", "Decisions", "/decisions"),
+               ("agents", "Agents", "/agents"), ("activity", "Activity", "/activity")] %}
+{% set tab_suffix = {"overview": "", "work": "/work", "decisions": "/decisions", "agents": "/agents", "activity": "/activity"}[tab] %}
+{% set scope_base = "/projects/" ~ p.id if p else "/projects" %}
+
+{% block content %}
+<div class="project-shell">
+<nav class="project-rail" aria-label="Projects">
+  <ul>
+    <li><a href="/projects{{ tab_suffix }}"{% if not p %} aria-current="page"{% endif %}>{{ icon("folder") }}<span>All projects</span></a></li>
+    {% for r in rail %}
+      <li><a href="/projects/{{ r.id }}{{ tab_suffix }}"{% if p and r.id == p.id %} aria-current="page"{% endif %} title="{{ r.counts_line or health_labels[r.health] }}">
+        {{ health_dot(r.health) }}<span>{{ r.name }}</span>{% if r.pinned %}<span class="project-rail-pin" aria-label="Pinned">★</span>{% endif %}</a></li>
+    {% endfor %}
+  </ul>
+  <p class="project-rail-keys hint">
+    <a data-hotkey="[" href="{{ scope_prev }}" title="Previous">[</a>
+    <a data-hotkey="]" href="{{ scope_next }}" title="Next">]</a> step through
+  </p>
+</nav>
+
+<main id="main-content" class="page project-page">
+  <label class="scope-picker">
+    <span class="sr-only">Project</span>
+    <select class="input" data-navigate>
+      <option value="/projects{{ tab_suffix }}"{% if not p %} selected{% endif %}>All projects</option>
+      {% for r in rail %}<option value="/projects/{{ r.id }}{{ tab_suffix }}"{% if p and r.id == p.id %} selected{% endif %}>{{ r.name }}</option>{% endfor %}
+    </select>
+  </label>
+
+  {% if p %}
+    <header class="page-header project-header">
+      <div>
+        <h1 class="project-title">{{ health_dot(p.health) }}{{ p.name }}
+          {{ status_chip(status) }}
+          {% if priority == "hot" %}<span class="badge tone-danger">Hot</span>{% elif priority == "background" %}<span class="badge tone-neutral">Background</span>{% endif %}
+          {% if p.archived %}<span class="badge tone-neutral">Archived</span>{% endif %}</h1>
+        <p class="page-desc">
+          {{ p.counts_line or health_labels[p.health] }} · active {{ p.last_activity | ago }}
+          {% if repositories %} · <code>{{ repositories[0].local_path }}</code>{% if repositories | length > 1 %}
+            <span class="muted" title="{% for r in repositories[1:] %}{{ r.local_path }}&#10;{% endfor %}">+{{ repositories | length - 1 }} more folder{{ "s" if repositories | length > 2 }}</span>{% endif %}{% endif %}
+        </p>
+      </div>
+      <div class="project-header-actions">
+        {{ pin_form(p, request.url.path, hotkey="p") }}
+        {% if p.archived %}
+          <form method="post" action="/projects/{{ p.id }}/unarchive" class="inline-form">
+            <button type="submit" class="btn btn--secondary btn--sm">Unarchive</button>
+          </form>
+        {% else %}
+          <form method="post" action="/projects/{{ p.id }}/archive" class="inline-form"
+                data-confirm="Archive {{ p.name }}? Anything still open in it is closed; nothing is deleted.">
+            <button type="submit" class="btn btn--ghost btn--sm">{{ icon("archive") }}Archive</button>
+          </form>
+        {% endif %}
+      </div>
+    </header>
+  {% else %}
+    <header class="page-header project-header">
+      <div>
+        <h1 class="project-title">All projects</h1>
+        <p class="page-desc">{{ all_summary }}</p>
+      </div>
+    </header>
+  {% endif %}
+
+  <nav class="project-tabs" aria-label="{{ p.name if p else 'All projects' }}">
+    {% for key, label, suffix in tabs %}
+      <a href="{{ scope_base }}{{ suffix }}" data-hotkey="{{ loop.index }}" title="{{ label }} ({{ loop.index }})"{% if tab == key %} aria-current="page"{% endif %}>
+        {{ label }}{% if tab_counts.get(key) %} <span class="count-chip">{{ tab_counts[key] }}</span>{% endif %}
+      </a>
+    {% endfor %}
+  </nav>
+
+  {% block tab %}{% endblock %}
+</main>
+</div>
+{% endblock %}
+
+{% block extra_script %}<script src="{{ asset('live.js') }}" defer></script>{% endblock %}

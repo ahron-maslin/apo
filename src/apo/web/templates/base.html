@@ -1,0 +1,140 @@
+{% from "_macros.html" import icon %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Switchboard{% endblock %}</title>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234352e0'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 9v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9'/%3E%3Cpath d='M16 16v7'/%3E%3C/g%3E%3C/svg%3E">
+<script>
+  try {
+    var t = localStorage.getItem("ado-theme");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="{{ asset('app.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  {% include "_icons.html" %}
+  {% if is_preview() %}
+    <div class="preview-banner" role="note">Preview — a copy of your data. Nothing here touches the live dashboard, your repos or Linear, and changes aren't kept.</div>
+  {% endif %}
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  {% set badges = nav_badges() %}
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Switchboard — home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="8" fill="var(--accent-solid)"/>
+        <g fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 9v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9"/><path d="M16 16v7"/>
+        </g>
+      </svg>
+      <span class="brand-name">Switchboard</span>
+    </a>
+    {% set in_projects = active_nav in ("projects", "outcomes", "sessions", "decisions", "activity") %}
+    <nav class="app-nav" aria-label="Main">
+      <a href="/" {% if active_nav == 'now' %}aria-current="page"{% endif %}>
+        {{ icon("zap") }}<span>Now</span>
+        {% if badges.now %}<span class="nav-count" data-tone="accent" title="{{ badges.now }} thing{{ 's' if badges.now != 1 }} waiting on you" data-nav-count="now">{{ badges.now }}</span>{% endif %}
+      </a>
+      <a href="/projects" {% if in_projects %}aria-current="page"{% endif %}>
+        {{ icon("folder") }}<span>Projects</span>
+      </a>
+      <a href="/settings" {% if active_nav == 'settings' %}aria-current="page"{% endif %}>
+        {{ icon("settings") }}<span>Settings</span>
+      </a>
+    </nav>
+    <div class="header-end">
+      <a class="btn btn--ghost btn--icon" href="/guide" aria-label="User guide" title="User guide (g h)">{{ icon("info") }}</a>
+      <button type="button" class="btn btn--ghost btn--sm palette-trigger" data-palette-open aria-label="Search and commands"{% if active_nav == 'search' %} aria-current="page"{% endif %}>
+        {{ icon("search") }}<span>Search</span><kbd data-mod-key>Ctrl</kbd><kbd>K</kbd>
+      </button>
+      <button type="button" class="btn btn--ghost btn--icon" data-theme-toggle aria-label="Color theme: system" title="Color theme: system">
+        <span data-theme-icon="system">{{ icon("monitor") }}</span>
+        <span data-theme-icon="light" hidden>{{ icon("sun") }}</span>
+        <span data-theme-icon="dark" hidden>{{ icon("moon") }}</span>
+      </button>
+    </div>
+  </header>
+  {% set page_error = request.query_params.get("error") if request else None %}
+  {% if page_error %}
+    <div class="alert tone-danger page-alert" role="alert">
+      {{ icon("alert") }}<div class="alert-body"><span class="alert-title">That didn't go through</span> {{ page_error }}</div>
+    </div>
+  {% endif %}
+  {% block content %}{% endblock %}
+  <dialog class="palette" data-palette aria-label="Command palette">
+    <input class="input palette-input" type="text" data-palette-input autocomplete="off" spellcheck="false"
+           placeholder="Jump to… or: accept 12 · answer 12 2 · done 7 · snooze 12 tomorrow · seen">
+    <ul class="palette-results" data-palette-results role="listbox"></ul>
+  </dialog>
+  <dialog class="shortcuts" id="shortcuts" aria-labelledby="shortcuts-heading">
+    <h2 id="shortcuts-heading">Keyboard shortcuts</h2>
+    <div class="shortcuts-grid">
+    <div>
+    <h3>Anywhere</h3>
+    <dl>
+      <dt><kbd data-mod-key>Ctrl</kbd><kbd>K</kbd> or <kbd>:</kbd></dt><dd>Command palette — jump anywhere, or act</dd>
+      <dt><kbd>/</kbd></dt><dd>Search</dd>
+      <dt><kbd>g</kbd> then <kbd>n</kbd> <kbd>p</kbd> <kbd>o</kbd> <kbd>w</kbd> <kbd>s</kbd> <kbd>d</kbd> <kbd>a</kbd></dt><dd>Now, Projects, Goals, Work, Agents, Decisions, Activity</dd>
+      <dt><kbd>g</kbd> then <kbd>f</kbd> <kbd>h</kbd> <kbd>,</kbd></dt><dd>Search, this guide, Settings</dd>
+      <dt><kbd data-mod-key>Ctrl</kbd><kbd>↵</kbd></dt><dd>Send what you're typing</dd>
+      <dt><kbd>?</kbd></dt><dd>This list</dd>
+    </dl>
+    <h3>Lists (All projects, Work, Search)</h3>
+    <dl>
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous</dd>
+      <dt><kbd>↵</kbd> or <kbd>o</kbd></dt><dd>Open it</dd>
+      <dt><kbd>p</kbd></dt><dd>Pin / unpin (Projects)</dd>
+      <dt><kbd>e</kbd></dt><dd>Done (a Do it row on Work)</dd>
+    </dl>
+    <h3>A decision or action page</h3>
+    <dl>
+      <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick that option</dd>
+      <dt><kbd>y</kbd> / <kbd>d</kbd></dt><dd>Accept the recommendation / You decide</dd>
+      <dt><kbd>e</kbd></dt><dd>Done (an action)</dd>
+      <dt><kbd>a</kbd></dt><dd>Write an answer</dd>
+      <dt><kbd>c</kbd></dt><dd>Copy the resume command</dd>
+    </dl>
+    </div>
+    <div>
+    <h3>On Now</h3>
+    <dl>
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next / previous item</dd>
+      <dt><kbd>↵</kbd></dt><dd>Open it</dd>
+      <dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Pick that option</dd>
+      <dt><kbd>y</kbd></dt><dd>Accept the recommendation</dd>
+      <dt><kbd>e</kbd></dt><dd>Done (an Action) / Reviewed</dd>
+      <dt><kbd>a</kbd></dt><dd>Write an answer</dd>
+      <dt><kbd>s</kbd></dt><dd>Snooze menu</dd>
+      <dt><kbd>c</kbd></dt><dd>Copy its resume command</dd>
+      <dt><kbd>r</kbd></dt><dd>Apply pending updates</dd>
+      <dt><kbd>t</kbd></dt><dd>Lightning round: 5 minutes</dd>
+      <dt><kbd>b</kbd></dt><dd>Accept in bulk</dd>
+    </dl>
+    <h3>Lightning round</h3>
+    <dl>
+      <dt><kbd>↵</kbd></dt><dd>Accept the recommendation / Done</dd>
+      <dt><kbd>1</kbd>–<kbd>9</kbd> <kbd>d</kbd> <kbd>a</kbd></dt><dd>Option, You decide, write an answer</dd>
+      <dt><kbd>s</kbd> / <kbd>n</kbd> / <kbd>Esc</kbd></dt><dd>Snooze till tomorrow / skip / exit</dd>
+    </dl>
+    <h3>Projects pages</h3>
+    <dl>
+      <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Overview, Work, Decisions, Agents, Activity</dd>
+      <dt><kbd>[</kbd> / <kbd>]</kbd></dt><dd>Step through All projects and each project</dd>
+      <dt><kbd>a</kbd> / <kbd>b</kbd></dt><dd>Add work / report a bug (Work)</dd>
+      <dt><kbd>n</kbd></dt><dd>New background session (Agents)</dd>
+      <dt><kbd>p</kbd></dt><dd>Pin / unpin</dd>
+      <dt><kbd>o</kbd></dt><dd>Open its queue in Now</dd>
+    </dl>
+    </div>
+    </div>
+    <p class="hint"><a href="/guide">The full guide</a></p>
+    <form method="dialog"><button class="btn btn--secondary btn--sm">Close</button></form>
+  </dialog>
+  <script src="{{ asset('app.js') }}" defer></script>
+  <script src="{{ asset('palette.js') }}" defer></script>
+  <script src="{{ asset('notify.js') }}" defer></script>
+  {% block extra_script %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,63 @@
+{#
+  Bulk actions and saved views. The row checkboxes live in the lists and point at
+  #bulk-form with the form attribute, so everything works as plain form posts.
+#}
+{% from "_macros.html" import icon %}
+
+{% macro bulk_bar(request) -%}
+  {% set flash = request.query_params.get("bulk") %}
+  {% if flash %}<p class="hint bulk-flash" role="status">{{ flash }}</p>{% endif %}
+  <form method="post" action="/bulk" id="bulk-form" class="bulk-bar surface" aria-label="Actions for the checked rows">
+    <input type="hidden" name="next" value="{% set pq = page_query(request) %}{{ request.url.path }}{{ '?' ~ pq if pq else '' }}">
+    <label class="bulk-all"><input type="checkbox" data-select-all="#bulk-form"> Select all</label>
+    <span class="bulk-group">
+      <select class="input" name="preset" aria-label="Snooze until">
+        <option value="2h">2 hours</option><option value="tonight">tonight</option>
+        <option value="tomorrow" selected>tomorrow</option><option value="week">next week</option>
+        <option value="until_blocks">until it blocks</option>
+      </select>
+      <button type="submit" class="btn btn--secondary btn--sm" name="action" value="snooze">Snooze</button>
+    </span>
+    <span class="bulk-group">
+      <select class="input" name="owner" aria-label="New owner"><option value="me">Me</option><option value="agent">An agent</option></select>
+      <button type="submit" class="btn btn--secondary btn--sm" name="action" value="reassign">Reassign</button>
+    </span>
+    <span class="bulk-group">
+      <input class="input" type="date" name="due_on" aria-label="Due date">
+      <button type="submit" class="btn btn--secondary btn--sm" name="action" value="due">Set due</button>
+    </span>
+    <button type="submit" class="btn btn--secondary btn--sm" name="action" value="done">{{ icon("check") }}Mark done</button>
+    <button type="submit" class="btn btn--secondary btn--sm" name="action" value="cancel" data-confirm="Cancel every checked item? Each can still be undone from its own page right after.">Cancel</button>
+  </form>
+{%- endmacro %}
+
+{% macro bulk_check(id) -%}
+  <input type="checkbox" class="bulk-check" name="ids" value="{{ id }}" form="bulk-form" aria-label="Select #{{ id }}">
+{%- endmacro %}
+
+{% macro views_panel(request) -%}
+  {% set views = saved_views() %}
+  <details class="saved-views"{% if views %} open{% endif %}>
+    <summary>Saved views{% if views %} <span class="count-chip">{{ views | length }}</span>{% endif %}</summary>
+    {% if views %}
+      <ul class="saved-view-list">
+        {% for v in views %}
+          <li>
+            <a href="{{ v.href }}">{{ v.name }}</a>
+            <form method="post" action="/views/{{ v.id }}/delete" class="inline-form">
+              <input type="hidden" name="next" value="{{ request.url.path }}">
+              <button type="submit" class="btn btn--ghost btn--sm" aria-label="Delete view {{ v.name }}">{{ icon("x") }}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <form method="post" action="/views" class="inline-form saved-view-form">
+      <input type="hidden" name="path" value="{{ request.url.path }}">
+      <input type="hidden" name="query" value="{{ page_query(request) }}">
+      <label class="sr-only" for="view-name">Name for this view</label>
+      <input id="view-name" class="input" name="name" required placeholder="Name this view" autocomplete="off">
+      <button type="submit" class="btn btn--secondary btn--sm">Save current view</button>
+    </form>
+  </details>
+{%- endmacro %}

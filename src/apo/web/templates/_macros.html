@@ -1,0 +1,77 @@
+{% macro icon(name, label=None, cls="") -%}
+<svg class="icon icon-{{ name }}{{ ' ' + cls if cls }}" {% if label %}role="img" aria-label="{{ label }}"{% else %}aria-hidden="true"{% endif %} focusable="false"><use href="#i-{{ name }}"/></svg>
+{%- endmacro %}
+
+{% macro ref(id) -%}<span class="ref">#{{ "%04d"|format(id) }}</span>{%- endmacro %}
+
+{% macro decision_status_badge(status) -%}
+{%- set tone = {"open": "warning", "answered": "info", "resolved": "success", "ready": "info", "in_progress": "info"}.get(status, "neutral") -%}
+{%- set label = {"open": "Open", "answered": "Answered", "resolved": "Resolved", "ready": "Ready", "in_progress": "In progress", "waiting": "Waiting"}.get(status, status|capitalize) -%}
+<span class="badge tone-{{ tone }}"><span class="dot"></span>{{ label }}</span>
+{%- endmacro %}
+
+{% macro kind_badge(kind) -%}
+{%- if kind == 'action' -%}<span class="badge badge--square tone-violet">{{ icon("zap") }}Action</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro linear_badge(row) -%}
+{%- if row.linear_identifier -%}
+<a class="badge badge--square tone-neutral" href="{{ row.linear_url }}" target="_blank" rel="noopener"
+   title="Open in Linear">{{ row.linear_identifier }}{{ icon("external") }}</a>
+{%- elif row.linear_push_error -%}
+<span class="badge badge--square tone-danger" title="{{ row.linear_push_error }}">{{ icon("alert") }}Linear push failed</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro empty_state(icon_name, title, compact=False) -%}
+<div class="empty-state{{ ' empty-state--compact' if compact else '' }}">
+  <div class="empty-state-icon">{{ icon(icon_name) }}</div>
+  <h2>{{ title }}</h2>
+  {{ caller() }}
+</div>
+{%- endmacro %}
+
+{% macro folder_select(folders, selected, field_id, label="Folder") -%}
+<label class="field-label" for="{{ field_id }}">{{ label }}</label>
+<select id="{{ field_id }}" class="input" name="repository">
+  {%- for f in folders %}
+  <option value="{{ f.id }}" title="{{ f.local_path | home }}"{% if f.id == selected %} selected{% endif %}>{{ f.label }}</option>
+  {%- endfor %}
+</select>
+{%- endmacro %}
+
+{% macro stuck_badge(stuck) -%}
+{%- if stuck %}<span class="badge tone-warning stuck-badge" title="{{ stuck.reason | capitalize }}">Stuck for {{ stuck.days }} day{{ "" if stuck.days == 1 else "s" }} · {{ stuck.reason }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro due_buckets(work, href) -%}
+{%- if work.overdue or work.due_soon or work.stuck %}
+<p class="due-summary">
+  {%- if work.overdue %}<a class="badge tone-danger" href="{{ href }}">{{ work.overdue | length }} overdue</a>{% endif %}
+  {%- if work.due_soon %} <a class="badge tone-warning" href="{{ href }}">{{ work.due_soon | length }} due soon</a>{% endif %}
+  {%- if work.stuck %} <a class="badge tone-warning" href="{{ href }}">{{ work.stuck | length }} stuck</a>{% endif %}
+</p>
+{%- endif %}
+{%- endmacro %}
+
+{% macro due_badge(due_on) -%}
+{%- set d = due_on | due -%}
+{%- if d %}<span class="badge tone-{{ d.tone }} due-badge" title="Due {{ due_on }}">{{ d.label }}</span>{% endif -%}
+{%- endmacro %}
+
+{# Steps done (solid) against steps planned (faint) per day, and a warning once an active goal stalls. #}
+{% macro burnup(trend, w=160, h=36) -%}
+{%- if trend and trend.days | length > 1 -%}
+{%- set n = trend.days | length -%}
+{%- set top = [trend.total | max, 1] | max -%}
+<svg class="burnup" viewBox="0 0 {{ w }} {{ h }}" width="{{ w }}" height="{{ h }}" role="img"
+     aria-label="{{ trend.done[-1] }} of {{ trend.total[-1] }} steps done over the last {{ n }} days" focusable="false">
+  <polyline class="burnup-total" fill="none" points="{% for v in trend.total %}{{ (loop.index0 * (w - 2) / (n - 1) + 1) | round(1) }},{{ (h - 2 - v * (h - 4) / top) | round(1) }} {% endfor %}"/>
+  <polyline class="burnup-done" fill="none" points="{% for v in trend.done %}{{ (loop.index0 * (w - 2) / (n - 1) + 1) | round(1) }},{{ (h - 2 - v * (h - 4) / top) | round(1) }} {% endfor %}"/>
+</svg>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro stall_warning(trend) -%}
+{%- if trend and trend.stalled_days -%}<span class="badge tone-warning" title="No step has been finished for {{ trend.stalled_days }} days">No progress for {{ trend.stalled_days }} days</span>{%- endif -%}
+{%- endmacro %}

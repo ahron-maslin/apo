@@ -1,0 +1,88 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import icon, empty_state %}
+{% block body_class %}page-project page-fleet{% endblock %}
+
+{% macro project_section(key, title, sessions, note=None, open_count=0, project_link=None) -%}
+  <section class="fleet-project{{ ' fleet-project--wide' if sessions | length > 1 }}" data-project="{{ key }}" aria-labelledby="fleet-{{ loop_id(key) }}">
+    <div class="section-head">
+      <h2 class="section-title project-name" id="fleet-{{ loop_id(key) }}">
+        {{ title }} <span class="count-chip">{{ sessions | length }}</span>
+        {% if note %}<span class="section-note">{{ note }}</span>{% endif %}
+      </h2>
+      {% if project_link and open_count %}
+        <a class="section-link" data-tone="warning" href="{{ project_link }}">{{ open_count }} open decision{{ "s" if open_count != 1 }} {{ icon("arrow-right") }}</a>
+      {% elif project_link %}
+        <a class="section-link" href="{{ project_link }}">Decisions {{ icon("arrow-right") }}</a>
+      {% endif %}
+    </div>
+    <div class="fleet-grid">
+      {% for s in sessions %}
+        {% include "_session_card.html" %}
+      {% endfor %}
+    </div>
+  </section>
+{%- endmacro %}
+{% macro loop_id(key) -%}{{ key | replace(' ', '-') | replace('/', '-') | lower }}{%- endmacro %}
+
+{% block tab %}
+{% set active = [] %}
+{% for group in sessions_by_project.values() %}{% set _ = active.extend(group) %}{% endfor %}
+{% set _ = active.extend(unregistered_sessions) %}
+{% set n_needs_you = active | selectattr("needs_you") | list | length %}
+{% set n_running = active | selectattr("display_status", "equalto", "running") | list | length %}
+{% set n_idle = active | selectattr("display_status", "equalto", "idle") | list | length %}
+{% set n_stale = active | selectattr("stale") | list | length %}
+  <div class="fleet-head">
+    <p class="page-desc">Every Claude Code session — what it's doing and whether it's waiting on you.</p>
+    <span class="live-indicator" title="Refreshes every 5 seconds" data-state="live" role="status"><span class="dot dot--live tone-success"></span><span data-live-label>Live</span></span>
+  </div>
+
+  {% if active %}
+  <div class="stat-strip" aria-label="Fleet summary">
+    <div class="stat tone-warning" data-active="{{ 'true' if n_needs_you else 'false' }}" data-stat-box="needs_you">
+      <span class="stat-label"><span class="dot"></span>Needs you</span>
+      <span class="stat-value" data-stat="needs_you">{{ n_needs_you }}</span>
+    </div>
+    <div class="stat tone-success">
+      <span class="stat-label"><span class="dot"></span>Running</span>
+      <span class="stat-value" data-stat="running">{{ n_running }}</span>
+    </div>
+    <div class="stat tone-neutral">
+      <span class="stat-label"><span class="dot"></span>Idle</span>
+      <span class="stat-value" data-stat="idle">{{ n_idle }}</span>
+    </div>
+    <div class="stat tone-neutral" title="Working, but no activity for {{ stale_minutes }}+ minutes — a long-running command, or hung">
+      <span class="stat-label"><span class="dot"></span>Quiet</span>
+      <span class="stat-value" data-stat="stale">{{ n_stale }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <div id="fleet-sections">
+  {% if not sessions_by_project and not unregistered_sessions and not recently_ended %}
+    <div class="empty">
+    {% call empty_state("fleet", "No sessions seen yet") %}
+      <p>Sessions register automatically once <code>ado init</code>'s hooks are installed and a Claude Code session starts in a registered repository.</p>
+    {% endcall %}
+    </div>
+  {% endif %}
+
+  {% for project_name, sessions in sessions_by_project.items() %}
+    {{ project_section(project_name, project_name, sessions,
+                       open_count=open_counts.get(project_name, 0),
+                       project_link="/projects/" ~ project_ids.get(project_name, "") ~ "/decisions") }}
+  {% endfor %}
+
+  {% if unregistered_sessions %}
+    {{ project_section("__unregistered__", "Unregistered", unregistered_sessions, note="not in a registered repository") }}
+  {% endif %}
+
+  {% if recently_ended %}
+    {{ project_section("__recently_ended__", "Recently ended", recently_ended, note="last " ~ recently_ended_days ~ " days") }}
+  {% endif %}
+  </div>
+{% endblock %}
+
+{% block extra_script %}
+<script src="{{ asset('fleet.js') }}" defer></script>
+{% endblock %}

@@ -1,0 +1,139 @@
+{#
+  One Now item with its moves. Context: item, lane, glyph; item_next (where every
+  form returns to, default "/"); item_open_answer (open the answer box, for the
+  lightning round).
+#}
+{% from "_macros.html" import icon, ref, due_badge, stuck_badge %}
+{% from "_project_macros.html" import note_count_badge %}
+{% set item_next = item_next or "/" %}
+<article class="now-row kind-{{ item.kind }}" data-key="{{ item.key }}" data-now-row>
+  <span class="now-glyph" aria-hidden="true">{{ glyph }}</span>
+  <div class="now-main">
+    <div class="now-head">
+      <div class="now-head-main">
+      {% if item.project_name %}<span class="badge badge--square tone-neutral now-project">{{ item.project_name }}</span>{% endif %}
+      {% if item.decision %}
+        <a class="now-title" href="/decisions/{{ item.decision.id }}">{{ ref(item.decision.id) }}{{ item.title }}</a>
+      {% elif item.session %}
+        <a class="now-title" href="/projects/agents#session-card-{{ item.session.id }}">{{ item.title }}</a>
+      {% elif item.outcome %}
+        <a class="now-title" href="/outcomes/{{ item.outcome.id }}">{{ item.title }}</a>
+      {% else %}
+        <span class="now-title">{{ item.title }}</span>
+      {% endif %}
+      </div>
+      <span class="now-meta">
+        {%- if item.since %}<time datetime="{{ item.since }}">{{ item.since | ago }}</time>{% endif %}
+        {%- if item.effort %} · ~{{ "30s" if item.effort < 1 else (item.effort | int) ~ "m" }}{% endif -%}
+      </span>
+    </div>
+    <p class="now-reason">{{ item.reason }}</p>
+    {% if item.decision and item.decision.note_count %}<p class="now-due">{{ note_count_badge(item.decision.note_count) }}</p>{% endif %}
+    {% if item.due_bucket or item.stuck %}<p class="now-due">{{ due_badge(item.decision.due_on) }}{{ stuck_badge(item.stuck) }}</p>{% endif %}
+    {% if item.kind == "decision" and item.decision.recommendation %}
+      <p class="now-suggestion">{{ icon("bulb") }}<span><strong>Suggested:</strong> {{ item.decision.recommendation }}
+        {%- if item.decision.confidence %} <span class="muted">· {{ item.decision.confidence }}% sure</span>{% endif %}</span></p>
+    {% endif %}
+
+    {% if item.kind in ("decision", "action") and lane in ("your_move", "asks") %}
+      <div class="now-actions">
+        {% if item_open_answer %}
+        {% elif item.kind == "decision" and item.decision.recommendation %}
+          <form method="post" action="/decisions/{{ item.decision.id }}/answer" class="inline-form">
+            <input type="hidden" name="choice" value="recommendation"><input type="hidden" name="next" value="{{ item_next }}">
+            <button type="submit" class="btn btn--primary btn--sm" title="{{ item.decision.recommendation }}" data-now-primary>{{ icon("bulb") }}Accept recommendation</button>
+          </form>
+        {% elif item.kind == "action" %}
+          <form method="post" action="/decisions/{{ item.decision.id }}/answer" class="inline-form">
+            <input type="hidden" name="choice" value="done"><input type="hidden" name="next" value="{{ item_next }}">
+            <button type="submit" class="btn btn--primary btn--sm" data-now-primary>{{ icon("check") }}Done</button>
+          </form>
+        {% endif %}
+        <details class="now-snooze disclosure">
+          <summary class="btn btn--ghost btn--sm">{{ icon("clock") }}Snooze</summary>
+          <form method="post" action="/decisions/{{ item.decision.id }}/snooze" class="snooze-menu">
+            <input type="hidden" name="next" value="{{ item_next }}">
+            <button type="submit" name="preset" value="2h" class="btn btn--ghost btn--sm">2 hours</button>
+            <button type="submit" name="preset" value="tonight" class="btn btn--ghost btn--sm">Tonight</button>
+            <button type="submit" name="preset" value="tomorrow" class="btn btn--ghost btn--sm">Tomorrow 9:00</button>
+            <button type="submit" name="preset" value="week" class="btn btn--ghost btn--sm">Next week</button>
+            {% if item.decision.origin_session_id %}
+              <button type="submit" name="preset" value="until_blocks" class="btn btn--ghost btn--sm"
+                      title="Out of the queue while the agent that asked keeps working">Until it blocks</button>
+            {% endif %}
+          </form>
+        </details>
+        <form method="post" action="/items/{{ item.decision.id }}/cancel" class="inline-form">
+          <input type="hidden" name="next" value="{{ item_next }}">
+          <button type="submit" class="btn btn--ghost btn--sm" title="Not wanted any more. You can undo it right after.">{{ icon("x") }}Cancel</button>
+        </form>
+        <details class="now-answer disclosure"{% if item_open_answer %} open{% endif %}>
+          <summary{% if item_open_answer %} hidden{% endif %}>{{ icon("chevron-right", cls="chev") }}{{ "Answer…" if item.kind == "decision" else "Note or other answer…" }}</summary>
+          {% set composer_decision_id = item.decision.id %}
+          {% set composer_attachments = [] %}
+          {% set composer_editable = true %}
+          {% set composer_show_headings = false %}
+          {% set composer_thumb_compact = true %}
+          {% set composer_id_suffix = "-now-" ~ item.decision.id %}
+          {% set composer_placeholder = "Note for a quick answer, or your own answer…" %}
+          {% set composer_submit_label = "Confirm done" if item.kind == "action" else "Send answer" %}
+          {% set composer_decision = item.decision %}
+          {% set composer_next = item_next %}
+          {# The row already has Accept / Done; the round has no row button, so its box keeps them. #}
+          {% set composer_skip_primary = not item_open_answer %}
+          {% include "_attachment_composer.html" %}
+        </details>
+      </div>
+    {% elif item.kind == "limited" and lane == "in_transit" %}
+      <form method="post" action="/sessions/{{ item.session.id }}/resume" class="inline-form now-actions">
+        <input type="hidden" name="next" value="{{ item_next }}"><input type="hidden" name="cancel" value="1">
+        <button type="submit" class="btn btn--ghost btn--sm">Cancel the scheduled resume</button>
+      </form>
+    {% elif item.kind == "limited" %}
+      <form method="post" action="/sessions/{{ item.session.id }}/resume" class="inline-form now-actions resume-form">
+        <input type="hidden" name="next" value="{{ item_next }}">
+        <label class="resume-at">Resume at
+          <input class="input" type="time" name="at" value="{{ item.resets_at_local or '' }}" required></label>
+        <button type="submit" class="btn btn--primary btn--sm" data-now-primary>{{ icon("clock") }}Schedule</button>
+        <button type="submit" name="now" value="1" formnovalidate class="btn btn--secondary btn--sm">{{ icon("zap") }}Resume now</button>
+      </form>
+    {% elif item.kind == "outcome" %}
+      <form method="post" action="/outcomes/{{ item.outcome.id }}/status" class="inline-form now-actions">
+        <input type="hidden" name="next" value="{{ item_next }}">
+        <button type="submit" name="status" value="achieved" class="btn btn--primary btn--sm" data-now-primary>{{ icon("check") }}Mark achieved</button>
+        <a class="btn btn--ghost btn--sm" href="/outcomes/{{ item.outcome.id }}">Open</a>
+      </form>
+    {% elif item.kind == "wait" %}
+      <form method="post" action="/items/{{ item.decision.id }}/done" class="inline-form now-actions">
+        <input type="hidden" name="next" value="{{ item_next }}">
+        <button type="submit" class="btn btn--secondary btn--sm" data-now-primary>{{ icon("check") }}It arrived</button>
+      </form>
+    {% elif item.kind == "review" %}
+      <form method="post" action="/sessions/{{ item.session.id }}/reviewed" class="inline-form now-actions">
+        <input type="hidden" name="next" value="{{ item_next }}">
+        <button type="submit" class="btn btn--secondary btn--sm" data-now-primary>{{ icon("check") }}Reviewed</button>
+      </form>
+    {% elif item.kind in ("permission", "input") %}
+      <p class="hint">It's waiting in its terminal{% if item.session.cwd %} ({{ item.session.cwd }}){% endif %}.</p>
+    {% elif item.kind == "sync" %}
+      <a class="section-link" href="/settings">{{ icon("plug") }}Check the connection</a>
+    {% elif item.kind == "folder" %}
+      <p class="hint">Run <code>ado projects</code> for the merge command.</p>
+    {% endif %}
+
+    {% if item.kind == "transit" and not item.decision.live_session and not item.decision.dispatched and item.decision.repository_id is not none %}
+      <form method="post" action="/decisions/{{ item.decision.id }}/apply" class="inline-form now-actions"
+            {% if item.decision.needs_approval %}data-confirm="This answer came from Linear, not from you here. Start an agent with it?"{% endif %}>
+        <input type="hidden" name="next" value="{{ item_next }}">
+        {% if item.decision.needs_approval %}<input type="hidden" name="approved" value="1">{% endif %}
+        <button type="submit" class="btn btn--primary btn--sm" data-now-primary>{{ icon("zap") }}{{ "Approve and apply in background" if item.decision.needs_approval else "Apply in background" }}</button>
+      </form>
+    {% endif %}
+    {% if item.resume_command %}
+      <div class="copy-command">
+        <code>{{ item.resume_command }}</code>
+        <button type="button" class="btn btn--secondary btn--sm" data-copy="{{ item.resume_command }}">Copy</button>
+      </div>
+    {% endif %}
+  </div>
+</article>

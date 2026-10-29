@@ -1,0 +1,101 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import icon, folder_select, due_buckets %}
+{% from "_project_macros.html" import work_row, filter_bar, label_chips %}
+{% from "_bulk.html" import bulk_bar, views_panel %}
+
+{% set groups = [("needs_you", "Needs you", "warning"), ("ready", "Ready for an agent", "neutral"),
+                 ("in_progress", "In progress", "info"), ("waiting", "Waiting", "neutral"), ("done", "Done this week", "success")] %}
+
+{% block tab %}
+<div class="detail-layout">
+  <div class="project-main" data-live-region="work" data-keylist>
+    {{ bulk_bar(request) }}
+    {{ views_panel(request) }}
+    {{ due_buckets(work, "#work-overdue") }}
+    {{ filter_bar(request.url.path, filters, filter_labels, filter_statuses, {"sort": sort}, "?sort=due" if sort == "due" else "") }}
+    {% set fq = ('label=' ~ (filters.label | urlencode) ~ '&owner=' ~ filters.owner ~ '&status=' ~ filters.status) if filters.active else '' %}
+    {% set sq = fq ~ ('&' if fq and sort != 'due' else '') ~ ('' if sort == 'due' else 'sort=due') %}
+    <p class="hint work-sort">Sorted {{ "by due date" if sort == "due" else "as filed" }} · <a href="{{ request.url.path }}{{ '?' ~ sq if sq else '' }}">{{ "Sort as filed" if sort == "due" else "Sort by due date" }}</a></p>
+    {% set any_work = work.needs_you or work.ready or work.in_progress or work.waiting or work.done %}
+    {% if not any_work %}
+      <p class="hint">{% if filters.active %}Nothing matches this filter.{% else %}Nothing open. Add work, a bug or something for yourself with New work, or start a goal on the Overview.{% endif %}</p>
+    {% endif %}
+    {% for key, label, tone in [("overdue", "Overdue", "danger"), ("due_soon", "Due soon", "warning")] %}{% if work[key] %}
+      <section class="section" aria-labelledby="work-{{ key }}">
+        <div class="section-head"><h2 class="section-title" id="work-{{ key }}">{{ label }} <span class="count-chip">{{ work[key] | length }}</span></h2></div>
+        <ul class="history-list surface project-queue work-list">
+          {% for i in work[key] %}{{ work_row(i, tone, request.url.path) }}{% endfor %}
+        </ul>
+      </section>
+    {% endif %}{% endfor %}
+    {% for key, label, tone in groups %}{% if work[key] %}
+      <section class="section" aria-labelledby="work-{{ key }}">
+        <div class="section-head"><h2 class="section-title" id="work-{{ key }}">{{ label }} <span class="count-chip">{{ work[key] | length }}</span></h2></div>
+        <ul class="history-list surface project-queue work-list">
+          {% for i in work[key] %}{{ work_row(i, tone, request.url.path, ranking=(sort != "due" and key != "done")) }}{% endfor %}
+        </ul>
+      </section>
+    {% endif %}{% endfor %}
+  </div>
+
+  <aside class="detail-aside project-aside" id="new-work">
+    {% if not p.archived %}
+      <section class="surface aside-panel">
+        <h2>New work</h2>
+        <form method="post" action="/projects/{{ p.id }}/items" class="form-stack new-work" enctype="multipart/form-data">
+          <fieldset class="kind-picker">
+            <legend class="field-label">For</legend>
+            <label><input type="radio" name="kind" value="task" checked> An agent</label>
+            <label data-hotkey="b" title="Bug (b)"><input type="radio" name="kind" value="bug"> A bug</label>
+            <label><input type="radio" name="kind" value="me"> Me</label>
+          </fieldset>
+          <label class="field-label" for="work-title">What</label>
+          <input id="work-title" class="input" name="title" required placeholder="Add rate limiting to the API" data-hotkey="a" autocomplete="off">
+          <label class="field-label" for="work-detail"><span class="not-bug">Detail</span><span class="bug-only">What happened</span> (optional)</label>
+          <div class="composer-box" data-screenshot-picker>
+            <div class="drop-overlay" aria-hidden="true">{{ icon("image") }} Drop to attach</div>
+            <textarea id="work-detail" class="textarea" name="detail" rows="2" data-submit-shortcut></textarea>
+            <div class="attachments not-me" data-screenshot-grid></div>
+            <div class="composer-toolbar not-me">
+              <label class="btn btn--ghost btn--sm attachment-add-btn">
+                <input type="file" name="screenshots" multiple accept="image/png,image/jpeg,image/gif,image/webp"
+                       class="sr-only" data-screenshot-input>
+                {{ icon("paperclip") }}<span>Screenshot</span>
+              </label>
+              <span class="attachment-hint">or paste / drop</span>
+            </div>
+          </div>
+          <div class="bug-only form-stack">
+            <label class="field-label" for="work-expected">What you expected (optional)</label>
+            <textarea id="work-expected" class="textarea" name="expected" rows="2"></textarea>
+            <label class="field-label" for="work-steps">Steps to reproduce (optional)</label>
+            <textarea id="work-steps" class="textarea" name="steps" rows="3"></textarea>
+            <label class="field-label" for="work-severity">Severity</label>
+            <select id="work-severity" class="input" name="severity">
+              {% for s in severities %}<option value="{{ s }}"{% if s == "normal" %} selected{% endif %}>{{ s | capitalize }}</option>{% endfor %}
+            </select>
+          </div>
+          {% if outcomes %}
+            <label class="field-label" for="work-goal">Goal (optional)</label>
+            <select id="work-goal" class="input" name="outcome">
+              <option value="">None</option>
+              {% for o in outcomes %}<option value="{{ o.id }}">{{ o.title }}</option>{% endfor %}
+            </select>
+          {% endif %}
+          {% if repositories | length > 1 %}{{ folder_select(repositories, folder_default, "work-folder") }}{% endif %}
+          <label class="field-label" for="work-due">Due (optional)</label>
+          <input id="work-due" class="input" type="date" name="due_on">
+          <label class="field-label" for="work-labels">Labels (optional, comma-separated)</label>
+          <input id="work-labels" class="input" name="labels" placeholder="api, billing" autocomplete="off">
+          {% if repositories %}
+            <label class="inline-check not-me"><input type="checkbox" name="run_now" value="1"> Start a background session on it now</label>
+          {% endif %}
+          <p class="field-hint not-me">It becomes READY in the repo's <code>INDEX.md</code> for the next session or <code>/decisions</code>{% if repositories %}, or starts now with {{ {"ask": "your normal permissions", "edits": "Accept file edits", "plan": "Plan only"}[autonomy] }} (set on the Overview){% endif %}.</p>
+          <p class="field-hint me-only">It goes on your Now.</p>
+          <div><button type="submit" class="btn btn--primary btn--sm">Add</button></div>
+        </form>
+      </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

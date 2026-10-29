@@ -1,0 +1,124 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import icon, empty_state, linear_badge, due_badge, burnup, stall_warning %}
+{% from "_project_macros.html" import project_row with context %}
+
+{% set owner_labels = {"me": "You", "agent": "Agent", "external": "Waiting"} %}
+
+{% block tab %}
+<section class="section" aria-labelledby="portfolio-heading">
+  <div class="section-head">
+    <h2 class="section-title" id="portfolio-heading">Projects</h2>
+    <a class="section-link" href="/projects/week">This week</a>
+    <a class="section-link" href="/projects/report">Weekly report</a>
+    {% if not archived %}<a class="section-link" href="/projects?archived=1">Show archived</a>{% endif %}
+  </div>
+  <div data-live-region="portfolio">
+  {% if active %}
+    <ul class="project-list surface" data-keylist>
+      {% for row in active %}{{ project_row(row) }}{% endfor %}
+    </ul>
+  {% else %}
+    {% call empty_state("folder", "No active projects") %}
+      <p>A project appears the first time a Claude Code session runs in its folder, or when you make one below.</p>
+    {% endcall %}
+  {% endif %}
+  </div>
+  <details id="new-project" class="surface report-bug disclosure"{% if new_project_error %} open{% endif %}>
+    <summary>{{ icon("plus") }}New project</summary>
+    <form method="post" action="/projects" class="form-stack">
+      <label class="field-label" for="new-project-name">Name</label>
+      <input id="new-project-name" class="input" name="name" required placeholder="Storefront" autocomplete="off">
+      {% if new_project_error %}<p class="error-text" role="alert">{{ new_project_error }}</p>{% endif %}
+      <label class="field-label" for="new-project-folder">Folder (optional)</label>
+      <select id="new-project-folder" class="input" name="folder">
+        <option value="">No folder</option>
+        {%- for f in folder_choices %}
+        <option value="{{ f.name }}"{% if f.project %} disabled{% endif %}>{{ f.name }}{% if f.git %} (git){% endif %}{% if f.project %} — {{ f.project }}{% endif %}</option>
+        {%- endfor %}
+      </select>
+      <p class="field-hint">Subfolders of <code>{{ projects_root | home }}</code> (set by <code>ADO_PROJECTS_ROOT</code>){% if not folder_choices %}: none yet{% endif %}. One that's already a project's is greyed out, with that project's name.</p>
+      <div><button type="submit" class="btn btn--primary btn--sm">Create project</button></div>
+    </form>
+  </details>
+  {% if dormant %}
+    <details class="disclosure project-group">
+      <summary>{{ icon("chevron-right", cls="chev") }}Dormant ({{ dormant | length }}) <span class="muted">— nothing open, nothing for {{ dormant_days }} days</span></summary>
+      <ul class="project-list surface">{% for row in dormant %}{{ project_row(row) }}{% endfor %}</ul>
+    </details>
+  {% endif %}
+  {% if archived %}
+    <details class="disclosure project-group" open>
+      <summary>{{ icon("chevron-right", cls="chev") }}Archived ({{ archived | length }})</summary>
+      <ul class="project-list surface">{% for row in archived %}{{ project_row(row) }}{% endfor %}</ul>
+    </details>
+  {% endif %}
+</section>
+
+<section class="section" id="goals" aria-labelledby="goals-heading">
+  <div class="section-head"><h2 class="section-title" id="goals-heading">Goals</h2></div>
+  <p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else.</p>
+  {% if outcomes %}
+    <div class="outcome-list">
+      {% for o in outcomes %}
+        {% set pr = o.progress %}
+        <div class="outcome-card surface">
+          <div class="outcome-card-head">
+            <span class="badge badge--square tone-neutral">{{ o.project_name }}</span>
+            <a class="outcome-title outcome-card-link" href="/outcomes/{{ o.id }}">{{ o.title }}</a>
+            {{ linear_badge(o) }}
+            {% if o.status == "paused" %}<span class="badge tone-neutral">Paused</span>{% endif %}
+            {% if pr.ready_to_close %}<span class="badge tone-info">Ready to close</span>{% endif %}
+            {{ stall_warning(o.trend) }}
+            {{ due_badge(o.due_on) }}
+            <span class="outcome-count">{{ pr.done }}/{{ pr.total }}</span>
+          </div>
+          <span class="progress" aria-hidden="true"><span style="width: {{ (100 * pr.done / pr.total) | round | int if pr.total else 0 }}%"></span></span>
+          {{ burnup(o.trend, 120, 24) }}
+          {% if pr.next %}
+            <p class="outcome-next">Next: <span class="owner-pill owner-{{ pr.next_owner }}">{{ owner_labels[pr.next_owner] }}</span> {{ pr.next.title }}</p>
+          {% elif not pr.total %}
+            <p class="outcome-next muted">No steps yet.</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="hint">No goals yet. A goal is a result you want, with steps split between you, your agents and other people.</p>
+  {% endif %}
+
+  {% if projects %}
+    <details class="surface report-bug disclosure">
+      <summary>{{ icon("plus") }}Start a goal</summary>
+      <form method="post" action="/outcomes" class="form-stack">
+        <input type="hidden" name="next" value="/projects#goals">
+        <label class="field-label" for="goal-project">Project</label>
+        <select id="goal-project" class="input" name="project" required>
+          {% for name in projects %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+        </select>
+        <label class="field-label" for="goal-title">What do you want to be true?</label>
+        <input id="goal-title" class="input" name="title" required placeholder="The listing is live and takes payments" autocomplete="off">
+        <label class="field-label" for="goal-done">Done when (optional)</label>
+        <input id="goal-done" class="input" name="done_when" placeholder="A real order goes through">
+        <label class="field-label" for="goal-due">Due (optional)</label>
+        <input id="goal-due" class="input" type="date" name="due_on">
+        <div><button type="submit" class="btn btn--primary btn--sm">Start goal</button></div>
+      </form>
+    </details>
+  {% endif %}
+
+  {% if finished %}
+    <details class="disclosure project-group">
+      <summary>{{ icon("chevron-right", cls="chev") }}Achieved and dropped ({{ finished | length }})</summary>
+      <ul class="history-list surface">
+        {% for o in finished %}
+          <li class="history-item">
+            <span class="badge tone-{{ 'success' if o.status == 'achieved' else 'neutral' }}">{{ o.status | capitalize }}</span>
+            <div><a href="/outcomes/{{ o.id }}">{{ o.title }}</a> <span class="muted">{{ o.project_name }}</span></div>
+            <span class="muted">{{ o.progress.done }}/{{ o.progress.total }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+</section>
+{% endblock %}

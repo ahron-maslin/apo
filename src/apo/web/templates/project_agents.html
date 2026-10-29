@@ -1,0 +1,42 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import icon %}
+
+{% block tab %}
+<section class="section" aria-labelledby="agents-heading">
+  <div class="section-head"><h2 class="section-title" id="agents-heading">Running here</h2></div>
+  <div data-live-region="sessions">
+  {% if sessions %}
+    <div class="fleet-grid">
+      {% for s in sessions %}{% include "_session_card.html" %}{% endfor %}
+    </div>
+  {% else %}
+    <p class="hint">No sessions are open in this project.</p>
+  {% endif %}
+  </div>
+  {% if not p.archived %}
+    <p class="hint start-hint">To start one, add it under <a href="/projects/{{ p.id }}/work#new-work">New work</a> and tick “Start a background session on it now”, so what it was asked to do stays on the Work tab.</p>
+  {% endif %}
+</section>
+
+{% if ended %}
+  <details class="disclosure project-group">
+    <summary>{{ icon("chevron-right", cls="chev") }}Ended recently ({{ ended | length }})</summary>
+    <ul class="history-list surface">
+      {% set card_back = request.url.path %}
+      {% for s in ended %}
+        <li class="history-item ended-session">
+          <span class="badge tone-neutral">{{ s.status_label }}</span>
+          <div>
+            <a href="/sessions/{{ s.id }}">{{ s.title or s.claude_session_id[:8] }}</a>
+            {% if s.verdict_label and s.verdict_label != s.status_label %}<span class="badge verdict verdict-{{ s.verdict }}" title="{{ s.verdict_reason }}">{{ s.verdict_label }}</span>{% endif %}
+            {% if s.verdict_reason %}<div class="now-reason">{{ s.verdict_reason }}</div>{% endif %}
+            {% if s.last_summary %}<div class="now-reason">{{ s.last_summary | truncate(200) }}</div>{% endif %}
+            {% include "_resume_actions.html" %}
+          </div>
+          <span class="muted">{{ s.last_seen_at | ago }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </details>
+{% endif %}
+{% endblock %}

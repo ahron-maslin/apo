@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Guide — Switchboard{% endblock %}
+{% block body_class %}page-guide{% endblock %}
+
+{% block content %}
+<main id="main-content" class="page">
+  <div class="detail-layout guide-layout">
+    <article class="guide prose">{{ content }}</article>
+    <aside class="detail-aside guide-toc" aria-label="Sections">
+      <nav class="surface aside-panel">
+        <h2>On this page</h2>
+        <ul class="plain-list">
+          {% for s in sections %}<li><a href="#{{ s.id }}">{{ s.name }}</a></li>{% endfor %}
+        </ul>
+      </nav>
+    </aside>
+  </div>
+</main>
+{% endblock %}

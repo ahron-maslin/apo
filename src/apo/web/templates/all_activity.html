@@ -1,0 +1,34 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import empty_state %}
+
+{% block tab %}
+<form method="get" class="activity-filter">
+  <label class="inline-check"><input type="checkbox" name="all" value="1" onchange="this.form.submit()"{% if show_all %} checked{% endif %}> Include routine turns</label>
+</form>
+<div data-live-region="activity">
+{% if by_day %}
+  {% for day, day_events in by_day.items() %}
+    <section class="section" aria-label="{{ day }}">
+      <div class="section-head"><h2 class="section-title">{{ day }}</h2></div>
+      <ul class="history-list surface activity-list">
+        {% for e in day_events %}
+          <li class="history-item activity-item importance-{{ e.importance }}">
+            <time datetime="{{ e.occurred_at }}" title="{{ e.occurred_at }}">{{ e.occurred_at | clock }}</time>
+            <div>
+              {% if e.decision_id %}<a href="/decisions/{{ e.decision_id }}">{{ e.summary }}</a>{% else %}{{ e.summary }}{% endif %}
+              {%- if e.repeat and e.repeat > 1 %} <span class="repeat-count">×{{ e.repeat }}</span>{% endif %}
+              {% if e.project_name %}<a class="badge badge--square tone-neutral activity-project" href="/projects/{{ e.project_id }}/activity">{{ e.project_name }}</a>{% endif %}
+            </div>
+            <span class="muted activity-actor">{{ {"human": "you", "agent": "agent", "system": "system", "integration": e.source}.get(e.actor, e.actor) }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% else %}
+  {% call empty_state("clock", "Nothing yet") %}
+    <p>Events appear here as requests are filed and answered and sessions start, wait on you, and end.</p>
+  {% endcall %}
+{% endif %}
+</div>
+{% endblock %}

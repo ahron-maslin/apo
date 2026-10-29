@@ -1,0 +1,75 @@
+{% extends "projects_shell.html" %}
+{% from "_project_macros.html" import work_row, filter_bar, label_chips %}
+{% from "_bulk.html" import bulk_bar, views_panel %}
+{% from "_macros.html" import due_buckets %}
+
+{% set groups = [("needs_you", "Needs you", "warning"), ("ready", "Ready for an agent", "neutral"),
+                 ("in_progress", "In progress", "info"), ("waiting", "Waiting", "neutral"), ("done", "Done this week", "success")] %}
+
+{% block tab %}
+<div class="detail-layout">
+  <div class="project-main" data-live-region="work" data-keylist>
+    {{ bulk_bar(request) }}
+    {{ views_panel(request) }}
+    {{ due_buckets(work, "#work-overdue") }}
+    {{ filter_bar(request.url.path, filters, filter_labels, filter_statuses, {"sort": sort}, "?sort=due" if sort == "due" else "") }}
+    {% set fq = ('label=' ~ (filters.label | urlencode) ~ '&owner=' ~ filters.owner ~ '&status=' ~ filters.status) if filters.active else '' %}
+    {% set sq = fq ~ ('&' if fq and sort != 'due' else '') ~ ('' if sort == 'due' else 'sort=due') %}
+    <p class="hint work-sort">Sorted {{ "by due date" if sort == "due" else "as filed" }} · <a href="{{ request.url.path }}{{ '?' ~ sq if sq else '' }}">{{ "Sort as filed" if sort == "due" else "Sort by due date" }}</a></p>
+    {% if not (work.needs_you or work.ready or work.in_progress or work.waiting or work.done) %}
+      <p class="hint">{% if filters.active %}Nothing matches this filter.{% else %}Nothing open in any project.{% endif %}</p>
+    {% endif %}
+    {% for key, label, tone in [("overdue", "Overdue", "danger"), ("due_soon", "Due soon", "warning")] %}{% if work[key] %}
+      <section class="section" aria-labelledby="work-{{ key }}">
+        <div class="section-head"><h2 class="section-title" id="work-{{ key }}">{{ label }} <span class="count-chip">{{ work[key] | length }}</span></h2></div>
+        <ul class="history-list surface project-queue work-list">
+          {% for i in work[key] %}{{ work_row(i, tone, request.url.path, show_project=True) }}{% endfor %}
+        </ul>
+      </section>
+    {% endif %}{% endfor %}
+    {% for key, label, tone in groups %}{% if work[key] %}
+      <section class="section" aria-labelledby="work-{{ key }}">
+        <div class="section-head"><h2 class="section-title" id="work-{{ key }}">{{ label }} <span class="count-chip">{{ work[key] | length }}</span></h2></div>
+        <ul class="history-list surface project-queue work-list">
+          {% for i in work[key] %}{{ work_row(i, tone, request.url.path, show_project=True) }}{% endfor %}
+        </ul>
+      </section>
+    {% endif %}{% endfor %}
+  </div>
+
+  <aside class="detail-aside project-aside">
+    {% if projects %}
+      <section class="surface aside-panel">
+        <h2>Add work</h2>
+        <form method="post" action="/projects/items" class="form-stack">
+          <label class="field-label" for="item-project">Project</label>
+          <select id="item-project" class="input" name="project" required>
+            {%- for d in destinations %}
+              {%- if d.folders %}
+            <optgroup label="{{ d.name }}">
+              {%- for f in d.folders %}<option value="{{ f.value }}" title="{{ f.local_path | home }}">{{ d.name }} / {{ f.label }}</option>{% endfor %}
+            </optgroup>
+              {%- else %}
+            <option value="{{ d.value }}">{{ d.name }}</option>
+              {%- endif %}
+            {%- endfor %}
+          </select>
+          <label class="field-label" for="item-title">What</label>
+          <input id="item-title" class="input" name="title" required placeholder="Add rate limiting to the API" data-hotkey="a" autocomplete="off">
+          <label class="field-label" for="item-detail">Detail (optional)</label>
+          <textarea id="item-detail" class="textarea" name="detail" rows="2" data-submit-shortcut></textarea>
+          <label class="field-label" for="item-owner">For</label>
+          <select id="item-owner" class="input" name="owner">
+            <option value="agent">An agent (READY in the repo's INDEX.md)</option>
+            <option value="me">Me (on my Now)</option>
+          </select>
+          <label class="field-label" for="item-labels">Labels (optional, comma-separated)</label>
+          <input id="item-labels" class="input" name="labels" placeholder="api, billing" autocomplete="off">
+          <div><button type="submit" class="btn btn--primary btn--sm">Add <kbd aria-hidden="true">a</kbd></button></div>
+        </form>
+        <p class="field-hint">To report a bug, open the project in the sidebar: its Work tab has the bug form.</p>
+      </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

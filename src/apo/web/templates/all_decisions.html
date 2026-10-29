@@ -1,0 +1,58 @@
+{% extends "projects_shell.html" %}
+{% from "_macros.html" import icon, ref %}
+{% from "_bulk.html" import bulk_bar, bulk_check, views_panel %}
+
+{% set sources = {"dashboard": "you", "cli": "you (CLI)", "mcp": "you, in chat", "linear": "Linear", "archive": "closed on archive",
+                  "human": "you", "agent": "an agent"} %}
+
+{% block tab %}
+<section class="section" aria-labelledby="open-decisions">
+  <div class="section-head"><h2 class="section-title" id="open-decisions">Waiting on you <span class="count-chip">{{ open_decisions | length }}</span></h2></div>
+  <div data-live-region="open-decisions">
+  {% if open_decisions %}
+    {{ bulk_bar(request) }}
+    {{ views_panel(request) }}
+    <ul class="history-list surface project-queue">
+      {% for d in open_decisions %}
+        <li class="history-item has-check">
+          {{ bulk_check(d.id) }}
+          <span class="badge tone-warning">{{ d.state }}</span>
+          <div><a href="{{ d.href }}">{{ ref(d.id) }}{{ d.title }}</a>
+            <a class="badge badge--square tone-neutral" href="/projects/{{ d.project_id }}/decisions">{{ d.project_name }}</a>
+            {% if d.summary and d.summary != d.title %}<div class="now-reason">{{ d.summary }}</div>{% endif %}</div>
+          <span class="muted">{{ d.since | ago }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="hint">Nothing to decide in any project right now.</p>
+  {% endif %}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="decision-log">
+  <div class="section-head">
+    <h2 class="section-title" id="decision-log">Decision log <span class="count-chip">{{ log | length }}</span></h2>
+    <label class="sr-only" for="log-filter">Filter the log</label>
+    <input id="log-filter" class="input log-filter" type="search" placeholder="Filter…" data-search-shortcut data-filter-list="#decision-log-list" autocomplete="off">
+  </div>
+  {% if log %}
+    <ol class="decision-log surface" id="decision-log-list">
+      {% for d in log %}
+        <li class="decision-log-item" data-filter-text="{{ (d.title ~ ' ' ~ (d.question or '') ~ ' ' ~ (d.answer_text or '') ~ ' ' ~ d.project_name) | lower }}">
+          <div class="decision-log-head">
+            <a href="/decisions/{{ d.id }}">{{ ref(d.id) }}{{ d.title }}</a>
+            <a class="badge badge--square tone-neutral" href="/projects/{{ d.project_id }}/decisions">{{ d.project_name }}</a>
+            {% if d.kind == "action" %}<span class="badge tone-violet">Action</span>{% endif %}
+            <span class="muted">{{ d.answered_at | ago }} · by {{ sources.get(d.answer_source, d.answer_source or "you") }}</span>
+          </div>
+          <p class="decision-log-q"><span class="muted">Q</span> {{ d.summary or d.question }}</p>
+          <p class="decision-log-a"><span class="muted">A</span> {{ d.answer_text | truncate(400) }}</p>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="hint">Nothing decided yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

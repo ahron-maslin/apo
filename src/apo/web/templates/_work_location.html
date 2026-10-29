@@ -1,0 +1,4 @@
+{% set where = decision.work_location | work_location %}
+{% if where %}
+  <p class="delivery">{{ icon("git") }}<span>Work is {{ where | code_spans }}.</span></p>
+{% endif %}

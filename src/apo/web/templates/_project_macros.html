@@ -1,0 +1,127 @@
+{% from "_macros.html" import icon, ref, due_badge, stuck_badge %}
+{% from "_bulk.html" import bulk_check %}
+
+{% set health_labels = {"problem": "Problem", "your_move": "Your move", "review": "To review", "in_transit": "In transit",
+                        "working": "Working", "at_rest": "At rest", "idle": "Idle", "dormant": "Dormant"} %}
+
+{% set status_labels = {"on_track": "On track", "at_risk": "At risk", "blocked": "Blocked", "paused": "Paused",
+                        "done": "Done", "quiet": "Quiet"} %}
+{% set status_tones = {"on_track": "success", "at_risk": "warning", "blocked": "danger", "paused": "neutral",
+                       "done": "info", "quiet": "neutral"} %}
+
+{% macro status_chip(status) -%}
+  {%- if status -%}
+  <span class="badge tone-{{ status_tones[status.value] }} status-chip"
+        title="{{ ('Set by you' ~ (': ' ~ status.note if status.note else '')) if status.overridden else 'Suggested: ' ~ status.reason }}">
+    {{ status_labels[status.value] }}{% if status.overridden %} <span aria-hidden="true">✎</span>{% endif %}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro health_dot(health) -%}
+  <span class="health-dot health-{{ health }}" role="img" aria-label="{{ health_labels[health] }}" title="{{ health_labels[health] }}"></span>
+{%- endmacro %}
+
+{% macro pin_form(p, next, hotkey=None) -%}
+  <form method="post" action="/projects/{{ p.id }}/pin" class="inline-form">
+    <input type="hidden" name="pinned" value="{{ '0' if p.pinned else '1' }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" data-key-pin{% if hotkey %} data-hotkey="{{ hotkey }}"{% endif %} class="btn btn--ghost btn--sm btn--icon pin-btn{{ ' is-pinned' if p.pinned else '' }}" aria-pressed="{{ 'true' if p.pinned else 'false' }}"
+            aria-label="{{ 'Unpin' if p.pinned else 'Pin' }} {{ p.name }}" title="{{ 'Unpin' if p.pinned else 'Pin to the top' }}">{{ '★' if p.pinned else '☆' }}</button>
+  </form>
+{%- endmacro %}
+
+{% macro project_row(p) -%}
+  <li class="project-row" data-keyitem>
+    {{ health_dot(p.health) }}
+    {% set folder = (p.path or "").rstrip("/").split("/")[-1] %}
+    <a class="project-row-name" href="/projects/{{ p.id }}">{{ p.name }}{% if folder and folder != p.name %} <span class="project-row-folder">{{ folder }}/</span>{% endif %}</a>
+    <span class="project-row-counts">{{ p.counts_line or health_labels[p.health] }}</span>
+    <span class="muted project-row-when">
+      {%- if p.oldest_open %}oldest open {{ p.oldest_open | ago }} · {% endif %}active {{ p.last_activity | ago }}
+    </span>
+    {{ pin_form(p, "/projects") }}
+  </li>
+{%- endmacro %}
+
+{% macro status_buttons(base, query="since=7d") -%}
+  <button type="button" class="btn btn--secondary btn--sm" data-copy-url="{{ base }}.md?{{ query }}">Copy status</button>
+  <a class="btn btn--ghost btn--sm" href="{{ base }}.md?{{ query }}&download=1" download>Download status</a>
+{%- endmacro %}
+
+{% macro label_chips(labels, base="") -%}
+  {%- for label in labels %}<a class="badge badge--square label-chip tone-{{ 'danger' if label in ('bug', 'urgent') else 'neutral' }}" href="{{ base }}?label={{ label | urlencode }}" title="Show only {{ label }}">{{ label }}</a>{% endfor -%}
+{%- endmacro %}
+
+{% macro note_count_badge(count) -%}
+  {%- if count %}<span class="badge badge--square tone-neutral note-count">{{ count }} note{{ "" if count == 1 else "s" }}</span>{% endif -%}
+{%- endmacro %}
+
+{% macro filter_bar(action, filters, labels, statuses, hidden={}, clear_query="") -%}
+<form method="get" action="{{ action }}" class="filter-bar" aria-label="Filter">
+  {%- for name, value in hidden.items() if value %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <label class="filter-field">Label
+    <select class="input input--sm" name="label">
+      <option value="">Any</option>
+      {%- for l in labels %}<option value="{{ l }}"{% if filters.label == l %} selected{% endif %}>{{ l }}</option>{% endfor %}
+      {%- if filters.label and filters.label not in labels %}<option value="{{ filters.label }}" selected>{{ filters.label }}</option>{% endif %}
+    </select>
+  </label>
+  <label class="filter-field">Owner
+    <select class="input input--sm" name="owner">
+      <option value="">Anyone</option>
+      {%- for value, text in [("me", "Me"), ("agent", "An agent"), ("external", "Someone else")] %}<option value="{{ value }}"{% if filters.owner == value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="filter-field">Status
+    <select class="input input--sm" name="status">
+      <option value="">Any</option>
+      {%- for value, text in statuses.items() %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ text }}</option>{% endfor %}
+    </select>
+  </label>
+  <button type="submit" class="btn btn--secondary btn--sm">Filter</button>
+  {%- if filters.active %}<a class="btn btn--ghost btn--sm" href="{{ action }}{{ clear_query }}">Clear</a>{% endif %}
+</form>
+{%- endmacro %}
+
+{% macro work_row(i, tone, next, show_project=False, ranking=False) -%}
+  <li class="history-item has-check"{% if ranking %} id="item-{{ i.id }}"{% endif %} data-keyitem>
+    {{ bulk_check(i.id) }}
+    <span class="badge tone-{{ tone }}">{{ i.state }}</span>
+    <div>
+      <a href="{{ i.href }}">{{ ref(i.id) }}{{ i.title }}</a>
+      {% if show_project %}<a class="badge badge--square tone-neutral" href="/projects/{{ i.project_id }}/work">{{ i.project_name }}</a>{% endif %}
+      <span class="owner-pill owner-{{ {'you': 'me', 'agent': 'agent', 'someone else': 'external'}[i.owner] }}">{{ i.owner | capitalize }}</span>
+      {{ due_badge(i.due_on) }}{{ stuck_badge(i.stuck) }}
+      {{ label_chips(i.labels, next) }}{{ note_count_badge(i.note_count) }}
+      {% if i.summary and i.summary != i.title %}<div class="now-reason">{{ i.summary }}</div>{% endif %}
+      {% if i.effort_text %}<div class="now-reason">Took {{ i.effort_text }}</div>{% endif %}
+      {% if ranking and i.state not in ("Done", "Partly done", "Cancelled") %}
+        <div class="rank-controls">
+          {% for direction, label in (("top", "Do this next"), ("up", "Move up"), ("down", "Move down")) %}
+            <form method="post" action="/items/{{ i.id }}/rank" class="inline-form" data-enhance="swap" data-swap-target='[data-live-region="work"]' data-loading-text="">
+              <input type="hidden" name="next" value="{{ next }}">
+              <button type="submit" class="btn btn--ghost btn--sm" name="direction" value="{{ direction }}" aria-label="{{ label }}: {{ i.title }}">{{ {"top": "Next", "up": "Up", "down": "Down"}[direction] }}</button>
+            </form>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    {% if i.kind == "action" and i.state == "Do it" %}
+      <div class="work-row-end">
+        <form method="post" action="/decisions/{{ i.id }}/answer" class="inline-form">
+          <input type="hidden" name="choice" value="done"><input type="hidden" name="next" value="{{ next }}">
+          <button type="submit" class="btn btn--secondary btn--sm" data-key-done aria-label="Done: {{ i.title }}">{{ icon("check") }}Done</button>
+        </form>
+        {% if i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
+      </div>
+    {% elif i.kind == "task" and i.state in ("Claimed", "Partly done") %}
+      <div class="work-row-end">
+        <form method="post" action="/items/{{ i.id }}/retry" class="inline-form">
+          <input type="hidden" name="next" value="{{ next }}">
+          <button type="submit" class="btn btn--secondary btn--sm" aria-label="Retry: {{ i.title }}">Retry</button>
+        </form>
+        {% if i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
+      </div>
+    {% elif i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
+  </li>
+{%- endmacro %}
