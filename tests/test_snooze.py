@@ -2,6 +2,8 @@
 just out of the queue until a time, or until its agent actually blocks on it."""
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from apo import db
 
 
@@ -73,6 +75,38 @@ def test_tonight_after_six_means_tomorrow_morning():
     local = datetime(2026, 10, 7, 19, 0).astimezone()
     until = datetime.fromisoformat(db.snooze_preset_until("tonight", now=local)).astimezone(local.tzinfo)
     assert (until.date(), until.hour) == (local.date() + timedelta(days=1), 9)
+
+
+# Berlin falls back at 03:00 on Sunday 2026-10-25; New York springs forward at
+# 02:00 on Sunday 2026-03-08. Each "now" is before the change, each preset after it.
+@pytest.mark.parametrize("zone_name,now,preset,expected", [
+    ("Europe/Berlin", datetime(2026, 10, 24, 20, 0), "tonight", datetime(2026, 10, 25, 9, 0)),
+    ("Europe/Berlin", datetime(2026, 10, 24, 20, 0), "tomorrow", datetime(2026, 10, 25, 9, 0)),
+    ("Europe/Berlin", datetime(2026, 10, 24, 20, 0), "week", datetime(2026, 10, 26, 9, 0)),
+    ("Europe/Berlin", datetime(2026, 10, 25, 0, 30), "tonight", datetime(2026, 10, 25, 18, 0)),
+    ("America/New_York", datetime(2026, 3, 7, 20, 0), "tonight", datetime(2026, 3, 8, 9, 0)),
+    ("America/New_York", datetime(2026, 3, 7, 20, 0), "tomorrow", datetime(2026, 3, 8, 9, 0)),
+    ("America/New_York", datetime(2026, 3, 7, 20, 0), "week", datetime(2026, 3, 9, 9, 0)),
+    ("America/New_York", datetime(2026, 3, 8, 0, 30), "tonight", datetime(2026, 3, 8, 18, 0)),
+])
+def test_snooze_presets_keep_their_local_time_across_a_clock_change(local_zone, zone_name, now, preset, expected):
+    zone = local_zone(zone_name)
+
+    until = datetime.fromisoformat(db.snooze_preset_until(preset, now=now.replace(tzinfo=zone)))
+
+    assert until.astimezone(zone).replace(tzinfo=None) == expected
+
+
+@pytest.mark.parametrize("zone_name,now", [
+    ("Europe/Berlin", datetime(2026, 10, 25, 0, 30)),
+    ("America/New_York", datetime(2026, 3, 8, 0, 30)),
+])
+def test_two_hours_is_two_real_hours_even_when_the_clock_changes_inside_them(local_zone, zone_name, now):
+    start = now.replace(tzinfo=local_zone(zone_name))
+
+    until = datetime.fromisoformat(db.snooze_preset_until("2h", now=start))
+
+    assert until - start.astimezone(timezone.utc) == timedelta(hours=2)
 
 
 def test_snooze_route_and_now_page(db_path, tmp_path):

@@ -1,4 +1,7 @@
+import os
+import time
 import urllib.request
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -111,3 +114,25 @@ def linear_client_module(db_path):
 @pytest.fixture
 def sources_module(db_path):
     return sources
+
+
+@pytest.fixture
+def local_zone():
+    """Pin the machine's local time zone (what naive datetimes and .astimezone() mean)
+    for one test, so a test about a clock change doesn't depend on where it runs.
+    Call it with a zone name; it returns that ZoneInfo."""
+    if not hasattr(time, "tzset"):
+        pytest.skip("needs time.tzset, which Windows doesn't have")
+    saved = os.environ.get("TZ")
+
+    def pin(name: str) -> ZoneInfo:
+        os.environ["TZ"] = name
+        time.tzset()
+        return ZoneInfo(name)
+
+    yield pin
+    if saved is None:
+        os.environ.pop("TZ", None)
+    else:
+        os.environ["TZ"] = saved
+    time.tzset()

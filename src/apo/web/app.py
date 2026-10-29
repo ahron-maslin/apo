@@ -1663,12 +1663,9 @@ async def resume_session(session_id: int, next: str | None = Form(None), at: str
     if at and now != "1":
         try:
             hour, minute = (int(x) for x in at.split(":")[:2])
-            local = datetime.now().astimezone()
-            when = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            when = db.next_local_time(hour, minute)
         except ValueError:
             return _with_param(back, "error", f"Not a time: {at}")
-        if when <= local:
-            when += timedelta(days=1)
         db.schedule_resume(conn, row["claude_session_id"], when)
         return RedirectResponse(back, status_code=303)
     try:

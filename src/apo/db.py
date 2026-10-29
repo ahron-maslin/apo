@@ -3842,10 +3842,13 @@ SNOOZE_PRESETS = ("2h", "tonight", "tomorrow", "week", "until_blocks")
 def snooze_preset_until(preset: str, now: datetime | None = None) -> str | None:
     """When a snooze preset ends, in the human's local time, as UTC ISO. None for
     'until_blocks', which isn't a time."""
-    local = (now or datetime.now()).astimezone()
+    now = (now or datetime.now(timezone.utc)).astimezone()
+    # Calendar arithmetic on the naive wall clock, so the offset is resolved for the
+    # target day rather than carried over from today's.
+    local = now.replace(tzinfo=None)
     morning = lambda day: day.replace(hour=9, minute=0, second=0, microsecond=0)  # noqa: E731
     if preset == "2h":
-        until = local + timedelta(hours=2)
+        until = now + timedelta(hours=2)
     elif preset == "tonight":
         evening = local.replace(hour=18, minute=0, second=0, microsecond=0)
         until = evening if local < evening else morning(local + timedelta(days=1))
@@ -4928,12 +4931,23 @@ def parse_reset_time(text: str | None, now: datetime) -> datetime | None:
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
     try:
-        zone = ZoneInfo(m[4]) if m[4] else now.astimezone().tzinfo
+        zone = ZoneInfo(m[4]) if m[4] else None
     except (ZoneInfoNotFoundError, ValueError):
-        zone = now.astimezone().tzinfo
+        zone = None
+    if zone is None:
+        return next_local_time(hour, minute, now)
     local_now = now.astimezone(zone)
     reset = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     return reset if reset > local_now else reset + timedelta(days=1)
+
+
+def next_local_time(hour: int, minute: int, now: datetime | None = None) -> datetime:
+    """The next time the local clock reads hour:minute, with that day's UTC offset
+    (which differs from today's when the clocks change in between)."""
+    now = (now or datetime.now(timezone.utc)).astimezone()
+    wall = now.replace(tzinfo=None, hour=hour, minute=minute, second=0, microsecond=0)
+    when = wall.astimezone()
+    return when if when > now else (wall + timedelta(days=1)).astimezone()
 
 
 RESUME_ATTEMPTS = 3
