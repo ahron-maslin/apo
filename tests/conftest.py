@@ -1,11 +1,10 @@
-import importlib
-import sys
 import urllib.request
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from apo import changelog, config, credentials
+from apo.integrations import linear_client, sources
+from apo.web import app
 
 
 @pytest.fixture(autouse=True)
@@ -51,17 +50,35 @@ def _never_read_the_real_claude_runtime(tmp_path, monkeypatch):
     monkeypatch.setenv("ADO_GH_BIN", str(tmp_path / "no-such-gh"))
 
 
+@pytest.fixture(autouse=True)
+def _never_read_the_real_home(tmp_path, monkeypatch):
+    """Fourth backstop. Settings and the data folder live under the home folder, so
+    without this a test, or a subprocess it starts, would read this machine's real
+    .env (a real Linear key among them) and could write into the real data folder or
+    Claude Code config. The stand-in home is a sibling of tmp_path, not its parent, so
+    tmp_path stays an ordinary folder rather than "home or above"."""
+    home = tmp_path.parent / f"{tmp_path.name}-home"
+    home.mkdir(exist_ok=True)
+    monkeypatch.setenv("HOME", str(home))
+    for name in ("XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_module_state():
+    """What a long-running process keeps in memory between requests, reset so no test
+    sees another's: Linear ids resolved under some credential, cached pull requests,
+    and when a fleet page was last viewed."""
+    linear_client.clear_caches()
+    changelog._pr_cache.clear()
+    app._last_viewed_at = 0.0
+    app._stopping = False
+
+
 @pytest.fixture
 def db_path(tmp_path, monkeypatch):
-    """DB isolation *and* API isolation.
-
-    config.py's _load_dotenv() uses os.environ.setdefault(), so it won't override an
-    already-set var — setting LINEAR_API_KEY/LINEAR_TEAM to "" (not deleting them)
-    is what actually blocks _load_dotenv() from repopulating them from a real .env.
-    And since config.py reads them into module-level constants at import time, the
-    env vars alone aren't enough — already-imported modules must be re-imported so
-    those constants get re-evaluated against the blanked environment.
-    """
+    """DB isolation *and* API isolation: a fresh DB, and LINEAR_API_KEY/LINEAR_TEAM set
+    blank rather than deleted, since a blank variable hides any .env value."""
     path = tmp_path / "orchestrator.db"
     monkeypatch.setenv("ADO_DB", str(path))
     monkeypatch.setenv("LINEAR_API_KEY", "")
@@ -70,32 +87,24 @@ def db_path(tmp_path, monkeypatch):
     # so origin_session_id auto-detection tests are explicit about what they're testing
     # rather than silently picking up whatever session is actually running the suite.
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
-    for mod in (
-        "db", "config", "credentials", "linear_client", "linear_goals", "app", "sources", "repo_writer",
-        "mcp_server", "claude_runtime", "changelog",
-    ):
-        sys.modules.pop(mod, None)
     return path
 
 
 @pytest.fixture
 def config_module(db_path):
-    """Freshly-imported config, so LINEAR_API_KEY/LINEAR_TEAM reflect this test's
-    blanked environment rather than whatever was cached at collection time. Only
-    needed by tests that check Linear-configured-vs-not — see db_path's docstring."""
-    return importlib.import_module("apo.config")
+    return config
 
 
 @pytest.fixture
 def credentials_module(db_path):
-    return importlib.import_module("apo.credentials")
+    return credentials
 
 
 @pytest.fixture
 def linear_client_module(db_path):
-    return importlib.import_module("apo.integrations.linear_client")
+    return linear_client
 
 
 @pytest.fixture
 def sources_module(db_path):
-    return importlib.import_module("apo.integrations.sources")
+    return sources

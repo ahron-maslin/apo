@@ -520,7 +520,11 @@ def test_delete_attachment_is_a_noop_if_file_already_gone(db_path, config_module
 
 def test_source_import_failure_does_not_break_filing_or_answering(db_path, monkeypatch):
     import sys
-    monkeypatch.setitem(sys.modules, "sources", None)
+
+    import apo.integrations
+
+    monkeypatch.delattr(apo.integrations, "sources", raising=False)
+    monkeypatch.setitem(sys.modules, "apo.integrations.sources", None)
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
     decision_id = db.create_decision_request(

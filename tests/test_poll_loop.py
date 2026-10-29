@@ -2,22 +2,22 @@ from apo import db
 
 
 async def test_poll_sources_once_answers_and_writes_into_the_repo(
-    db_path, tmp_path, config_module, sources_module
+    db_path, tmp_path, config_module, sources_module, monkeypatch,
 ):
     """The full Linear -> repo path, which is the one that has to work without any
     session running: a comment on the issue becomes an ANSWERED row in the
     repository's own INDEX.md, with nothing spawned and nothing to monitor."""
-    config_module.LINEAR_API_KEY = "fake-key"
-    config_module.LINEAR_TEAM = "ENG"
-    sources_module.linear_client.create_issue = lambda project_name, decision: {
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setattr(sources_module.linear_client, "create_issue", lambda project_name, decision: {
         "id": "iss-1", "identifier": "ENG-1", "url": "https://linear.app/x/ENG-1",
-    }
-    sources_module.linear_client.get_comments = lambda issue_id: [
+    })
+    monkeypatch.setattr(sources_module.linear_client, "get_comments", lambda issue_id: [
         {"id": "c1", "body": "Use drawer navigation.", "user": {"name": "Alice"}}
-    ]
+    ])
     # answer_decision_request (below, via poll_sources_once) triggers mark_resolved ->
     # move_to_state; mock it too or this makes a real call to the live Linear API.
-    sources_module.linear_client.move_to_state = lambda issue_id, type_or_name: None
+    monkeypatch.setattr(sources_module.linear_client, "move_to_state", lambda issue_id, type_or_name: None)
 
     repo_path = tmp_path / "checkout"
     repo_path.mkdir()
@@ -43,10 +43,10 @@ async def test_poll_sources_once_answers_and_writes_into_the_repo(
     assert "https://linear.app/x/ENG-1" in body
 
 
-async def test_poll_sources_once_retries_a_previously_failed_push(db_path, config_module, sources_module):
-    config_module.LINEAR_API_KEY = "fake-key"
-    config_module.LINEAR_TEAM = "ENG"
-    sources_module.linear_client.get_comments = lambda issue_id: []
+async def test_poll_sources_once_retries_a_previously_failed_push(db_path, config_module, sources_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setattr(sources_module.linear_client, "get_comments", lambda issue_id: [])
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -56,9 +56,9 @@ async def test_poll_sources_once_retries_a_previously_failed_push(db_path, confi
         (decision_id,),
     )
     conn.commit()
-    sources_module.linear_client.create_issue = lambda project_name, decision: {
+    monkeypatch.setattr(sources_module.linear_client, "create_issue", lambda project_name, decision: {
         "id": "iss-1", "identifier": "ENG-1", "url": "https://linear.app/x/ENG-1",
-    }
+    })
 
     from apo.web import app as app_module
     await app_module.poll_sources_once()
@@ -68,9 +68,9 @@ async def test_poll_sources_once_retries_a_previously_failed_push(db_path, confi
     assert decision["linear_push_error"] is None
 
 
-async def test_poll_sources_once_skips_a_disabled_connector_entirely(db_path, config_module, sources_module):
-    config_module.LINEAR_API_KEY = "fake-key"
-    config_module.LINEAR_TEAM = "ENG"
+async def test_poll_sources_once_skips_a_disabled_connector_entirely(db_path, config_module, sources_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("LINEAR_TEAM", "ENG")
 
     conn = db.get_connection()
     db.set_connector_enabled(conn, "linear", False)
@@ -82,8 +82,8 @@ async def test_poll_sources_once_skips_a_disabled_connector_entirely(db_path, co
     conn.commit()
 
     calls = []
-    sources_module.linear_client.create_issue = lambda project_name, decision: calls.append(1)
-    sources_module.linear_client.get_comments = lambda issue_id: calls.append(1)
+    monkeypatch.setattr(sources_module.linear_client, "create_issue", lambda project_name, decision: calls.append(1))
+    monkeypatch.setattr(sources_module.linear_client, "get_comments", lambda issue_id: calls.append(1))
 
     from apo.web import app as app_module
     await app_module.poll_sources_once()

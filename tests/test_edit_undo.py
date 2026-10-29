@@ -23,10 +23,10 @@ def _events(conn, verb):
     return [r["summary"] for r in conn.execute("SELECT summary FROM events WHERE verb = ?", (verb,))]
 
 
-def _linear(config_module, sources_module):
-    config_module.LINEAR_API_KEY = "k"
-    config_module.LINEAR_TEAM = "ENG"
-    sources_module.linear_client.create_issue = lambda p, d: {"id": "iss", "identifier": "E-1", "url": "u"}
+def _linear(monkeypatch, sources_module):
+    monkeypatch.setenv("LINEAR_API_KEY", "k")
+    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setattr(sources_module.linear_client, "create_issue", lambda p, d: {"id": "iss", "identifier": "E-1", "url": "u"})
 
 
 # --- edit ---
@@ -66,22 +66,22 @@ def test_editing_a_task_description_keeps_its_brief_in_step(db_path, tmp_path):
     assert d["summary"] == d["question"] == "new brief"
 
 
-def test_edit_pushes_to_linear(db_path, config_module, sources_module, tmp_path):
-    _linear(config_module, sources_module)
+def test_edit_pushes_to_linear(db_path, config_module, sources_module, tmp_path, monkeypatch):
+    _linear(monkeypatch, sources_module)
     calls = []
-    sources_module.linear_client.update_issue = lambda issue_id, decision: calls.append((issue_id, decision["title"]))
+    monkeypatch.setattr(sources_module.linear_client, "update_issue", lambda issue_id, decision: calls.append((issue_id, decision["title"])))
     conn = db.get_connection()
     item = _file(conn, tmp_path)
     db.edit_item(conn, item, title="New title")
     assert calls == [("iss", "New title")]
 
 
-def test_edit_while_linear_is_down_queues_and_retries(db_path, config_module, sources_module, tmp_path):
-    _linear(config_module, sources_module)
+def test_edit_while_linear_is_down_queues_and_retries(db_path, config_module, sources_module, tmp_path, monkeypatch):
+    _linear(monkeypatch, sources_module)
 
     def down(issue_id, decision):
         raise RuntimeError("linear is down")
-    sources_module.linear_client.update_issue = down
+    monkeypatch.setattr(sources_module.linear_client, "update_issue", down)
     conn = db.get_connection()
     item = _file(conn, tmp_path)
     assert db.edit_item(conn, item, title="New title")
@@ -91,7 +91,7 @@ def test_edit_while_linear_is_down_queues_and_retries(db_path, config_module, so
     assert conn.execute("SELECT 1 FROM sync_errors WHERE source = 'linear_edit'").fetchone()
 
     calls = []
-    sources_module.linear_client.update_issue = lambda issue_id, decision: calls.append(decision["title"])
+    monkeypatch.setattr(sources_module.linear_client, "update_issue", lambda issue_id, decision: calls.append(decision["title"]))
     conn.execute("UPDATE decision_requests SET linear_next_retry_at = NULL")
     conn.commit()
     sources_module.LinearSource().retry_pending()
@@ -164,11 +164,11 @@ def test_undo_refuses_when_state_moved_on(db_path, tmp_path):
     assert db.undo_last(conn, item) is False
 
 
-def test_undo_done_reopens_the_linear_issue(db_path, config_module, sources_module, tmp_path):
-    _linear(config_module, sources_module)
+def test_undo_done_reopens_the_linear_issue(db_path, config_module, sources_module, tmp_path, monkeypatch):
+    _linear(monkeypatch, sources_module)
     moves = []
-    sources_module.linear_client.move_to_state = lambda issue, state, team_id=None: moves.append(state)
-    sources_module.linear_client.create_comment = lambda *a: None
+    monkeypatch.setattr(sources_module.linear_client, "move_to_state", lambda issue, state, team_id=None: moves.append(state))
+    monkeypatch.setattr(sources_module.linear_client, "create_comment", lambda *a: None)
     conn = db.get_connection()
     item = _file(conn, tmp_path)
     db.snapshot_for_undo(conn, item, "done")

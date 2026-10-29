@@ -275,7 +275,7 @@ templates.env.globals["saved_views"] = lambda: db.list_saved_views(db.get_connec
 templates.env.globals["page_query"] = lambda request: urlencode(
     [(k, v) for k, v in request.query_params.multi_items() if k != "bulk"])
 # A second dashboard run against a copy of the data (ADO_PREVIEW=1) says so on every page.
-templates.env.globals["is_preview"] = lambda: bool(os.environ.get("ADO_PREVIEW"))
+templates.env.globals["is_preview"] = config.is_preview
 templates.env.filters["ago"] = _humanize_delta
 templates.env.filters["tokens"] = _tokens
 
@@ -411,7 +411,7 @@ async def poll_sources_once() -> None:
 
 async def source_poll_loop() -> None:
     while True:
-        await asyncio.sleep(config.POLL_SECONDS)
+        await asyncio.sleep(config.poll_seconds())
         await poll_sources_once()
 
 

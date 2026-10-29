@@ -7,6 +7,8 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
+from apo import config
+
 GIT_TIMEOUT = 5
 GH_TIMEOUT = 20
 PR_REFRESH_SECONDS = 15 * 60
@@ -100,7 +102,7 @@ def refresh_pull_requests(path: str, max_age: float = PR_REFRESH_SECONDS) -> Non
     prs: list[dict] = []
     try:
         out = subprocess.run(
-            [os.environ.get("ADO_GH_BIN", "gh"), "pr", "list", "--state", "all", "--limit", "30",
+            [config.gh_bin(), "pr", "list", "--state", "all", "--limit", "30",
              "--json", "number,title,state,mergedAt,createdAt,url,isDraft"],
             capture_output=True, text=True, timeout=GH_TIMEOUT, cwd=path,
         )

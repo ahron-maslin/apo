@@ -28,7 +28,7 @@ ANSWER_COMMENT_PREFIX = "**Answered via "
 _TRANSIENT_ERROR_SOURCES = ("linear_poll", "linear_retry", "linear_push_retry")
 
 # Wait after the 1st, 2nd, ... failure before the next attempt — spread out so the
-# config.SYNC_RETRY_MAX_ATTEMPTS attempts outlast a typical outage (~2.5h total)
+# config.sync_retry_max_attempts() attempts outlast a typical outage (~2.5h total)
 # instead of all landing inside the first couple of minutes of one.
 _RETRY_DELAYS = (timedelta(minutes=1), timedelta(minutes=5), timedelta(minutes=30), timedelta(hours=2))
 
@@ -95,10 +95,10 @@ class LinearSource(AnswerSource):
     name = "linear"
 
     def is_configured(self) -> bool:
-        if config.OFFLINE:
+        if config.offline():
             return False
         conn = db.get_connection()
-        return bool(credentials.get_credentials(conn, "linear")) or bool(config.LINEAR_API_KEY)
+        return bool(credentials.get_credentials(conn, "linear")) or bool(config.linear_api_key())
 
     def push_question(self, conn: sqlite3.Connection, decision_id: int, project_name: str, decision: dict) -> None:
         started = _now()
@@ -123,7 +123,7 @@ class LinearSource(AnswerSource):
         due = (
             "linear_retry_attempts < ? AND (linear_next_retry_at IS NULL OR linear_next_retry_at <= ?)"
         )
-        due_params = (config.SYNC_RETRY_MAX_ATTEMPTS, _now())
+        due_params = (config.sync_retry_max_attempts(), _now())
         rows = conn.execute(
             "SELECT decision_requests.id AS id, projects.name AS project_name "
             "FROM decision_requests JOIN projects ON projects.id = decision_requests.project_id "
@@ -162,7 +162,7 @@ class LinearSource(AnswerSource):
         # cycle, grows the API traffic with all-time history.
         conn = db.get_connection()
         followup_cutoff = (
-            datetime.now(timezone.utc) - timedelta(days=config.LINEAR_FOLLOWUP_DAYS)
+            datetime.now(timezone.utc) - timedelta(days=config.linear_followup_days())
         ).isoformat()
         rows = conn.execute(
             "SELECT * FROM decision_requests WHERE linear_issue_id IS NOT NULL AND "
@@ -307,7 +307,7 @@ def _record_failure(
     )
     conn.commit()
     message = str(exc)
-    if attempts >= config.SYNC_RETRY_MAX_ATTEMPTS:
+    if attempts >= config.sync_retry_max_attempts():
         message += f" — gave up after {attempts} attempts"
     db.record_sync_error(conn, error_source, decision_id, message)
 

@@ -5,7 +5,7 @@ hook + `decisions` skill into their Claude Code config.
 Each teammate runs this against their own home directory and their own DB — there is
 no shared server, so nothing here needs auth. It writes into ~/.claude, not into
 whatever checkout ships this code, so config survives independently of the checkout
-(see config.HOME_ENV_PATH).
+(see config.home_env_path()).
 """
 import getpass
 import json
@@ -167,13 +167,13 @@ def run(args, home_dir: Path | None = None) -> None:
 
     db_path = args.db_path
     if db_path is None and not args.yes:
-        entered = input(f"DB location [{config.DEFAULT_DB_PATH}]: ").strip()
+        entered = input(f"DB location [{config.default_db_path()}]: ").strip()
         db_path = entered or None
     if db_path:
         write_env_updates(home_env_path, {"ADO_DB": str(Path(db_path).expanduser())})
         print(f"DB location: {db_path}")
     else:
-        print(f"DB location: {config.DEFAULT_DB_PATH} (default)")
+        print(f"DB location: {config.default_db_path()} (default)")
 
     # The folder the dashboard's New project offers subfolders of (config.get_projects_root).
     projects_root = args.projects_root

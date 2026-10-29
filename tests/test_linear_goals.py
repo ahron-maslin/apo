@@ -455,8 +455,8 @@ def test_choosing_another_linear_project_imports_from_it_from_then_on(linear, ac
     assert _goal(from_acme) is None and _goal_count() == 1
 
 
-def test_the_picker_offers_the_teams_linear_projects_with_the_current_one_chosen(client, linear, acme, config_module):
-    config_module.LINEAR_API_KEY = "fake-key"
+def test_the_picker_offers_the_teams_linear_projects_with_the_current_one_chosen(client, linear, acme, config_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
     page = client.get(f"/projects/{acme['id']}").text
     assert "Linear project" in page and f"/projects/{acme['id']}?choose_linear=1" in page
 
@@ -467,8 +467,8 @@ def test_the_picker_offers_the_teams_linear_projects_with_the_current_one_chosen
     assert '<option value="lp-shop">Shop</option>' in picker
 
 
-def test_picking_a_linear_project_saves_it(client, linear, acme, config_module):
-    config_module.LINEAR_API_KEY = "fake-key"
+def test_picking_a_linear_project_saves_it(client, linear, acme, config_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
 
     client.post(f"/projects/{acme['id']}/linear-project", data={"linear_project": "lp-shop"})
 
@@ -478,8 +478,8 @@ def test_picking_a_linear_project_saves_it(client, linear, acme, config_module):
     assert "Shop" in client.get(f"/projects/{acme['id']}").text
 
 
-def test_only_one_of_the_teams_linear_projects_can_be_picked(client, linear, acme, config_module):
-    config_module.LINEAR_API_KEY = "fake-key"
+def test_only_one_of_the_teams_linear_projects_can_be_picked(client, linear, acme, config_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
 
     response = client.post(f"/projects/{acme['id']}/linear-project", data={"linear_project": "someone-elses"})
 
@@ -491,7 +491,7 @@ def test_only_one_of_the_teams_linear_projects_can_be_picked(client, linear, acm
 def test_the_picker_says_so_when_linear_cannot_be_reached(client, linear, acme, config_module, monkeypatch):
     from apo.integrations import linear_client
 
-    config_module.LINEAR_API_KEY = "fake-key"
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
 
     def down(team_id):
         raise RuntimeError("Linear API error 503")
@@ -658,7 +658,7 @@ def test_moving_workspace_unlinks_the_requests_pushed_to_the_old_one(client, lin
     (event,) = [e for e in db.list_events(conn, project_id=acme["id"]) if e["verb"] == "project.linear_unlinked"]
     assert "2 requests unlinked" in event["summary"]
 
-    config_module.LINEAR_API_KEY = "fake-key"
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
     calls = []
     for name in ("get_comments", "create_issue", "create_comment"):
         monkeypatch.setattr(linear_client, name, lambda *a, _name=name, **k: calls.append(_name))
@@ -689,7 +689,7 @@ def test_a_request_whose_push_failed_is_still_retried_into_the_new_workspace(cli
 
     workspace.id = "org-2"
     _connect(client)
-    config_module.LINEAR_API_KEY = "fake-key"
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
     monkeypatch.setattr(linear_client, "create_issue",
                         lambda project_name, decision: {"id": "new-1", "identifier": "NEW-1", "url": "u"})
     monkeypatch.setattr(linear_client, "get_comments", lambda issue_id: [])
@@ -1037,9 +1037,9 @@ def test_a_failed_read_is_a_sync_error_that_clears_once_linear_answers_again(lin
     assert db.recent_sync_errors(conn, unresolved_only=True) == []
 
 
-async def test_the_poll_loop_brings_goals_in_only_while_linear_sync_is_on(linear, acme, config_module):
-    config_module.LINEAR_API_KEY = "fake-key"
-    config_module.LINEAR_TEAM = "ENG"
+async def test_the_poll_loop_brings_goals_in_only_while_linear_sync_is_on(linear, acme, config_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("LINEAR_TEAM", "ENG")
     conn = db.get_connection()
     db.set_connector_enabled(conn, "linear", False)
     linear.issue("Launch the listing")
@@ -1055,8 +1055,8 @@ async def test_the_poll_loop_brings_goals_in_only_while_linear_sync_is_on(linear
 
 # --- Where you see it ---
 
-def test_the_project_page_turns_goals_from_linear_on_and_off(client, acme, config_module):
-    config_module.LINEAR_API_KEY = "fake-key"
+def test_the_project_page_turns_goals_from_linear_on_and_off(client, acme, config_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
     page = client.get(f"/projects/{acme['id']}").text
     assert "Goals from Linear" in page and "Turn off" in page
 
@@ -1081,8 +1081,8 @@ def test_a_project_left_on_while_linear_is_disconnected_can_still_be_turned_off(
     assert "Turn off" in page and "nothing comes in until" in page
 
 
-def test_settings_lists_the_projects_that_take_goals_from_linear(client, acme, config_module):
-    config_module.LINEAR_API_KEY = "fake-key"
+def test_settings_lists_the_projects_that_take_goals_from_linear(client, acme, config_module, monkeypatch):
+    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
 
     page = client.get("/settings").text
 

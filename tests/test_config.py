@@ -1,96 +1,84 @@
-"""config.py's .env loading. An installed instance (via `ado init`) writes its config
-to a home-relative .env next to the DB, rather than into whatever checkout it happens
-to run from — this pins down the precedence between the two."""
-import os
+"""config.py reads every setting when it's asked for: the environment first, then the
+.env that `init` writes next to the data. Nothing is cached at import, so a change is
+seen at once and tests never need to re-import a module."""
 from pathlib import Path
 
 import pytest
 
+from apo import config
+
 
 @pytest.fixture
-def env_test_key():
-    key = "SOME_ADO_TEST_KEY"
-    os.environ.pop(key, None)
-    yield key
-    os.environ.pop(key, None)
+def home_env(tmp_path, monkeypatch):
+    path = tmp_path / "home.env"
+    monkeypatch.setattr(config, "home_env_path", lambda: path)
+    return path
 
 
-def test_home_env_path_lives_alongside_the_default_db(env_test_key):
-    from apo import config
-
-    assert config.HOME_ENV_PATH == config.DEFAULT_DB_PATH.parent / ".env"
+def test_home_env_path_lives_alongside_the_default_db():
+    assert config.home_env_path() == config.default_db_path().parent / ".env"
 
 
-def test_apply_env_file_fills_an_unset_key(tmp_path, env_test_key):
-    from apo import config
+def test_a_setting_comes_from_the_environment_first(home_env, monkeypatch):
+    home_env.write_text("ADO_DASHBOARD_PORT=9000\n")
+    monkeypatch.setenv("ADO_DASHBOARD_PORT", "9100")
 
-    env_file = tmp_path / ".env"
-    env_file.write_text(f"{env_test_key}=from-file\n")
-
-    config._apply_env_file(env_file)
-    assert os.environ[env_test_key] == "from-file"
+    assert config.dashboard_port() == 9100
 
 
-def test_apply_env_file_does_not_override_an_existing_env_var(tmp_path, env_test_key, monkeypatch):
-    from apo import config
+def test_a_setting_falls_back_to_the_env_file(home_env, monkeypatch):
+    monkeypatch.delenv("ADO_DASHBOARD_PORT", raising=False)
+    home_env.write_text("# a comment\n\nADO_DASHBOARD_PORT = 9000\n")
 
-    monkeypatch.setenv(env_test_key, "from-real-env")
-    env_file = tmp_path / ".env"
-    env_file.write_text(f"{env_test_key}=from-file\n")
-
-    config._apply_env_file(env_file)
-    assert os.environ[env_test_key] == "from-real-env"
+    assert config.dashboard_port() == 9000
 
 
-def test_load_dotenv_prefers_checkout_env_over_home_env(tmp_path, env_test_key, monkeypatch):
-    from apo import config
+def test_a_blank_variable_hides_the_files_value(home_env, monkeypatch):
+    home_env.write_text("LINEAR_API_KEY=from-file\n")
+    monkeypatch.setenv("LINEAR_API_KEY", "")
 
-    checkout_env = tmp_path / "checkout.env"
-    checkout_env.write_text(f"{env_test_key}=from-checkout\n")
-    home_env = tmp_path / "home.env"
-    home_env.write_text(f"{env_test_key}=from-home\n")
+    assert not config.linear_api_key()
 
-    monkeypatch.setattr(config, "_CHECKOUT_ENV_PATH", checkout_env)
-    monkeypatch.setattr(config, "HOME_ENV_PATH", home_env)
 
-    config._load_dotenv()
-    assert os.environ[env_test_key] == "from-checkout"
+def test_a_change_is_seen_without_reimporting(home_env, monkeypatch):
+    monkeypatch.setenv("ADO_OFFLINE", "1")
+    assert config.offline()
+    monkeypatch.setenv("ADO_OFFLINE", "0")
+    assert not config.offline()
+
+    monkeypatch.delenv("ADO_DASHBOARD_PORT", raising=False)
+    home_env.write_text("ADO_DASHBOARD_PORT=9000\n")
+    assert config.dashboard_port() == 9000
+    home_env.write_text("ADO_DASHBOARD_PORT=9001\n")
+    assert config.dashboard_port() == 9001
+
+
+def test_a_bad_number_falls_back_to_the_default(monkeypatch):
+    monkeypatch.setenv("ADO_DASHBOARD_PORT", "not-a-port")
+
+    assert config.dashboard_port() == 8430
+
+
+def test_poll_seconds_defaults_to_the_linear_interval(monkeypatch):
+    monkeypatch.delenv("POLL_SECONDS", raising=False)
+    monkeypatch.setenv("LINEAR_POLL_SECONDS", "45")
+
+    assert config.poll_seconds() == 45
 
 
 def test_get_secret_key_path_lives_alongside_the_db(db_path):
-    from apo import config
-
     assert config.get_secret_key_path() == config.get_db_path().parent / "secret.key"
 
 
 def test_get_attachments_dir_lives_alongside_the_db(db_path):
-    from apo import config
-
     assert config.get_attachments_dir() == config.get_db_path().parent / "attachments"
 
 
-def test_load_dotenv_falls_back_to_home_env_when_checkout_env_is_absent(tmp_path, env_test_key, monkeypatch):
-    from apo import config
-
-    home_env = tmp_path / "home.env"
-    home_env.write_text(f"{env_test_key}=from-home\n")
-
-    monkeypatch.setattr(config, "_CHECKOUT_ENV_PATH", tmp_path / "missing.env")
-    monkeypatch.setattr(config, "HOME_ENV_PATH", home_env)
-
-    config._load_dotenv()
-    assert os.environ[env_test_key] == "from-home"
-
-
 def test_projects_root_defaults_to_projects_in_home(monkeypatch):
-    from apo import config
-
     monkeypatch.delenv("ADO_PROJECTS_ROOT", raising=False)
     assert config.get_projects_root() == Path.home() / "projects"
 
 
 def test_projects_root_comes_from_the_environment(monkeypatch):
-    from apo import config
-
     monkeypatch.setenv("ADO_PROJECTS_ROOT", "~/code")
     assert config.get_projects_root() == Path.home() / "code"

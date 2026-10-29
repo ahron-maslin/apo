@@ -265,7 +265,7 @@ def test_connect_integration_clears_stale_linear_id_caches(db_path, monkeypatch)
     """A team/project/state id resolved under the previous credential must not
     silently keep being used after reconnecting with a different one — see
     linear_client.clear_caches()."""
-    app_module.linear_client._team_id_cache = "stale-team-id"
+    monkeypatch.setattr(app_module.linear_client, "_team_id_cache", "stale-team-id")
     app_module.linear_client._project_id_cache["Some Project"] = "stale-project-id"
     app_module.linear_client._state_id_cache[("stale-team-id", "completed")] = "stale-state-id"
     monkeypatch.setattr(
@@ -281,8 +281,8 @@ def test_connect_integration_clears_stale_linear_id_caches(db_path, monkeypatch)
     assert app_module.linear_client._state_id_cache == {}
 
 
-def test_disconnect_integration_clears_stale_linear_id_caches(db_path):
-    app_module.linear_client._team_id_cache = "stale-team-id"
+def test_disconnect_integration_clears_stale_linear_id_caches(db_path, monkeypatch):
+    monkeypatch.setattr(app_module.linear_client, "_team_id_cache", "stale-team-id")
 
     client = make_client(db_path)
     client.post("/settings/integrations/linear/disconnect")
@@ -795,10 +795,10 @@ def test_fleet_view_hides_ghost_sessions(db_path, tmp_path):
     assert "ghost-session" not in resp.text
 
 
-def test_viewing_the_fleet_marks_the_dashboard_as_watched(db_path):
+def test_viewing_the_fleet_marks_the_dashboard_as_watched(db_path, monkeypatch):
     """The live-session reconciler only runs while someone is looking."""
     client = make_client(db_path)
-    app_module._last_viewed_at = 0.0
+    monkeypatch.setattr(app_module, "_last_viewed_at", 0.0)
 
     client.get("/api/sessions")
 

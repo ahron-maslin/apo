@@ -29,11 +29,11 @@ def _resolve_credentials() -> tuple[str | None, str | None]:
     stored = credentials.get_credentials(conn, "linear")
     if stored:
         return stored.get("api_key"), stored.get("team")
-    return config.LINEAR_API_KEY, config.LINEAR_TEAM
+    return config.linear_api_key(), config.linear_team()
 
 
 def _graphql(query: str, variables: dict, api_key: str | None = None) -> dict:
-    if config.OFFLINE:
+    if config.offline():
         raise RuntimeError(
             "ADO_OFFLINE is set — refusing to call the live Linear API. Unset it only "
             "if you actually intend to write to the real workspace."

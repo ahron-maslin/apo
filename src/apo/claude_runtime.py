@@ -14,13 +14,15 @@ import re
 import subprocess
 from pathlib import Path
 
+from apo import config
+
 
 class LaunchError(RuntimeError):
     pass
 
 
 def _binary() -> str:
-    return os.environ.get("ADO_CLAUDE_BIN") or "claude"
+    return config.claude_bin()
 
 
 def claude_config_dir() -> Path:
@@ -35,7 +37,7 @@ def claude_config_dirs() -> list[Path]:
     listing live in that profile — without it here, reconcile ends those sessions as
     gone while they are still running."""
     dirs = [claude_config_dir()]
-    for raw in (os.environ.get("ADO_CLAUDE_CONFIG_DIRS") or "").split(os.pathsep):
+    for raw in config.claude_config_dirs().split(os.pathsep):
         path = Path(raw.strip()).expanduser() if raw.strip() else None
         if path and path not in dirs:
             dirs.append(path)

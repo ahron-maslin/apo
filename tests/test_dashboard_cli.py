@@ -11,7 +11,7 @@ def cli(db_path, monkeypatch):
     from apo import cli
     from apo import config
 
-    monkeypatch.setattr(config, "DASHBOARD_AUTOSTART", False)
+    monkeypatch.setenv("ADO_DASHBOARD_AUTOSTART", "")
     return cli
 
 
@@ -75,10 +75,10 @@ def test_stop_without_a_pid_file_says_so(cli, db_path):
 def test_a_session_starting_brings_the_dashboard_up_only_when_asked(cli, spawned, monkeypatch, tmp_path):
     from apo import config
 
-    monkeypatch.setattr(config, "DASHBOARD_PORT", _free_port())
+    monkeypatch.setenv("ADO_DASHBOARD_PORT", str(_free_port()))
     cli._session_start({"session_id": "s-1", "cwd": str(tmp_path)})
     assert spawned == []
 
-    monkeypatch.setattr(config, "DASHBOARD_AUTOSTART", True)
+    monkeypatch.setenv("ADO_DASHBOARD_AUTOSTART", "1")
     cli._session_start({"session_id": "s-2", "cwd": str(tmp_path)})
     assert len(spawned) == 1

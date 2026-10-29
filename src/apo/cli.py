@@ -535,7 +535,7 @@ def _stop_dashboard() -> str:
 def _cmd_dashboard(args: argparse.Namespace) -> None:
     from apo import config
 
-    port = args.port or config.DASHBOARD_PORT
+    port = args.port or config.dashboard_port()
     url = f"http://127.0.0.1:{port}"
     if args.action == "start":
         print({"started": f"Started the dashboard at {url}", "running": f"Already running at {url}"}[_start_dashboard(port)])
@@ -549,9 +549,9 @@ def _cmd_dashboard(args: argparse.Namespace) -> None:
 def _session_start(p: dict) -> dict | None:
     from apo import config
 
-    if config.DASHBOARD_AUTOSTART:
+    if config.dashboard_autostart():
         try:
-            _start_dashboard(config.DASHBOARD_PORT)
+            _start_dashboard(config.dashboard_port())
         except OSError:
             pass
     conn = db.get_connection()
