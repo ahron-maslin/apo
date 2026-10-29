@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://getapo.pages.dev/sitemap.xml

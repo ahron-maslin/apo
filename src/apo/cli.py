@@ -1080,9 +1080,9 @@ def main(argv: list[str] | None = None) -> None:
     init.set_defaults(func=_cmd_init)
 
     dashboard = sub.add_parser(
-        "dashboard", help="Start, stop or check the dashboard; `run` serves it in the foreground (for a service)",
+        "dashboard", help="Start (the default), stop or check the dashboard; `run` serves it in the foreground",
     )
-    dashboard.add_argument("action", choices=("start", "stop", "status", "run"))
+    dashboard.add_argument("action", nargs="?", default="start", choices=("start", "stop", "status", "run"))
     dashboard.add_argument("--port", type=int, default=None, help="Default: APO_DASHBOARD_PORT, else 8430")
     dashboard.add_argument("--dev", action="store_true", help="Reload when apo's own code changes (for working on apo)")
     dashboard.set_defaults(func=_cmd_dashboard)

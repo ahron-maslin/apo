@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>apo: human-in-the-loop dashboard for Claude Code agents</title>
+<meta name="description" content="A dashboard and MCP server for Claude Code. Agents ask instead of stopping, you answer every project's questions from one queue, and the repo keeps the answer.">
+<!-- Site URL. Every absolute URL in this file, robots.txt and sitemap.xml starts with the
+     canonical href below (the Cloudflare Pages project getapo). To move the site to a
+     custom domain, replace https://getapo.pages.dev/ in those three files. -->
+<link rel="canonical" href="https://getapo.pages.dev/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f7f7f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="apo">
+<meta property="og:title" content="apo: your Claude Code agents ask instead of stopping">
+<meta property="og:description" content="You answer every waiting question from one local dashboard, and the answer lands in the repo where the next session picks it up.">
+<meta property="og:url" content="https://getapo.pages.dev/">
+<meta property="og:image" content="https://getapo.pages.dev/img/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="apo, AI Project Orchestration: Your Claude Code agents ask instead of stopping. Beside it, the dashboard's Now page with a decision waiting and an Accept recommendation button.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="apo, AI Project Orchestration: Your Claude Code agents ask instead of stopping. Beside it, the dashboard's Now page with a decision waiting and an Accept recommendation button.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://getapo.pages.dev/#website",
+      "url": "https://getapo.pages.dev/",
+      "name": "apo",
+      "alternateName": "AI Project Orchestration",
+      "inLanguage": "en"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://getapo.pages.dev/#app",
+      "name": "apo",
+      "alternateName": "AI Project Orchestration",
+      "description": "A local dashboard and MCP server for Claude Code. When an agent hits something it can't decide, it files a request and keeps working; you answer every project's waiting requests in one dashboard, and the answer is written into the repo's .claude/decisions/ folder as markdown, where the next session picks it up.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Linux, macOS, WSL2",
+      "softwareRequirements": "Claude Code; Python 3.10 or later",
+      "url": "https://getapo.pages.dev/",
+      "downloadUrl": "https://pypi.org/project/getapo/",
+      "installUrl": "https://pypi.org/project/getapo/",
+      "sameAs": "https://github.com/ahron-maslin/apo",
+      "image": "https://getapo.pages.dev/img/og.png",
+      "screenshot": [
+        "https://getapo.pages.dev/img/now-light.webp",
+        "https://getapo.pages.dev/img/round-light.webp",
+        "https://getapo.pages.dev/img/agents-light.webp",
+        "https://getapo.pages.dev/img/goal-light.webp"
+      ],
+      "featureList": [
+        "An MCP server Claude Code sessions use to file decisions and actions for a human",
+        "One dashboard of every waiting request, action and task across projects, ranked by how blocked each agent is",
+        "Answers written into the repo as markdown in .claude/decisions/",
+        "Live status of every Claude Code session from Claude Code's own hooks, spending no tokens"
+      ]
+    }
+  ]
+}
+</script>
+<script>
+  try {
+    var saved = localStorage.getItem("apo-site-theme");
+    if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+</script>
+<style>
+/* Tokens copied exactly from the dashboard's static/app.css. Each light-dark() pair is
+   split into its light value here and its dark value in the two dark blocks below, so
+   the page stands alone. When the app's tokens change, change them here too. */
+:root {
+  color-scheme: light dark;
+
+  /* Neutrals */
+  --bg: #f7f7f6;
+  --surface: #ffffff;
+  --surface-2: #f2f2f0;
+  --surface-3: #e9e9e6;
+  --border: #e5e5e2;
+  --border-strong: #d3d3cf;
+  --text: #17171a;
+  --text-2: #4a4a52;
+  --text-3: #6c6c75;
+
+  /* Accent */
+  --accent: #4352e0;
+  --accent-hover: #3442c8;
+  --accent-solid: #4352e0;
+  --accent-solid-hover: #3442c8;
+  --accent-fg: #ffffff;
+  --accent-text: #3a47cc;
+  --accent-soft: #eef0fd;
+  --accent-border: #cdd2fa;
+
+  /* Semantic tones: fg (text/icons), soft (tinted fill), border, solid (dots/bars) */
+  --success: #15703f;
+  --success-soft: #ebf7f0;
+  --success-border: #bfe5cf;
+  --success-solid: #1f9d55;
+  --warning: #99510a;
+  --warning-soft: #fdf4e7;
+  --warning-border: #f2d3a6;
+  --warning-solid: #e07c0e;
+  --danger: #b42318;
+  --danger-soft: #fdeeec;
+  --danger-border: #f5c4be;
+  --danger-solid: #d92d20;
+  --info: #1d5fae;
+  --info-soft: #eaf2fd;
+  --info-border: #c3d9f6;
+  --info-solid: #2f7be0;
+  --violet: #6d3cc0;
+  --violet-soft: #f4eefd;
+  --violet-border: #dccbf7;
+  --violet-solid: #8b5cf6;
+  --neutral-solid: #a1a1a9;
+
+  /* Depth and focus */
+  --shadow-xs: 0 1px 2px rgb(16 18 27 / .05);
+  --shadow-sm: 0 1px 2px rgb(16 18 27 / .04), 0 1px 3px rgb(16 18 27 / .05);
+  --shadow-lg: 0 16px 40px -12px rgb(16 18 27 / .22), 0 4px 12px -4px rgb(16 18 27 / .08);
+  --ring-color: rgb(67 82 224 / .55);
+  /* Built from other tokens, so they follow the theme without a dark value of their own */
+  --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--ring-color);
+  --header-bg: color-mix(in srgb, var(--bg) 82%, transparent);
+  /* The app's primary button highlight, the same in both themes */
+  --primary-sheen: rgb(255 255 255 / .12);
+
+  --font-sans: "Inter var", "InterVariable", "Inter", ui-sans-serif, system-ui, -apple-system,
+               "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --fs-xs: .75rem;
+  --fs-sm: .8125rem;
+  --fs-base: .9375rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 1.875rem;
+  /* The page's own display sizes, above the app's scale */
+  --fs-h2: clamp(1.5rem, 1.2rem + 1.3vw, 2.25rem);
+  --fs-hero: clamp(2.125rem, 1.4rem + 3vw, 3.5rem);
+  --lh-tight: 1.25;
+  --lh-snug: 1.4;
+  --lh-body: 1.6;
+
+  --s-1: .25rem; --s-2: .5rem; --s-3: .75rem; --s-4: 1rem; --s-5: 1.25rem;
+  --s-6: 1.5rem; --s-8: 2rem; --s-10: 2.5rem; --s-12: 3rem; --s-16: 4rem; --s-20: 5rem;
+
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-full: 999px;
+
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --header-h: 56px;
+  --container: 1080px;
+}
+:root[data-theme="light"] { color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d0e10;
+    --surface: #151619;
+    --surface-2: #1b1c20;
+    --surface-3: #24262b;
+    --border: #25272c;
+    --border-strong: #34373d;
+    --text: #ededf0;
+    --text-2: #b5b5be;
+    --text-3: #8b8b95;
+    --accent: #5f6cf0;
+    --accent-hover: #7280f5;
+    --accent-solid: #5462ea;
+    --accent-solid-hover: #4b58e4;
+    --accent-text: #a0a8fb;
+    --accent-soft: #1b1e3a;
+    --accent-border: #2f3566;
+    --success: #5bd88f;
+    --success-soft: #0f2419;
+    --success-border: #1d4a31;
+    --success-solid: #3fbf74;
+    --warning: #f6b955;
+    --warning-soft: #261b0c;
+    --warning-border: #4d3613;
+    --warning-solid: #f0a030;
+    --danger: #f8817a;
+    --danger-soft: #2a1413;
+    --danger-border: #552723;
+    --danger-solid: #ef5b50;
+    --info: #75b6ff;
+    --info-soft: #0f1d30;
+    --info-border: #1f3b5e;
+    --info-solid: #4f9bf0;
+    --violet: #c7a6ff;
+    --violet-soft: #1f1730;
+    --violet-border: #3d2c5e;
+    --violet-solid: #a47cfa;
+    --neutral-solid: #5f5f69;
+    --shadow-xs: 0 1px 2px rgb(0 0 0 / .4);
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / .4), 0 1px 3px rgb(0 0 0 / .3);
+    --shadow-lg: 0 16px 40px -12px rgb(0 0 0 / .7), 0 4px 12px -4px rgb(0 0 0 / .5);
+    --ring-color: rgb(127 140 245 / .7);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d0e10;
+  --surface: #151619;
+  --surface-2: #1b1c20;
+  --surface-3: #24262b;
+  --border: #25272c;
+  --border-strong: #34373d;
+  --text: #ededf0;
+  --text-2: #b5b5be;
+  --text-3: #8b8b95;
+  --accent: #5f6cf0;
+  --accent-hover: #7280f5;
+  --accent-solid: #5462ea;
+  --accent-solid-hover: #4b58e4;
+  --accent-text: #a0a8fb;
+  --accent-soft: #1b1e3a;
+  --accent-border: #2f3566;
+  --success: #5bd88f;
+  --success-soft: #0f2419;
+  --success-border: #1d4a31;
+  --success-solid: #3fbf74;
+  --warning: #f6b955;
+  --warning-soft: #261b0c;
+  --warning-border: #4d3613;
+  --warning-solid: #f0a030;
+  --danger: #f8817a;
+  --danger-soft: #2a1413;
+  --danger-border: #552723;
+  --danger-solid: #ef5b50;
+  --info: #75b6ff;
+  --info-soft: #0f1d30;
+  --info-border: #1f3b5e;
+  --info-solid: #4f9bf0;
+  --violet: #c7a6ff;
+  --violet-soft: #1f1730;
+  --violet-border: #3d2c5e;
+  --violet-solid: #a47cfa;
+  --neutral-solid: #5f5f69;
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / .4);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / .4), 0 1px 3px rgb(0 0 0 / .3);
+  --shadow-lg: 0 16px 40px -12px rgb(0 0 0 / .7), 0 4px 12px -4px rgb(0 0 0 / .5);
+  --ring-color: rgb(127 140 245 / .7);
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--header-h) + var(--s-4));
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font-sans); font-size: var(--fs-base); line-height: var(--lh-body);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  overflow-wrap: break-word;
+}
+h1, h2, h3 { margin: 0; line-height: var(--lh-tight); font-weight: 600; letter-spacing: -.011em; text-wrap: balance; }
+p { margin: 0; }
+a { color: var(--accent-text); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+img { max-width: 100%; height: auto; display: block; }
+code, kbd, pre { font-family: var(--font-mono); }
+:not(pre) > code {
+  font-size: .86em; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 5px; padding: .08em .38em;
+}
+::selection { background: var(--accent-soft); }
+[hidden] { display: none !important; }
+:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.icon {
+  width: 1em; height: 1em; flex: none; stroke: currentColor; fill: none; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round; vertical-align: -.125em;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.skip-link {
+  position: fixed; left: var(--s-3); top: -8rem; z-index: 200;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--s-2) var(--s-3); box-shadow: var(--shadow-lg);
+}
+.skip-link:focus-visible { top: var(--s-3); }
+
+/* ---------- Frame ---------- */
+.page {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 var(--s-10);
+}
+.container { max-width: var(--container); margin-inline: auto; }
+.container > *, .container { min-width: 0; }
+
+/* ---------- Header (the app's header, with the same mark) ---------- */
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--header-bg);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.header-inner { height: var(--header-h); display: flex; align-items: center; gap: var(--s-4); }
+/* The app's brand: same size, weight and mark */
+.brand {
+  display: inline-flex; align-items: center; gap: var(--s-2); min-width: 0;
+  color: var(--text); text-decoration: none; font-weight: 600; font-size: var(--fs-base);
+  letter-spacing: -.01em; white-space: nowrap; border-radius: var(--r-md);
+}
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand-mark rect { fill: var(--accent-solid); }
+.brand-mark g { stroke: var(--accent-fg); }
+.brand-sub { color: var(--text-3); font-size: smaller; font-weight: 500; margin-left: .15em; }
+.site-nav { margin-left: auto; display: flex; align-items: center; gap: var(--s-1); }
+.site-nav a {
+  display: inline-flex; align-items: center; gap: var(--s-2); height: 34px; padding: 0 var(--s-3);
+  border-radius: var(--r-md); color: var(--text-2); text-decoration: none;
+  font-size: var(--fs-sm); font-weight: 500;
+}
+.site-nav a .icon { font-size: 16px; color: var(--text-3); }
+.site-nav a:hover { background: var(--surface-2); color: var(--text); }
+/* The app drops the blur at this width too, and sits the bar on the page colour */
+@media (max-width: 720px) {
+  .site-header { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* ---------- Buttons (the app's .btn) ---------- */
+.btn {
+  --btn-h: 36px;
+  appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  height: var(--btn-h); padding: 0 var(--s-4); border-radius: var(--r-md);
+  border: 1px solid transparent; background: var(--surface); color: var(--text);
+  font: inherit; font-size: var(--fs-sm); font-weight: 500; line-height: 1; white-space: nowrap;
+  text-decoration: none; cursor: pointer; user-select: none;
+}
+.btn .icon { font-size: 15px; }
+.btn--secondary { background: var(--surface); border-color: var(--border-strong); color: var(--text); box-shadow: var(--shadow-xs); }
+.btn--secondary:hover { background: var(--surface-2); }
+.btn--ghost { background: transparent; color: var(--text-2); }
+.btn--ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn--icon { width: var(--btn-h); padding: 0; }
+.btn:focus-visible, .cmd--hero .copy:focus-visible { box-shadow: var(--ring); }
+@media (pointer: coarse) {
+  .btn { --btn-h: 44px; }
+}
+
+/* ---------- Badges (the app's status badges) ---------- */
+.badge {
+  --tone: var(--text-2); --tone-soft: var(--surface-2); --tone-border: var(--border);
+  display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px;
+  font-size: var(--fs-xs); font-weight: 500; line-height: 1; white-space: nowrap; vertical-align: middle;
+  color: var(--tone); background: var(--tone-soft); border: 1px solid var(--tone-border); border-radius: var(--r-full);
+  text-decoration: none;
+}
+.badge--square { border-radius: var(--r-sm); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--tone-solid, var(--neutral-solid)); }
+.tone-success { --tone: var(--success); --tone-soft: var(--success-soft); --tone-border: var(--success-border); --tone-solid: var(--success-solid); }
+.tone-warning { --tone: var(--warning); --tone-soft: var(--warning-soft); --tone-border: var(--warning-border); --tone-solid: var(--warning-solid); }
+.tone-info    { --tone: var(--info); --tone-soft: var(--info-soft); --tone-border: var(--info-border); --tone-solid: var(--info-solid); }
+.tone-accent  { --tone: var(--accent-text); --tone-soft: var(--accent-soft); --tone-border: var(--accent-border); --tone-solid: var(--accent); }
+.ref { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-3); letter-spacing: -.01em; }
+
+kbd {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px;
+  font: 500 11px/1 var(--font-sans); color: var(--text-3);
+  background: var(--surface-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px;
+}
+
+/* ---------- Command line with a copy button ---------- */
+/* No overflow clipping, so a focused copy button's ring isn't cut off; the end pieces
+   round their own outer corners instead. */
+.cmd {
+  display: flex; align-items: stretch; min-height: 48px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+}
+.cmd-num {
+  flex: none; display: grid; place-items: center; width: 2.75rem;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-3);
+  background: var(--surface-2); border-right: 1px solid var(--border);
+  border-radius: calc(var(--r-md) - 1px) 0 0 calc(var(--r-md) - 1px);
+}
+.cmd-line {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--s-2);
+  padding: 0 var(--s-4); overflow-x: auto; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--fs-base);
+}
+.cmd-line .prompt { color: var(--text-3); user-select: none; }
+.cmd-line code { color: var(--text); background: none; border: 0; padding: 0; font-size: inherit; }
+.copy {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  min-width: 6.25rem; padding: 0 var(--s-4); margin: 0; cursor: pointer;
+  font: inherit; font-size: var(--fs-sm); font-weight: 500;
+  color: var(--text); background: var(--surface-2); border: 0; border-left: 1px solid var(--border);
+  border-radius: 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0;
+}
+.copy .icon { font-size: 15px; color: var(--text-3); }
+.copy:hover { background: var(--surface-3); }
+.copy[data-state="done"] { color: var(--success); background: var(--success-soft); }
+.copy[data-state="done"] .icon { color: var(--success); }
+/* The hero's copy button is the page's one primary button: the app's .btn--primary */
+.cmd--hero .copy {
+  background: var(--accent-solid); color: var(--accent-fg); border-left-color: var(--accent-solid);
+  box-shadow: var(--shadow-xs), inset 0 1px 0 var(--primary-sheen);
+}
+.cmd--hero .copy .icon { color: var(--accent-fg); }
+.cmd--hero .copy:hover { background: var(--accent-solid-hover); }
+.cmd--hero .copy[data-state="done"] { background: var(--success-soft); color: var(--success); border-left-color: var(--border); }
+.cmd--hero .copy[data-state="done"] .icon { color: var(--success); }
+
+/* ---------- Hero ---------- */
+.hero { display: grid; gap: var(--s-10); padding-block: var(--s-12) var(--s-10); }
+.hero > * { min-width: 0; }
+.hero-badge { margin-bottom: var(--s-5); }
+/* The page's display sizes, set like the app's largest title (.detail-title) */
+.hero h1 {
+  font-size: var(--fs-hero); line-height: 1.2; letter-spacing: -.025em;
+  max-width: 16ch; margin-bottom: var(--s-5);
+}
+.lede { font-size: clamp(1.0625rem, 1rem + .3vw, 1.1875rem); line-height: 1.6; color: var(--text-2); max-width: 38em; }
+.lede strong { color: var(--text); font-weight: 600; }
+.hero-install { display: grid; gap: var(--s-3); margin-top: var(--s-8); max-width: 34rem; }
+.hero-next { font-size: var(--fs-sm); color: var(--text-2); }
+.hero-next a { font-weight: 500; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-top: var(--s-5); }
+.needs { margin-top: var(--s-4); font-size: var(--fs-sm); color: var(--text-3); max-width: 60ch; }
+
+/* One request's life, drawn as a dashboard card */
+.loop-card {
+  align-self: center; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm); overflow: hidden;
+}
+.loop-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+  padding: var(--s-3) var(--s-5); border-bottom: 1px solid var(--border); background: var(--surface-2);
+  font-size: var(--fs-xs); color: var(--text-3); font-weight: 500;
+}
+.loop-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-5) var(--s-5) var(--s-1); }
+.loop-title { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -.01em; line-height: var(--lh-snug); }
+.loop { list-style: none; margin: 0; padding: var(--s-2) var(--s-5) var(--s-5); }
+.loop li {
+  position: relative; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--s-1) var(--s-4);
+  padding-block: var(--s-4); border-top: 1px solid var(--border);
+}
+.loop li:first-child { border-top: 0; }
+.loop .badge { justify-self: start; margin-top: 1px; }
+.loop p { font-size: var(--fs-base); line-height: 1.55; color: var(--text-2); }
+.loop p b { color: var(--text); font-weight: 600; }
+.loop-path {
+  display: block; margin-top: var(--s-2); font-family: var(--font-mono); font-size: var(--fs-xs);
+  color: var(--text-3); overflow-wrap: anywhere;
+}
+
+/* ---------- Screenshots ---------- */
+.shot { margin: 0; min-width: 0; }
+figure.container { margin-inline: auto; }
+.shot-link { display: block; border-radius: var(--r-lg); }
+.shot picture { display: block; }
+.shot img {
+  width: 100%; height: auto; border-radius: var(--r-lg);
+  border: 1px solid var(--border-strong); background: var(--surface); box-shadow: var(--shadow-lg);
+}
+.shot-link:hover img { border-color: var(--accent-border); }
+.shot-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .shot-light { display: none; }
+  :root:not([data-theme="light"]) .shot-dark { display: block; }
+}
+:root[data-theme="dark"] .shot-light { display: none; }
+:root[data-theme="dark"] .shot-dark { display: block; }
+/* Show the top of a tall page; the link opens the whole thing */
+.crop-now img { aspect-ratio: 1024 / 748; object-fit: cover; object-position: top; }
+.crop-agents img { aspect-ratio: 1024 / 912; object-fit: cover; object-position: top; }
+.hero-shot { padding-bottom: var(--s-6); }
+.hero-shot figcaption, .shot-foot {
+  margin-top: var(--s-4); font-size: var(--fs-sm); color: var(--text-3); max-width: 70ch;
+}
+.hero-shot figcaption b { color: var(--text); font-weight: 600; }
+
+/* ---------- Sections ---------- */
+.section { padding-block: var(--s-16); border-top: 1px solid var(--border); }
+.section-head { max-width: 46rem; margin-bottom: var(--s-10); }
+.eyebrow {
+  display: block; font-size: var(--fs-xs); font-weight: 500; color: var(--text-3);
+  letter-spacing: .02em; margin-bottom: var(--s-1);
+}
+.section h2 { font-size: var(--fs-h2); letter-spacing: -.025em; line-height: 1.2; }
+.section-head p { margin-top: var(--s-4); font-size: var(--fs-lg); color: var(--text-2); max-width: 60ch; }
+.section-head p.note { font-size: var(--fs-base); color: var(--text-3); }
+
+/* How it works */
+.steps { list-style: none; margin: 0; padding: 0; }
+.step {
+  display: grid; grid-template-columns: 2.25rem minmax(0, 1fr); gap: var(--s-5) var(--s-4);
+  padding-block: var(--s-10); border-top: 1px solid var(--border);
+}
+.step:first-child { border-top: 0; padding-top: 0; }
+.step:last-child { padding-bottom: 0; }
+.step > * { min-width: 0; }
+.step-num {
+  width: 2.25rem; height: 2.25rem; display: grid; place-items: center;
+  font-size: var(--fs-base); font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md); box-shadow: var(--shadow-xs);
+}
+.step-text h3 { font-size: var(--fs-xl); letter-spacing: -.02em; margin: 3px 0 var(--s-3); }
+.step-text p { color: var(--text-2); max-width: 60ch; }
+.step-text p + p { margin-top: var(--s-3); }
+.step-art { grid-column: 1 / -1; min-width: 0; }
+
+/* No overflow clipping, so the scrollable example's focus ring isn't cut off */
+.code {
+  margin: 0; min-width: 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+.code figcaption {
+  display: flex; align-items: center; gap: var(--s-2); min-width: 0;
+  padding: var(--s-2) var(--s-4); background: var(--surface-2); border-bottom: 1px solid var(--border);
+  border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
+  font-size: var(--fs-xs); color: var(--text-3); font-weight: 500;
+}
+.code figcaption .icon { font-size: 14px; }
+.code figcaption span { min-width: 0; overflow-wrap: anywhere; }
+.code pre {
+  margin: 0; padding: var(--s-4); overflow-x: auto; color: var(--text);
+  border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
+  font-size: var(--fs-sm); line-height: 1.65; tab-size: 2;
+}
+.code pre.wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.code pre .dim { color: var(--text-3); }
+.code pre .hl { display: inline; color: var(--accent-text); background: var(--accent-soft); border-radius: 3px; -webkit-box-decoration-break: clone; box-decoration-break: clone; padding: 1px 2px; }
+
+.keys {
+  list-style: none; margin: 0; padding: var(--s-2) 0; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+.keys li {
+  display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: var(--s-3); align-items: center;
+  padding: var(--s-2) var(--s-4); font-size: var(--fs-base); color: var(--text-2);
+}
+.keys li + li { border-top: 1px solid var(--border); }
+.keys .to { font-size: var(--fs-xs); color: var(--text-3); margin-inline: 2px; }
+
+/* Dashboard tour */
+.tour { display: grid; gap: var(--s-16); }
+.tour .shot figcaption { margin-bottom: var(--s-5); max-width: 46rem; }
+.tour .shot h3 { font-size: var(--fs-xl); letter-spacing: -.02em; }
+.tour .shot figcaption p { margin-top: var(--s-2); color: var(--text-2); }
+
+/* What else */
+.features { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-4); }
+.feature {
+  min-width: 0; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: var(--s-4);
+  padding: var(--s-5); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+.feature > div { min-width: 0; }
+.feature-icon {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  color: var(--accent-text); background: var(--accent-soft); border: 1px solid var(--accent-border); border-radius: var(--r-md);
+}
+.feature-icon .icon { font-size: 18px; }
+.feature h3 { font-size: var(--fs-md); margin: 6px 0 var(--s-2); }
+.feature p { font-size: var(--fs-base); color: var(--text-2); }
+
+/* Is it for you */
+.fit { display: grid; gap: var(--s-4); }
+.fit-card {
+  min-width: 0; padding: var(--s-6); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+.fit-card h3 { font-size: var(--fs-lg); margin-bottom: var(--s-4); }
+.fit-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.fit-card li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--s-3); color: var(--text-2); }
+.fit-card li .icon { font-size: 18px; margin-top: 3px; }
+.fit-yes .icon { color: var(--success); }
+.fit-no .icon { color: var(--text-3); }
+.spec {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s-2) var(--s-6);
+  margin: var(--s-8) 0 0; font-size: var(--fs-base);
+}
+.spec dt { color: var(--text-3); font-weight: 500; }
+.spec dd { margin: 0; min-width: 0; color: var(--text-2); }
+
+/* Next to other tools */
+.compare {
+  list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+.compare-row { min-width: 0; display: grid; gap: var(--s-3); padding: var(--s-5); }
+.compare-row + .compare-row { border-top: 1px solid var(--border); }
+.compare-row > * { min-width: 0; }
+.compare-row h3 { font-size: var(--fs-md); }
+.compare-row p { margin: 0; color: var(--text-2); }
+.compare-label { display: block; margin-bottom: var(--s-1); font-size: var(--fs-xs); font-weight: 500; letter-spacing: .02em; color: var(--text-3); }
+.compare-note { margin-top: var(--s-4); font-size: var(--fs-sm); color: var(--text-3); }
+
+/* Install */
+.install-grid { display: grid; gap: var(--s-10); }
+.install-grid > * { min-width: 0; }
+.install { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-6); }
+.install > li { min-width: 0; }
+.install p { margin-top: var(--s-3); color: var(--text-2); max-width: 60ch; }
+.after {
+  padding: var(--s-6); background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm); align-self: start;
+}
+.after h3 { font-size: var(--fs-md); margin-bottom: var(--s-3); }
+.after h3 + .cmd { margin-bottom: var(--s-6); }
+.after ul { margin: 0; padding-left: 1.15rem; color: var(--text-2); font-size: var(--fs-base); display: grid; gap: var(--s-2); }
+.after li::marker { color: var(--text-3); }
+
+/* Footer */
+.site-footer {
+  display: grid; gap: var(--s-4); padding-top: var(--s-10); border-top: 1px solid var(--border);
+  font-size: var(--fs-sm); color: var(--text-2);
+}
+.site-footer > * { min-width: 0; }
+.footer-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-6); }
+.footer-brand { display: flex; align-items: center; gap: var(--s-2); color: var(--text); font-weight: 600; font-size: var(--fs-base); letter-spacing: -.01em; }
+.footer-brand span { color: var(--text-3); font-weight: 500; font-size: smaller; margin-left: .15em; }
+.links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 var(--s-6); }
+.links li { min-width: 0; }
+.links a { display: inline-flex; align-items: baseline; gap: var(--s-2); min-height: 44px; padding-block: 12px; font-size: var(--fs-base); overflow-wrap: anywhere; text-decoration: none; }
+.links a .url { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.links .label { color: var(--text-3); font-size: var(--fs-sm); font-weight: 500; }
+.fine { color: var(--text-3); }
+
+/* ---------- Narrow screens ---------- */
+@media (max-width: 520px) {
+  .nav-wide { display: none !important; }
+  .hero { padding-top: var(--s-8); }
+  .section { padding-block: var(--s-12); }
+  .section-head { margin-bottom: var(--s-8); }
+  .loop li { grid-template-columns: minmax(0, 1fr); gap: var(--s-2); }
+  .loop-head, .loop-title-row, .loop { padding-left: var(--s-4); padding-right: var(--s-4); }
+  .cmd-line { padding: 0 var(--s-3); font-size: var(--fs-sm); }
+  .copy { min-width: 5.5rem; padding: 0 var(--s-3); }
+  .code pre { font-size: var(--fs-xs); padding: var(--s-3); }
+  .tour { gap: var(--s-12); }
+  .keys li { grid-template-columns: 4.5rem minmax(0, 1fr); }
+}
+/* The app's title size at this width */
+@media (max-width: 720px) {
+  .step-text h3, .tour .shot h3 { font-size: 1.375rem; }
+}
+@media (max-width: 959px) {
+  /* Number beside the heading, body text at full width */
+  .step { gap: var(--s-3) var(--s-3); }
+  .step-text { display: contents; }
+  .step-text h3 { grid-column: 2; align-self: center; margin: 0; }
+  .step-text p { grid-column: 1 / -1; }
+  .step-text p + p { margin-top: 0; }
+  .step-art { margin-top: var(--s-3); }
+}
+@media (max-width: 680px) {
+  .brand-sub { display: none; }
+}
+
+/* ---------- Wider screens ---------- */
+@media (min-width: 640px) {
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fit { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 960px) {
+  .hero { grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); align-items: center; gap: var(--s-12); padding-block: var(--s-16) var(--s-12); }
+  .section { padding-block: var(--s-20); }
+  .step { grid-template-columns: 2.25rem minmax(0, .85fr) minmax(0, 1.15fr); gap: 0 var(--s-8); }
+  .step-art { grid-column: auto; }
+  .features { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .install-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: var(--s-12); }
+  .compare-row { grid-template-columns: minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1.1fr); gap: var(--s-8); padding: var(--s-6); }
+}
+
+/* ---------- Motion ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .btn {
+    transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease,
+                color var(--dur-fast) ease, box-shadow var(--dur-fast) ease, transform 80ms ease;
+  }
+  .site-nav a { transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+  .copy, .shot img {
+    transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+  }
+  .skip-link { transition: top var(--dur) var(--ease-out); }
+  .btn:active { transform: translateY(1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+  <symbol id="i-fleet" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+  <symbol id="i-list-checks" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"/><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></symbol>
+</svg>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<div class="page">
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="#top" aria-label="apo, AI Project Orchestration, top of page">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="8"/>
+        <g fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 9v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9"/><path d="M16 16v7"/>
+        </g>
+      </svg>
+      <span>apo</span> <span class="brand-sub">AI Project Orchestration</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-wide" href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/ahron-maslin/apo">GitHub<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
+      <button type="button" class="btn btn--ghost btn--icon" data-theme-toggle aria-label="Theme: system" title="Theme: system (click to change)">
+        <span data-theme-icon="system"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg></span>
+        <span data-theme-icon="light" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg></span>
+        <span data-theme-icon="dark" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-moon"/></svg></span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="container hero" id="top" aria-labelledby="hero-title">
+  <div>
+    <p class="badge tone-accent hero-badge">For Claude Code · runs on your machine</p>
+    <h1 id="hero-title">Your Claude&nbsp;Code agents ask instead of stopping.</h1>
+    <p class="lede">When a Claude Code session hits something it can't decide, it files a request through apo's MCP server and keeps working on what it can. <strong>You answer every waiting request, from every project, in one dashboard.</strong> apo writes the answer into that repo, where the next session picks it up.</p>
+
+    <div class="hero-install">
+      <div class="cmd cmd--hero">
+        <div class="cmd-line"><span class="prompt" aria-hidden="true">$</span><code id="cmd-0">pipx install getapo</code></div>
+        <button type="button" class="copy" data-copy="cmd-0" aria-label="Copy pipx install getapo"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span data-copy-label>Copy</span></button>
+      </div>
+      <p class="hero-next">Then <code>apo init</code> and <code>apo dashboard</code>. <a href="#install">All install steps</a></p>
+    </div>
+    <div class="hero-actions">
+      <a class="btn btn--secondary" href="#how">How it works<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg></a>
+      <a class="btn btn--ghost" href="https://github.com/ahron-maslin/apo">Source on GitHub<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-external"/></svg></a>
+    </div>
+    <p class="needs">Needs Claude Code and Python 3.10 or later, on Linux, macOS or WSL2.</p>
+  </div>
+
+  <article class="loop-card" aria-label="One request, start to finish">
+    <div class="loop-head"><span>One request, start to finish</span><span class="ref">#0012</span></div>
+    <div class="loop-title-row">
+      <span class="badge badge--square">trailmate-app</span>
+      <p class="loop-title">Lowest iOS version to support?</p>
+    </div>
+    <ol class="loop">
+      <li>
+        <span class="badge tone-warning"><span class="dot"></span>Open</span>
+        <p><b>A session asks.</b> It gives two options and suggests iOS 16, 85% sure. Then it carries on with the build setup.</p>
+      </li>
+      <li>
+        <span class="badge tone-info"><span class="dot"></span>Answered</span>
+        <p><b>You answer.</b> One key accepts the suggestion from your queue, and apo writes it into the repo.
+          <span class="loop-path">.claude/decisions/0012-lowest-ios-version-to-support.md</span></p>
+      </li>
+      <li>
+        <span class="badge tone-success"><span class="dot"></span>Resolved</span>
+        <p><b>The next session acts on it.</b> It reads the file, does the work and closes the request.</p>
+      </li>
+    </ol>
+  </article>
+</section>
+
+<figure class="container shot hero-shot crop-now">
+  <!-- The first-screen image: one <picture> so only the file for the current theme loads, early.
+       The theme script points the dark <source> and the link at the chosen theme. -->
+  <a class="shot-link" href="img/now-light.webp" data-href-light="img/now-light.webp" data-href-dark="img/now-dark.webp"><picture>
+    <source data-dark-source media="(prefers-color-scheme: dark)" sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)"
+      srcset="img/now-dark-768.webp 768w, img/now-dark-1080.webp 1080w, img/now-dark-1440.webp 1440w, img/now-dark.webp 2048w">
+    <img src="img/now-light.webp" width="1024" height="1172" fetchpriority="high" sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)"
+      srcset="img/now-light-768.webp 768w, img/now-light-1080.webp 1080w, img/now-light-1440.webp 1440w, img/now-light.webp 2048w"
+      alt="The Now page of the apo dashboard. A summary reads 4 waiting on you, about 22 minutes, with buttons to spend 2, 5 or 15 minutes. Under Your move, a decision from riverbend-pipeline asks whether to backfill or quarantine sales events that arrive after the cutoff; the agent suggests backfilling up to 3 days, 70% sure, with an Accept recommendation button. Below it, an action from trailmate-app to create the App Store Connect listing has a Done button.">
+  </picture></a>
+  <figcaption><b>Now</b> lists everything waiting on you across every project, the most stuck agent first. Select the screenshot to see the whole page.</figcaption>
+</figure>
+
+<section class="container section" id="how" aria-labelledby="how-title">
+  <div class="section-head">
+    <span class="eyebrow">How it works</span>
+    <h2 id="how-title">Agents ask. You answer from one queue. The repo keeps the answer.</h2>
+  </div>
+
+  <ol class="steps" role="list">
+    <li class="step">
+      <span class="step-num" aria-hidden="true">1</span>
+      <div class="step-text">
+        <h3>An agent files a request and keeps going</h3>
+        <p>apo gives every Claude Code session an MCP server to ask through. A decision carries a two-sentence summary, the options with what the agent will do for each and whether it can be undone, a recommendation with how sure the agent is, and what's blocked versus safe to continue. Then the agent gets on with the safe part.</p>
+        <p>Some things need your hands: a DNS record, a merge, an API key. For those the agent files an action with a link, the steps, values to copy, and a check apo runs when you press Done.</p>
+      </div>
+      <div class="step-art">
+        <figure class="code">
+          <figcaption><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-braces"/></svg><span>What a session in trailmate-app sends (shortened)</span></figcaption>
+<pre tabindex="0" role="region" aria-label="Example create_decision_request call"><code><span class="dim">create_decision_request(</span>
+  project="trailmate-app",
+  title="Offline maps: per region, or a base map?",
+  options=[
+    {"label": "Download per region",
+     "consequence": "Small install; download before a hike.",
+     "reversible": True},
+    {"label": "Bundle a base map",
+     "consequence": "Install grows by about 180 MB.",
+     "reversible": True},
+  ],
+  recommended_option=0, confidence=88,
+  blocked_work=["Storage limit and cleanup"],
+  safe_work=["Tile download queue", "Offline indicator"],
+  resume_plan={...},
+<span class="dim">)</span></code></pre>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <span class="step-num" aria-hidden="true">2</span>
+      <div class="step-text">
+        <h3>You answer from one queue</h3>
+        <p>The dashboard's Now page lists what's waiting on you across every project, ranked by how blocked each agent is and how long it has waited. Most answers take one key. With a few minutes free, a lightning round fits your moves into 2, 5 or 15 minutes, one card at a time.</p>
+        <p>You can also write your own answer, attach a screenshot, or say you need more information first.</p>
+      </div>
+      <div class="step-art">
+        <ul class="keys" aria-label="Keys on the Now page">
+          <li><span><kbd>y</kbd></span><span>Accept the agent's suggestion</span></li>
+          <li><span><kbd>1</kbd><span class="to">to</span><kbd>9</kbd></span><span>Pick an option</span></li>
+          <li><span><kbd>e</kbd></span><span>Mark an action done</span></li>
+          <li><span><kbd>s</kbd></span><span>Snooze it</span></li>
+          <li><span><kbd>t</kbd></span><span>Start a 5-minute round</span></li>
+        </ul>
+      </div>
+    </li>
+
+    <li class="step">
+      <span class="step-num" aria-hidden="true">3</span>
+      <div class="step-text">
+        <h3>The answer is written into the repo</h3>
+        <p>apo keeps <code>.claude/decisions/</code> up to date in each project: an <code>INDEX.md</code>, plus one markdown file per request with the question, your answer and the agent's handoff notes. A file is greppable, survives a clone, and sits next to the work it led to.</p>
+        <p>Secrets you type into an action go to an encrypted store on your machine and never reach these files.</p>
+      </div>
+      <div class="step-art">
+        <figure class="code">
+          <figcaption><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-file-text"/></svg><span>.claude/decisions/0012-lowest-ios-version-to-support.md (excerpt)</span></figcaption>
+<pre class="wrap"><code># 0012 — Lowest iOS version to support?
+
+- **Status:** ANSWERED
+- **Kind:** Decision
+- **Project:** trailmate-app
+
+## Question
+
+What's the minimum iOS version for 1.0?
+
+## Answer
+
+<span class="hl">Accepted your recommendation: iOS 16: wider reach for a beta, and the workaround is small.</span>
+
+## Agent recommendation (confidence 85%)
+
+iOS 16: wider reach for a beta, and the workaround is small.</code></pre>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <span class="step-num" aria-hidden="true">4</span>
+      <div class="step-text">
+        <h3>The next session picks it up</h3>
+        <p>If the session that asked is still open, it gets the answer with your next prompt there. A new session in that repo is told at start that answers are waiting, and <code>/decisions</code> works through them. If nothing picks an answer up within an hour, it comes back to your queue with a button that starts a background session to apply it.</p>
+        <p>Each answer is tracked from pending to delivered to applied, so you can see which ones reached an agent.</p>
+      </div>
+      <div class="step-art">
+        <figure class="code">
+          <figcaption><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-terminal"/></svg><span>A new session in ~/projects/trailmate-app, at start</span></figcaption>
+<pre class="wrap"><code>1 answered decision in this repo is waiting to be worked:
+  #0012 Lowest iOS version to support? (ANSWERED)
+
+<span class="dim">&gt;</span> /decisions</code></pre>
+        </figure>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section class="container section" id="dashboard" aria-labelledby="dashboard-title">
+  <div class="section-head">
+    <span class="eyebrow">The dashboard</span>
+    <h2 id="dashboard-title">One place for every project's agents</h2>
+    <p class="note">The three projects in these screenshots are made up: a ceramics shop, a sales data pipeline and a hiking app. Select a screenshot to open it full size.</p>
+  </div>
+
+  <div class="tour">
+    <figure class="shot">
+      <figcaption>
+        <h3>Lightning round</h3>
+        <p>One card at a time. Each option says what the agent will do and whether it can be undone.</p>
+      </figcaption>
+      <a class="shot-link shot-light" href="img/round-light.webp"><img src="img/round-light.webp" srcset="img/round-light-768.webp 768w, img/round-light-1080.webp 1080w, img/round-light-1440.webp 1440w, img/round-light.webp 2048w"
+        sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)" width="1024" height="956" loading="lazy" decoding="async"
+        alt="A lightning round, card 1 of 3, about 12 minutes left. Decision #0002, Events that arrive after the cutoff: backfill or quarantine? The agent suggests backfilling up to 3 days, 70% sure. Three numbered options each say what the agent will do; the first two are marked easy to reverse and the third, dropping rows older than 24 hours, is marked one-way. Below are Accept recommendation, You decide, Need more info and Decline, and a box for your own answer with an Attach screenshot button."></a>
+      <a class="shot-link shot-dark" href="img/round-dark.webp"><img src="img/round-dark.webp" srcset="img/round-dark-768.webp 768w, img/round-dark-1080.webp 1080w, img/round-dark-1440.webp 1440w, img/round-dark.webp 2048w"
+        sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)" width="1024" height="956" loading="lazy" decoding="async"
+        alt="A lightning round, card 1 of 3, about 12 minutes left. Decision #0002, Events that arrive after the cutoff: backfill or quarantine? The agent suggests backfilling up to 3 days, 70% sure. Three numbered options each say what the agent will do; the first two are marked easy to reverse and the third, dropping rows older than 24 hours, is marked one-way. Below are Accept recommendation, You decide, Need more info and Decline, and a box for your own answer with an Attach screenshot button."></a>
+    </figure>
+
+    <figure class="shot crop-agents">
+      <figcaption>
+        <h3>Agents</h3>
+        <p>Every Claude Code session, grouped by project, with what it's waiting on and its own checklist.</p>
+      </figcaption>
+      <a class="shot-link shot-light" href="img/agents-light.webp"><img src="img/agents-light.webp" srcset="img/agents-light-768.webp 768w, img/agents-light-1080.webp 1080w, img/agents-light-1440.webp 1440w, img/agents-light.webp 2048w"
+        sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)" width="1024" height="1412" loading="lazy" decoding="async"
+        alt="The Agents tab for all projects. A strip counts 4 sessions needing you, 2 running, 1 idle and 0 quiet. Below, the larkspur-store project has two session cards: one waiting on your decision about which payment provider to use for checkout, and one waiting on you to point the shop's domain at its host. Each card shows what you last asked the session, and one shows its checklist at 2 of 4."></a>
+      <a class="shot-link shot-dark" href="img/agents-dark.webp"><img src="img/agents-dark.webp" srcset="img/agents-dark-768.webp 768w, img/agents-dark-1080.webp 1080w, img/agents-dark-1440.webp 1440w, img/agents-dark.webp 2048w"
+        sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)" width="1024" height="1412" loading="lazy" decoding="async"
+        alt="The Agents tab for all projects. A strip counts 4 sessions needing you, 2 running, 1 idle and 0 quiet. Below, the larkspur-store project has two session cards: one waiting on your decision about which payment provider to use for checkout, and one waiting on you to point the shop's domain at its host. Each card shows what you last asked the session, and one shows its checklist at 2 of 4."></a>
+    </figure>
+
+    <figure class="shot">
+      <figcaption>
+        <h3>A goal</h3>
+        <p>Steps belong to an agent, to you, or to someone outside. A step waits until the ones it depends on are done.</p>
+      </figcaption>
+      <a class="shot-link shot-light" href="img/goal-light.webp"><img src="img/goal-light.webp" srcset="img/goal-light-768.webp 768w, img/goal-light-1080.webp 1080w, img/goal-light-1440.webp 1440w, img/goal-light.webp 2048w"
+        sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)" width="1024" height="989" loading="lazy" decoding="async"
+        alt="A goal in trailmate-app: Ship 1.0 to TestFlight, done when build 1.0 is installable by the 30-person beta group, due Saturday, 1 of 5 steps done. Steps are labelled by owner: an Agent step that is done, an Agent step in progress, a You step to create the App Store Connect listing, a step waiting on Priya from design, and an Agent step for release notes that starts after steps 8 and 9."></a>
+      <a class="shot-link shot-dark" href="img/goal-dark.webp"><img src="img/goal-dark.webp" srcset="img/goal-dark-768.webp 768w, img/goal-dark-1080.webp 1080w, img/goal-dark-1440.webp 1440w, img/goal-dark.webp 2048w"
+        sizes="(min-width: 1112px) 1080px, calc(100vw - 32px)" width="1024" height="989" loading="lazy" decoding="async"
+        alt="A goal in trailmate-app: Ship 1.0 to TestFlight, done when build 1.0 is installable by the 30-person beta group, due Saturday, 1 of 5 steps done. Steps are labelled by owner: an Agent step that is done, an Agent step in progress, a You step to create the App Store Connect listing, a step waiting on Priya from design, and an Agent step for release notes that starts after steps 8 and 9."></a>
+    </figure>
+  </div>
+</section>
+
+<section class="container section" id="more" aria-labelledby="more-title">
+  <div class="section-head">
+    <span class="eyebrow">What else it does</span>
+    <h2 id="more-title">Fewer interruptions, and a record of what was decided</h2>
+  </div>
+  <ul class="features" role="list">
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-check-circle"/></svg></span>
+      <div><h3>Accept in bulk</h3>
+      <p>Accept every suggestion an agent is at least 85% sure of and has marked easy to undo, after you've looked over the list.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-file-text"/></svg></span>
+      <div><h3>Standing rules</h3>
+      <p>Write down the answers you'd give every time. Agents read them from <code>.claude/decisions/POLICY.md</code> and follow them instead of asking.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-list-checks"/></svg></span>
+      <div><h3>Goals</h3>
+      <p>A result you want, with a checklist. Each step belongs to you, an agent or someone outside. Agent steps reach the repo as tasks the next session picks up.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-fleet"/></svg></span>
+      <div><h3>Every session, live</h3>
+      <p>Status comes from Claude Code's own hooks and its list of running sessions, so watching your sessions spends no tokens.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-clock"/></svg></span>
+      <div><h3>Snooze</h3>
+      <p>Put an item away for 2 hours, until tomorrow, or until the agent that asked is actually stuck on it.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-bell"/></svg></span>
+      <div><h3>Notifications</h3>
+      <p>Off until you turn them on. Then an item interrupts you only after it has waited a while, at most 6 times a day, inside the hours you set.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-search"/></svg></span>
+      <div><h3>Search and weekly reports</h3>
+      <p>Search every question, answer, session recap and goal. A weekly report per project shows what got done and decided, and how long agents waited on you.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-plug"/></svg></span>
+      <div><h3>Linear, if you use it</h3>
+      <p>Mirror requests as Linear issues and answer with a comment, or plan a goal as an issue with sub-issues. It's off unless you connect it.</p></div>
+    </li>
+    <li class="feature">
+      <span class="feature-icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-lock"/></svg></span>
+      <div><h3>Local</h3>
+      <p>No account, no telemetry and no AI of its own. The dashboard listens on 127.0.0.1 and keeps its data in a SQLite file on your machine.</p></div>
+    </li>
+  </ul>
+</section>
+
+<section class="container section" id="fit" aria-labelledby="fit-title">
+  <div class="section-head">
+    <span class="eyebrow">Who it's for</span>
+    <h2 id="fit-title">One person running many Claude Code sessions</h2>
+    <p>You have sessions going in several projects and don't watch any one terminal, so a question from one of them waits until you happen to look. With apo it goes into a queue, and the agent carries on with the parts that don't depend on your answer. Sessions show up however you started them: in a terminal, in VS Code or in the background.</p>
+  </div>
+
+  <div class="fit">
+    <div class="fit-card fit-yes">
+      <h3>It fits if</h3>
+      <ul>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span>you work across more than one repo at a time</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span>you'd rather clear ten questions in five minutes than answer one every few minutes</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span>you want decisions written down in the repo, beside the work they led to</span></li>
+      </ul>
+    </div>
+    <div class="fit-card fit-no">
+      <h3>Look elsewhere if you want</h3>
+      <ul>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-x"/></svg><span>a shared workspace for a team. apo is for one person on one machine, with no accounts.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-x"/></svg><span>agents run in the cloud for you. apo watches sessions you start and hosts none.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-x"/></svg><span>support for agent CLIs other than Claude Code</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <dl class="spec">
+    <dt>Needs</dt><dd>Claude Code, and Python 3.10 or later</dd>
+    <dt>Runs on</dt><dd>Linux, macOS or WSL2. Native Windows isn't supported.</dd>
+    <dt>AI use</dt><dd>None of its own. Watching sessions, filing questions and writing answers into repos is plain code, so it spends no tokens. The one exception is the optional Generate recap button, which asks a small Claude model through your Claude Code login.</dd>
+  </dl>
+</section>
+
+<section class="container section" id="compare" aria-labelledby="compare-title">
+  <div class="section-head">
+    <span class="eyebrow">Next to other tools</span>
+    <h2 id="compare-title">Where apo fits among agent tools</h2>
+    <p>Other tools start and host your agents, or put a live session on your phone. apo watches the Claude Code sessions you already run, keeps every answer in the repo, and runs no AI of its own. It works alongside most of them.</p>
+  </div>
+  <ul class="compare" role="list">
+    <li class="compare-row">
+      <h3>Claude Code's agent view and Remote Control</h3>
+      <p><span class="compare-label">What they do</span>Anthropic's own tools. Agent view lists your background sessions on one terminal screen. Remote Control lets you drive a session from the browser or your phone.</p>
+      <p><span class="compare-label">What apo adds</span>It also sees sessions started in a terminal or VS Code, across every project. An answer outlives the session, because it's written into the repo.</p>
+    </li>
+    <li class="compare-row">
+      <h3>Session runners such as Conductor, Claude Squad and CCManager</h3>
+      <p><span class="compare-label">What they do</span>Start each agent in its own worktree and run it inside their app or terminal.</p>
+      <p><span class="compare-label">What apo adds</span>apo doesn't start or wrap your agents. It watches the sessions you already run, however you started them, and gives their questions one queue.</p>
+    </li>
+    <li class="compare-row">
+      <h3>Phone apps such as Happy and HAPI</h3>
+      <p><span class="compare-label">What they do</span>Put a live session on your phone, so you can answer its prompts from anywhere.</p>
+      <p><span class="compare-label">What apo adds</span>The session doesn't have to still be open. Answers are written into the repo, where whichever session comes next picks them up.</p>
+    </li>
+    <li class="compare-row">
+      <h3>Team platforms such as HumanLayer and GitHub Agent HQ</h3>
+      <p><span class="compare-label">What they do</span>Shared workspaces where a team assigns agent work and reviews it.</p>
+      <p><span class="compare-label">What apo adds</span>apo is for one person on one machine. There's no account or server, and nothing leaves your computer unless you connect Linear.</p>
+    </li>
+  </ul>
+  <p class="compare-note">Based on each tool's own documentation, October 2026.</p>
+</section>
+
+<section class="container section" id="install" aria-labelledby="install-title">
+  <div class="section-head">
+    <span class="eyebrow">Install</span>
+    <h2 id="install-title">Install in three commands</h2>
+  </div>
+
+  <div class="install-grid">
+    <ol class="install" role="list">
+      <li>
+        <div class="cmd">
+          <span class="cmd-num" aria-hidden="true">1</span>
+          <div class="cmd-line"><span class="prompt" aria-hidden="true">$</span><code id="cmd-1">pipx install getapo</code></div>
+          <button type="button" class="copy" data-copy="cmd-1" aria-label="Copy pipx install getapo"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span data-copy-label>Copy</span></button>
+        </div>
+        <p>The package is called getapo on PyPI. It installs the <code>apo</code> command in its own environment.</p>
+      </li>
+      <li>
+        <div class="cmd">
+          <span class="cmd-num" aria-hidden="true">2</span>
+          <div class="cmd-line"><span class="prompt" aria-hidden="true">$</span><code id="cmd-2">apo init</code></div>
+          <button type="button" class="copy" data-copy="cmd-2" aria-label="Copy apo init"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span data-copy-label>Copy</span></button>
+        </div>
+        <p>Creates the local database and connects apo to Claude Code. It asks where your projects live and whether to connect Linear, which you can skip.</p>
+      </li>
+      <li>
+        <div class="cmd">
+          <span class="cmd-num" aria-hidden="true">3</span>
+          <div class="cmd-line"><span class="prompt" aria-hidden="true">$</span><code id="cmd-3">claude</code></div>
+          <button type="button" class="copy" data-copy="cmd-3" aria-label="Copy claude"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span data-copy-label>Copy</span></button>
+        </div>
+        <p>Start a new Claude Code session in one of your project folders. Sessions that were already running don't get apo's tools until you restart them.</p>
+      </li>
+    </ol>
+
+    <div class="after">
+      <h3>Then open the dashboard</h3>
+      <div class="cmd">
+        <div class="cmd-line"><span class="prompt" aria-hidden="true">$</span><code id="cmd-4">apo dashboard</code></div>
+        <button type="button" class="copy" data-copy="cmd-4" aria-label="Copy apo dashboard"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-copy"/></svg><span data-copy-label>Copy</span></button>
+      </div>
+      <h3>What <code>apo init</code> changes</h3>
+      <ul>
+        <li>Registers apo's MCP server with Claude Code for your user, so every session can file requests and gets a short note on when to.</li>
+        <li>Adds hook entries to <code>~/.claude/settings.json</code>, after making a backup of it.</li>
+        <li>Installs the <code>/decisions</code> skill.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="container site-footer">
+  <div class="footer-top">
+    <p class="footer-brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="8"/>
+        <g fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 9v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9"/><path d="M16 16v7"/>
+        </g>
+      </svg>
+      apo <span>AI Project Orchestration</span>
+    </p>
+    <ul class="links" aria-label="Links">
+      <li><a href="https://github.com/ahron-maslin/apo"><span class="label">Source</span><span class="url">github.com/ahron-maslin/apo</span></a></li>
+      <li><a href="https://pypi.org/project/getapo/"><span class="label">Package</span><span class="url">pypi.org/project/getapo</span></a></li>
+    </ul>
+  </div>
+  <p>The user guide is built into the dashboard: the ⓘ button in its header. Press <kbd>?</kbd> on any page for the keyboard shortcuts.</p>
+  <p class="fine">apo works with Claude Code and isn't made by Anthropic.</p>
+</footer>
+
+<p class="sr-only" id="live-status" aria-live="polite"></p>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var KEY = "apo-site-theme";
+  var THEMES = ["system", "light", "dark"];
+  var toggle = document.querySelector("[data-theme-toggle]");
+  var status = document.getElementById("live-status");
+
+  function say(message) {
+    if (!status) return;
+    status.textContent = "";
+    setTimeout(function () { status.textContent = message; }, 30);
+  }
+  function current() { return root.dataset.theme || "system"; }
+  var DARK = "(prefers-color-scheme: dark)";
+  var darkQuery = window.matchMedia ? window.matchMedia(DARK) : null;
+  function syncShots() {
+    var theme = current();
+    var dark = theme === "dark" || (theme === "system" && !!darkQuery && darkQuery.matches);
+    Array.prototype.forEach.call(document.querySelectorAll("source[data-dark-source]"), function (source) {
+      source.media = theme === "system" ? DARK : theme === "dark" ? "all" : "not all";
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("a[data-href-dark]"), function (link) {
+      link.href = link.getAttribute(dark ? "data-href-dark" : "data-href-light");
+    });
+  }
+  syncShots();
+  if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener("change", syncShots);
+  function sync() {
+    if (!toggle) return;
+    var theme = current();
+    toggle.setAttribute("aria-label", "Theme: " + theme);
+    toggle.title = "Theme: " + theme + " (click to change)";
+    Array.prototype.forEach.call(toggle.querySelectorAll("[data-theme-icon]"), function (el) {
+      el.hidden = el.getAttribute("data-theme-icon") !== theme;
+    });
+  }
+  function apply(theme) {
+    if (theme === "system") delete root.dataset.theme; else root.dataset.theme = theme;
+    try {
+      if (theme === "system") localStorage.removeItem(KEY); else localStorage.setItem(KEY, theme);
+    } catch (e) {}
+    sync();
+    syncShots();
+  }
+  if (toggle) {
+    sync();
+    toggle.addEventListener("click", function () {
+      var next = THEMES[(THEMES.indexOf(current()) + 1) % THEMES.length];
+      apply(next);
+      say("Theme: " + next);
+    });
+  }
+
+  var mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+
+  function selectText(el) {
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  function report(button, label, message) {
+    var text = button.querySelector("[data-copy-label]") || button;
+    text.textContent = label;
+    button.dataset.state = "done";
+    say(message);
+    clearTimeout(button._reset);
+    button._reset = setTimeout(function () {
+      text.textContent = "Copy";
+      delete button.dataset.state;
+    }, 2200);
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"), function (button) {
+    button.addEventListener("click", function () {
+      var target = document.getElementById(button.getAttribute("data-copy"));
+      if (!target) return;
+      var text = target.textContent.trim();
+      function fallback() {
+        selectText(target);
+        report(button, mac ? "⌘C" : "Ctrl+C", "Selected " + text + ". Press " + (mac ? "Command C" : "Control C") + " to copy.");
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          report(button, "Copied", "Copied " + text);
+        }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

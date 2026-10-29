@@ -111,3 +111,14 @@ def test_a_session_starting_brings_the_dashboard_up_only_when_asked(cli, spawned
     monkeypatch.setenv("APO_DASHBOARD_AUTOSTART", "1")
     cli._session_start({"session_id": "s-2", "cwd": str(tmp_path)})
     assert len(spawned) == 1
+
+
+def test_a_bare_apo_dashboard_starts_it_and_says_where(cli, spawned, monkeypatch, capsys):
+    """What the website tells a new user to type."""
+    port = _free_port()
+    monkeypatch.setenv("APO_DASHBOARD_PORT", str(port))
+
+    cli.main(["dashboard"])
+
+    assert len(spawned) == 1
+    assert f"http://127.0.0.1:{port}" in capsys.readouterr().out
