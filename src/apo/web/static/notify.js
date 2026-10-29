@@ -2,7 +2,7 @@
 // switch). Polls from every page, hidden tabs too — the server decides what's worth
 // an interruption and records each one as sent, so a second tab never repeats it.
 (function () {
-  var KEY = "ado-notify";
+  var KEY = "apo-notify";
   var POLL_MS = 60000;
   var shown = {};
 

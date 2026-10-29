@@ -23,8 +23,9 @@ class LinearNotConfigured(Exception):
 
 def _resolve_credentials() -> tuple[str | None, str | None]:
     """A credential entered through Settings (stored encrypted in the DB) takes
-    precedence over LINEAR_API_KEY/LINEAR_TEAM from .env, so an existing env-based
-    setup keeps working unchanged unless/until it's replaced through the UI."""
+    precedence over APO_LINEAR_API_KEY/APO_LINEAR_TEAM from the environment or the
+    settings file, so an existing env-based setup keeps working unchanged until it's
+    replaced through the UI."""
     conn = db.get_connection()
     stored = credentials.get_credentials(conn, "linear")
     if stored:
@@ -35,13 +36,13 @@ def _resolve_credentials() -> tuple[str | None, str | None]:
 def _graphql(query: str, variables: dict, api_key: str | None = None) -> dict:
     if config.offline():
         raise RuntimeError(
-            "ADO_OFFLINE is set — refusing to call the live Linear API. Unset it only "
+            "APO_OFFLINE is set — refusing to call the live Linear API. Unset it only "
             "if you actually intend to write to the real workspace."
         )
     if api_key is None:
         api_key, _ = _resolve_credentials()
     if not api_key:
-        raise LinearNotConfigured("LINEAR_API_KEY not set")
+        raise LinearNotConfigured("APO_LINEAR_API_KEY not set")
     body = json.dumps({"query": query, "variables": variables}).encode()
     req = urllib.request.Request(
         API_URL, data=body, method="POST",
@@ -106,13 +107,13 @@ def get_team_id() -> str:
         return _team_id_cache
     _, team = _resolve_credentials()
     if not team:
-        raise LinearNotConfigured("LINEAR_TEAM not set")
+        raise LinearNotConfigured("APO_LINEAR_TEAM not set")
     data = _graphql("query { teams { nodes { id key name } } }", {})
     for node in data["teams"]["nodes"]:
         if node["key"] == team or node["id"] == team:
             _team_id_cache = node["id"]
             return _team_id_cache
-    raise RuntimeError(f"No Linear team matching LINEAR_TEAM='{team}'")
+    raise RuntimeError(f"No Linear team matching APO_LINEAR_TEAM='{team}'")
 
 
 def get_viewer_id() -> str:
@@ -228,7 +229,7 @@ def _issue_text(decision: dict) -> tuple[str, str]:
         description += _format_list("Resume plan", plan["remaining_steps"])
     description += (
         "\n\n---\nReply with a comment on this issue to answer — it syncs back to "
-        "the orchestrator automatically and lands in the repo for the next session to "
+        "apo automatically and lands in the repo for the next session to "
         "pick up."
     )
     return title, description
@@ -297,7 +298,7 @@ def get_comments(issue_id: str) -> list[dict]:
     return issue["comments"]["nodes"]
 
 
-# Bounds one look for new issues. The cursor only trails the poll by POLL_SECONDS, so
+# Bounds one look for new issues. The cursor only trails the poll by APO_POLL_SECONDS, so
 # more than this many new issues in one project between polls isn't a real case.
 _NEW_ISSUE_PAGES = 10
 

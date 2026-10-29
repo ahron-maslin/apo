@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AI Decision Orchestrator — design system
+   apo — design system
    Tokens → base → layout shell → components → pages. Every color is a
    light-dark() pair so one token set serves both schemes; data-theme on <html>
    pins a scheme when the person overrides the system preference.

@@ -1,4 +1,4 @@
-"""Domain model + DB access for the AI Decision Orchestrator.
+"""Domain model + DB access for the apo.
 
 Schema: Project -> Repository / DecisionRequest -> ResumePlan (1:1), plus an
 append-only AuditLog per decision.
@@ -946,7 +946,7 @@ _RG_META = set("\\.+*?()|[]{}^$")
 
 def search_transcripts(conn: sqlite3.Connection, query: str, timeout: float = 10.0, limit: int = 30) -> list[dict]:
     """Transcripts stay on disk (they're large and private); this greps them with
-    ripgrep and keeps the files that belong to a session ADO knows about."""
+    ripgrep and keeps the files that belong to a session apo knows about."""
     import shutil
     import subprocess
 
@@ -3315,7 +3315,7 @@ def resolve_sync_errors(
 ) -> None:
     """Called when a later sync to the same service succeeded. Only rows older than
     `before` (the moment that sync started) — anything the sync itself recorded is
-    still current. Marked, not deleted, so `ado sync-errors` keeps full history."""
+    still current. Marked, not deleted, so `apo sync-errors` keeps full history."""
     sources = list(sources)
     query = (
         f"UPDATE sync_errors SET resolved_at = ? WHERE resolved_at IS NULL AND occurred_at < ? "
@@ -3336,7 +3336,7 @@ def recent_sync_errors(
     since_hours: int | None = None,
     unresolved_only: bool = False,
 ):
-    """since_hours=None (the default, used by `ado sync-errors`) returns full history
+    """since_hours=None (the default, used by `apo sync-errors`) returns full history
     for debugging. The dashboard banner passes a window and unresolved_only, so it
     shows only failures no later successful sync has superseded."""
     query = "SELECT * FROM sync_errors"
@@ -3472,7 +3472,7 @@ def _normalized_path(path: str) -> str:
 
 def projects_sharing_a_folder(conn: sqlite3.Connection) -> list[dict]:
     """Folders registered under more than one project — each one a candidate for
-    `ado project-merge`."""
+    `apo project-merge`."""
     by_path: dict[str, dict[str, str]] = {}
     for row in conn.execute(
         "SELECT repositories.local_path, projects.name, projects.created_at FROM repositories "
@@ -4702,7 +4702,7 @@ def session_folder_hint(conn: sqlite3.Connection, claude_session_id: str, cwd: s
     ).fetchone()
     if row is None or not cwd or _path_within(cwd, row["local_path"]):
         return None
-    return (f"Note from Switchboard: this session belongs to the project at {row['local_path']}, but it is "
+    return (f"Note from apo: this session belongs to the project at {row['local_path']}, but it is "
             f"running in {cwd} (it was resumed from another folder). Its answers and tasks are in "
             f"{row['local_path']}/.claude/decisions/ — work there with absolute paths, and tell the user that "
             f"/decisions only works when the session runs in that folder (cd {row['local_path']} && claude -r "

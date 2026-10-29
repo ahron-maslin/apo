@@ -72,7 +72,7 @@ def test_list_agents_parses_the_json_list(tmp_path, monkeypatch):
     fake = tmp_path / "fake-claude"
     fake.write_text('#!/bin/sh\necho \'[{"pid": 7, "sessionId": "s", "status": "idle"}]\'\n')
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
     assert claude_runtime.list_agents() == [{"pid": 7, "sessionId": "s", "status": "idle"}]
 
@@ -81,19 +81,19 @@ def _fake_claude(tmp_path, monkeypatch, script):
     fake = tmp_path / "fake-claude"
     fake.write_text("#!/bin/sh\n" + script)
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
 
 def test_other_claude_profiles_are_named_in_ado_claude_config_dirs(tmp_path, monkeypatch):
     current = Path(os.environ["CLAUDE_CONFIG_DIR"])
-    monkeypatch.setenv("ADO_CLAUDE_CONFIG_DIRS", os.pathsep.join([str(tmp_path / "work"), "", str(current), str(tmp_path / "work")]))
+    monkeypatch.setenv("APO_CLAUDE_CONFIG_DIRS", os.pathsep.join([str(tmp_path / "work"), "", str(current), str(tmp_path / "work")]))
 
     assert claude_runtime.claude_config_dirs() == [current, tmp_path / "work"]
 
 
 def test_list_agents_merges_every_profile(tmp_path, monkeypatch):
     work = tmp_path / "work"
-    monkeypatch.setenv("ADO_CLAUDE_CONFIG_DIRS", str(work))
+    monkeypatch.setenv("APO_CLAUDE_CONFIG_DIRS", str(work))
     _fake_claude(tmp_path, monkeypatch,
                  f'if [ "$CLAUDE_CONFIG_DIR" = "{work}" ]; then echo \'[{{"pid": 8, "sessionId": "w"}}]\'; '
                  'else echo \'[{"pid": 7, "sessionId": "s"}]\'; fi\n')
@@ -104,7 +104,7 @@ def test_list_agents_merges_every_profile(tmp_path, monkeypatch):
 def test_list_agents_is_none_when_any_profile_cannot_be_read(tmp_path, monkeypatch):
     """Half a picture would end every live session of the profile that failed."""
     work = tmp_path / "work"
-    monkeypatch.setenv("ADO_CLAUDE_CONFIG_DIRS", str(work))
+    monkeypatch.setenv("APO_CLAUDE_CONFIG_DIRS", str(work))
     _fake_claude(tmp_path, monkeypatch,
                  f'if [ "$CLAUDE_CONFIG_DIR" = "{work}" ]; then exit 1; fi\necho \'[{{"pid": 7, "sessionId": "s"}}]\'\n')
 
@@ -122,7 +122,7 @@ def test_the_current_profile_is_listed_with_the_environment_untouched(tmp_path, 
 
 def test_session_for_pid_finds_a_record_kept_by_another_profile(tmp_path, monkeypatch):
     work = tmp_path / "work"
-    monkeypatch.setenv("ADO_CLAUDE_CONFIG_DIRS", str(work))
+    monkeypatch.setenv("APO_CLAUDE_CONFIG_DIRS", str(work))
     me = os.getpid()
     (work / "sessions").mkdir(parents=True)
     (work / "sessions" / f"{me}.json").write_text(json.dumps({"pid": me, "sessionId": "globex-1", "procStart": claude_runtime.process_start_ticks(me)}))

@@ -3,12 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>{% block title %}Switchboard{% endblock %}</title>
+<title>{% block title %}apo{% endblock %}</title>
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234352e0'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 9v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9'/%3E%3Cpath d='M16 16v7'/%3E%3C/g%3E%3C/svg%3E">
 <script>
   try {
-    var t = localStorage.getItem("ado-theme");
+    ["theme", "notify"].forEach(function (k) {
+      var old = localStorage.getItem("ado-" + k);  // the name before apo
+      if (old === null) return;
+      if (localStorage.getItem("apo-" + k) === null) localStorage.setItem("apo-" + k, old);
+      localStorage.removeItem("ado-" + k);
+    });
+    var t = localStorage.getItem("apo-theme");
     if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
   } catch (e) {}
 </script>
@@ -22,14 +28,14 @@
   <a class="skip-link" href="#main-content">Skip to content</a>
   {% set badges = nav_badges() %}
   <header class="app-header">
-    <a class="brand" href="/" aria-label="Switchboard — home">
+    <a class="brand" href="/" aria-label="apo — home">
       <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
         <rect width="32" height="32" rx="8" fill="var(--accent-solid)"/>
         <g fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M10 9v3a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4V9"/><path d="M16 16v7"/>
         </g>
       </svg>
-      <span class="brand-name">Switchboard</span>
+      <span class="brand-name">apo</span>
     </a>
     {% set in_projects = active_nav in ("projects", "outcomes", "sessions", "decisions", "activity") %}
     <nav class="app-nav" aria-label="Main">

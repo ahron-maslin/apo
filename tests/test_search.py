@@ -145,7 +145,7 @@ def test_deep_search_greps_transcripts_of_known_sessions(client, acme, tmp_path,
 def test_deep_search_covers_sessions_kept_by_other_claude_profiles(client, acme, tmp_path, monkeypatch):
     conn = db.get_connection()
     db.register_session(conn, "aaaaaaaa-2222-3333-4444-555555555555", str(tmp_path))
-    monkeypatch.setenv("ADO_CLAUDE_CONFIG_DIRS", str(tmp_path / "work-profile"))
+    monkeypatch.setenv("APO_CLAUDE_CONFIG_DIRS", str(tmp_path / "work-profile"))
     folder = tmp_path / "work-profile" / "projects" / "-tmp-acme"
     folder.mkdir(parents=True)
     (folder / "aaaaaaaa-2222-3333-4444-555555555555.jsonl").write_text(

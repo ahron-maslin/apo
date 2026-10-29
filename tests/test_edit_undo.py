@@ -24,8 +24,8 @@ def _events(conn, verb):
 
 
 def _linear(monkeypatch, sources_module):
-    monkeypatch.setenv("LINEAR_API_KEY", "k")
-    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "k")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENG")
     monkeypatch.setattr(sources_module.linear_client, "create_issue", lambda p, d: {"id": "iss", "identifier": "E-1", "url": "u"})
 
 
@@ -227,7 +227,7 @@ def test_routes_set_an_undo_cookie_and_undo_works(db_path, tmp_path):
     conn = db.get_connection()
     item = _file(conn, tmp_path, kind="task", requested_by="human")
     r = client.post(f"/items/{item}/done", data={}, follow_redirects=False)
-    cookie = json.loads(unquote(r.cookies["ado_undo"]))
+    cookie = json.loads(unquote(r.cookies["apo_undo"]))
     assert cookie["id"] == item and cookie["label"]
     r = client.post(f"/items/{item}/undo", data={}, follow_redirects=False)
     assert r.status_code == 303

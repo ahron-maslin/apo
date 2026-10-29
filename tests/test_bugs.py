@@ -75,7 +75,7 @@ def test_fix_it_now_starts_a_background_session_on_it(client, acme, tmp_path, mo
     fake = tmp_path / "fake-claude"
     fake.write_text(f'#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> {log}\necho "Started 3f2a9c1b"\n')
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
     client.post(f"/projects/{acme['id']}/items", data={"kind": "bug", "title": "Crash on save", "run_now": "1"})
 

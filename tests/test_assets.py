@@ -39,6 +39,6 @@ def test_every_script_and_stylesheet_is_versioned_by_its_content(client, tmp_pat
 def test_a_preview_dashboard_says_so_on_every_page(client, monkeypatch):
     assert "preview-banner" not in client.get("/settings").text
 
-    monkeypatch.setenv("ADO_PREVIEW", "1")
+    monkeypatch.setenv("APO_PREVIEW", "1")
 
     assert "preview-banner" in client.get("/settings").text

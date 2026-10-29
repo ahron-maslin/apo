@@ -31,7 +31,7 @@ def run_cli(*args, env, cwd=None, stdin=None):
 
 def test_all_hook_commands_exit_zero_and_print_empty_json_on_empty_stdin(db_path):
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     for cmd in HOOK_COMMANDS:
         result = run_cli(cmd, env=env, stdin="")
         assert result.returncode == 0, f"{cmd}: {result.stderr}"
@@ -40,7 +40,7 @@ def test_all_hook_commands_exit_zero_and_print_empty_json_on_empty_stdin(db_path
 
 def test_all_hook_commands_exit_zero_on_malformed_json(db_path):
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     for cmd in HOOK_COMMANDS:
         result = run_cli(cmd, env=env, stdin="not json at all {{{")
         assert result.returncode == 0, f"{cmd}: {result.stderr}"
@@ -49,7 +49,7 @@ def test_all_hook_commands_exit_zero_on_malformed_json(db_path):
 
 def test_all_hook_commands_exit_zero_when_session_id_missing(db_path):
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     for cmd in HOOK_COMMANDS:
         result = run_cli(cmd, env=env, stdin=json.dumps({"cwd": "/tmp", "hook_event_name": cmd}))
         assert result.returncode == 0, f"{cmd}: {result.stderr}"
@@ -60,7 +60,7 @@ def test_all_hook_commands_exit_zero_even_when_db_is_unreachable(db_path, tmp_pa
     env = dict(os.environ)
     bad_db = tmp_path / "not-a-file"
     bad_db.mkdir()
-    env["ADO_DB"] = str(bad_db)  # a directory, not a file — sqlite3.connect raises
+    env["APO_DB"] = str(bad_db)  # a directory, not a file — sqlite3.connect raises
 
     payload = json.dumps({"session_id": "sess-1", "cwd": str(tmp_path), "task_id": "t1", "task_title": "x"})
     for cmd in HOOK_COMMANDS:
@@ -73,7 +73,7 @@ def test_session_start_hook_registers_session(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     payload = json.dumps({"session_id": "sess-1", "cwd": str(tmp_path), "source": "startup"})
 
     result = run_cli("session-start", env=env, stdin=payload)
@@ -89,7 +89,7 @@ def test_session_heartbeat_hook_updates_last_seen(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     run_cli("session-start", env=env, stdin=json.dumps({"session_id": "sess-1", "cwd": str(tmp_path)}))
 
     result = run_cli(
@@ -106,7 +106,7 @@ def test_session_stop_hook_marks_idle(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     run_cli("session-start", env=env, stdin=json.dumps({"session_id": "sess-1", "cwd": str(tmp_path)}))
 
     result = run_cli("session-stop", env=env, stdin=json.dumps({"session_id": "sess-1"}))
@@ -120,7 +120,7 @@ def test_session_end_hook_marks_ended(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     run_cli("session-start", env=env, stdin=json.dumps({"session_id": "sess-1", "cwd": str(tmp_path)}))
 
     result = run_cli(
@@ -138,7 +138,7 @@ def test_checklist_item_created_and_completed_hooks(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     run_cli("session-start", env=env, stdin=json.dumps({"session_id": "sess-1", "cwd": str(tmp_path)}))
 
     created = run_cli(
@@ -183,7 +183,7 @@ def _items(session_index=0):
 
 def test_checklist_item_created_accepts_real_task_subject_field(db_path, tmp_path):
     # Claude Code's TaskCreated payload carries task_subject, not task_title.
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     run_cli("checklist-item-created", env=env, stdin=json.dumps({
@@ -209,7 +209,7 @@ def _post_tool_use(env, tool_name, tool_input, tool_response):
 
 def test_heartbeat_syncs_checklist_from_task_create_and_update(db_path, tmp_path):
     # TaskCreated doesn't fire for an ordinary session's TaskCreate, but PostToolUse does.
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     result = _post_tool_use(
@@ -242,7 +242,7 @@ def _state():
 
 
 def test_permission_request_hook_shows_what_is_waiting_for_permission(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     result = _hook(
@@ -257,7 +257,7 @@ def test_permission_request_hook_shows_what_is_waiting_for_permission(db_path, t
 
 
 def test_notification_hook_maps_types_to_waits(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     _hook(env, "session-notification", notification_type="permission_prompt",
@@ -273,7 +273,7 @@ def test_notification_hook_maps_types_to_waits(db_path, tmp_path):
 
 
 def test_pretool_hook_treats_a_question_to_the_user_as_waiting_for_input(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     _hook(env, "session-pretool", tool_name="AskUserQuestion",
@@ -287,7 +287,7 @@ def test_pretool_hook_treats_a_question_to_the_user_as_waiting_for_input(db_path
 
 
 def test_prompt_hook_starts_a_turn_with_the_cleaned_prompt(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     _hook(env, "session-prompt", prompt="fix it <pasted_content id=\"x\">huge paste</pasted_content> please",
@@ -299,7 +299,7 @@ def test_prompt_hook_starts_a_turn_with_the_cleaned_prompt(db_path, tmp_path):
 
 
 def test_stop_failure_hook_records_the_error(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     # StopFailure's payload calls it "error" (with "error_details"); not "error_type".
@@ -311,7 +311,7 @@ def test_stop_failure_hook_records_the_error(db_path, tmp_path):
 
 
 def test_a_usage_limit_stop_waits_for_claude_codes_auto_continue(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     _hook(env, "session-prompt", prompt="go")
 
@@ -324,7 +324,7 @@ def test_a_usage_limit_stop_waits_for_claude_codes_auto_continue(db_path, tmp_pa
 
 
 def test_a_usage_limit_stop_needs_you_when_auto_continue_is_off(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     _hook(env, "session-prompt", prompt="go")
     _hook(env, "session-stop-failure", error="rate_limit")
@@ -340,7 +340,7 @@ def test_heartbeat_binds_a_filed_request_to_the_session_that_actually_filed_it(d
     and the new request's id — authoritative, unlike the MCP server's own guess."""
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -359,7 +359,7 @@ def test_heartbeat_binds_a_filed_request_to_the_session_that_actually_filed_it(d
 
 
 def test_heartbeat_ignores_unparseable_create_tool_responses(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     for response in ("not json", [{"type": "text", "text": "oops"}], {"weird": True}, None):
         result = _post_tool_use(env, "mcp__ai-decision-orchestrator__create_action_request", {}, response)
@@ -367,7 +367,7 @@ def test_heartbeat_ignores_unparseable_create_tool_responses(db_path, tmp_path):
 
 
 def test_heartbeat_task_update_can_rename_and_delete(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     _post_tool_use(env, "TaskCreate", {"subject": "Old", "description": "d"}, {"task": {"id": "1", "subject": "Old"}})
 
@@ -379,7 +379,7 @@ def test_heartbeat_task_update_can_rename_and_delete(db_path, tmp_path):
 
 
 def test_task_created_hook_and_post_tool_use_do_not_duplicate(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     run_cli("checklist-item-created", env=env, stdin=json.dumps({
@@ -391,7 +391,7 @@ def test_task_created_hook_and_post_tool_use_do_not_duplicate(db_path, tmp_path)
 
 
 def test_heartbeat_syncs_checklist_from_todo_write(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     _post_tool_use(env, "TodoWrite", {"todos": [
@@ -403,7 +403,7 @@ def test_heartbeat_syncs_checklist_from_todo_write(db_path, tmp_path):
 
 
 def test_heartbeat_with_malformed_task_payload_still_fails_open(db_path, tmp_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     for tool_name in ("TaskCreate", "TaskUpdate", "TodoWrite"):
@@ -419,7 +419,7 @@ def _write_transcript(path, entries):
 def test_session_stop_records_last_done_summary(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     transcript = tmp_path / "t.jsonl"
     _write_transcript(transcript, [
@@ -446,7 +446,7 @@ def test_session_stop_does_not_show_a_recap_older_than_the_latest_prompt_as_new(
     now, so the card said "Last done 2m ago" over work from before the latest ask."""
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     transcript = tmp_path / "t.jsonl"
     _write_transcript(transcript, [
@@ -468,7 +468,7 @@ def test_session_stop_does_not_show_a_recap_older_than_the_latest_prompt_as_new(
 def test_session_stop_stamps_a_current_recap_with_its_own_time(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     transcript = tmp_path / "t.jsonl"
     _write_transcript(transcript, [
@@ -492,7 +492,7 @@ def test_session_stop_prefers_away_summary_over_last_assistant_message(db_path, 
     or the transcript's raw last assistant text, so it wins when present."""
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     transcript = tmp_path / "t.jsonl"
     _write_transcript(transcript, [
@@ -512,7 +512,7 @@ def test_session_stop_prefers_away_summary_over_last_assistant_message(db_path, 
 def test_session_stop_falls_back_to_transcript_for_last_message(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     transcript = tmp_path / "t.jsonl"
     _write_transcript(transcript, [
@@ -531,7 +531,7 @@ def test_session_stop_falls_back_to_transcript_for_last_message(db_path, tmp_pat
 def test_backfill_summaries_prefers_away_summary(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path, "sess-1")
     projects = tmp_path / "projects"
     (projects / "-some-repo").mkdir(parents=True)
@@ -549,7 +549,7 @@ def test_backfill_summaries_prefers_away_summary(db_path, tmp_path):
 def test_backfill_summaries_reads_transcripts_by_session_id(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path, "sess-1")
     _start(env, tmp_path, "sess-no-transcript")
     projects = tmp_path / "projects"
@@ -575,7 +575,7 @@ def test_backfill_summaries_reads_transcripts_by_session_id(db_path, tmp_path):
 def test_session_stop_with_missing_transcript_still_marks_idle(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
 
     result = run_cli("session-stop", env=env, stdin=json.dumps({
@@ -589,7 +589,7 @@ def test_session_stop_with_missing_transcript_still_marks_idle(db_path, tmp_path
 def test_a_usage_limit_stop_keeps_claude_codes_message_and_its_reset_time(db_path, tmp_path):
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     _hook(env, "session-prompt", prompt="go")
 

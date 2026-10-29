@@ -2,8 +2,8 @@ from apo import db
 
 
 def _configure_linear(monkeypatch):
-    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
-    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENG")
 
 
 def test_linear_source_unconfigured_by_default(sources_module):

@@ -69,7 +69,7 @@
 
   // A message to show after a POST → redirect lands, keyed to the page it
   // should land on so an unrelated page (or an error response) never shows it.
-  var FLASH_KEY = "ado-flash";
+  var FLASH_KEY = "apo-flash";
 
   function setFlash(message, path) {
     try { sessionStorage.setItem(FLASH_KEY, JSON.stringify({ message: message, path: path })); } catch (e) {}
@@ -91,9 +91,9 @@
   // Done, Cancel, Snooze and answers leave a short-lived cookie naming the item; show an
   // Undo toast for it once, wherever the redirect landed.
   function consumeUndo() {
-    var match = document.cookie.match(/(?:^|; )ado_undo=([^;]*)/);
+    var match = document.cookie.match(/(?:^|; )apo_undo=([^;]*)/);
     if (!match) return;
-    document.cookie = "ado_undo=; Max-Age=0; path=/";
+    document.cookie = "apo_undo=; Max-Age=0; path=/";
     var info;
     try { info = JSON.parse(decodeURIComponent(match[1])); } catch (e) { return; }
     toast(info.label + ".", "success", 8000);
@@ -600,8 +600,8 @@
     if (theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
     try {
-      if (theme === "system") localStorage.removeItem("ado-theme");
-      else localStorage.setItem("ado-theme", theme);
+      if (theme === "system") localStorage.removeItem("apo-theme");
+      else localStorage.setItem("apo-theme", theme);
     } catch (e) {}
     syncThemeToggle();
   }

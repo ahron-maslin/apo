@@ -240,7 +240,7 @@ def test_the_cli_records_from_the_folder_it_runs_in(acme, db_path):
     _, _, repo = acme
     _commit_on(repo, "feature")
     task, decision_id = _task(acme), _answered_decision(acme)
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
 
     assert run_cli("complete", str(task), "--note", "Wrote it", env=env, cwd=str(repo)).returncode == 0
     assert run_cli("resolve", str(decision_id), env=env, cwd=str(repo)).returncode == 0

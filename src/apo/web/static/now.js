@@ -37,7 +37,7 @@
   }
 
   function setCount(count) {
-    document.title = (count ? "(" + count + ") " : "") + "Now — Switchboard";
+    document.title = (count ? "(" + count + ") " : "") + "Now — apo";
     var badge = document.querySelector('[data-nav-count="now"]');
     if (badge) {
       badge.textContent = count;

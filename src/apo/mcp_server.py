@@ -14,7 +14,7 @@ from apo import claude_runtime
 from apo import db
 
 INSTRUCTIONS = """\
-Switchboard (ADO) is where the human running many projects and sessions sees what needs them. Use it instead of stopping, or asking in chat, when you need the human, and to keep shared work visible.
+apo is where the human running many projects and sessions sees what needs them. Use it instead of stopping, or asking in chat, when you need the human, and to keep shared work visible.
 
 Work from the project's folder: a session's folder is its project, and answers land in that folder's .claude/decisions/. If you were resumed from another folder, work there with absolute paths.
 
@@ -29,14 +29,14 @@ When you need the human:
 
 When an answer arrives you're told on your next prompt, or it shows as ANSWERED in .claude/decisions/INDEX.md. Do the work, then mark_decision_resolved. The user runs /decisions to work answers in bulk; never run it yourself unless asked. OPEN items are still with the human: never act on or re-ask them.
 
-Multi-step results: create_outcome starts a goal with steps, each owned by "agent", "me" (the human) or "external"; add_step adds more. Agent steps are tasks: list_tasks shows them; claim_task before starting one and complete_task, with a note, when it's done. If a task is stuck or failed, retry_task puts it back to ready. set_task_blockers changes what a task waits on. Only work tasks when the user asks. Each item has a notes thread: read the "## Notes" section of its file in .claude/decisions/ (the user's notes appear there), and add_note leaves one back. If those tools are missing in this session (it predates them), use the CLI instead: ado claim <id>, ado complete <id> --note "...".
+Multi-step results: create_outcome starts a goal with steps, each owned by "agent", "me" (the human) or "external"; add_step adds more. Agent steps are tasks: list_tasks shows them; claim_task before starting one and complete_task, with a note, when it's done. If a task is stuck or failed, retry_task puts it back to ready. set_task_blockers changes what a task waits on. Only work tasks when the user asks. Each item has a notes thread: read the "## Notes" section of its file in .claude/decisions/ (the user's notes appear there), and add_note leaves one back. If those tools are missing in this session (it predates them), use the CLI instead: apo claim <id>, apo complete <id> --note "...".
 
-Your own checklist: keep your TaskCreate / TodoWrite list current. Switchboard mirrors it to the dashboard, so the human sees your progress without asking; no tool call needed.
+Your own checklist: keep your TaskCreate / TodoWrite list current. apo mirrors it to the dashboard, so the human sees your progress without asking; no tool call needed.
 
-register_repository only when filing for a folder Switchboard doesn't know yet. Never put a password, key or token in a request or answer: they're written into the repo.
+register_repository only when filing for a folder apo doesn't know yet. Never put a password, key or token in a request or answer: they're written into the repo.
 """
 
-mcp = FastMCP("ai-decision-orchestrator", instructions=INSTRUCTIONS)
+mcp = FastMCP("apo", instructions=INSTRUCTIONS)
 
 
 def _origin_session_id(explicit: str | None) -> str | None:

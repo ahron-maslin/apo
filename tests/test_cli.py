@@ -17,7 +17,7 @@ def run_cli(*args, env, cwd=None, stdin=None):
 def test_ask_then_list(db_path, monkeypatch):
     import os
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     ask = run_cli(
         "ask", "--project", "acme", "--title", "Clarify mobile nav",
@@ -38,7 +38,7 @@ def test_act_files_an_action_request(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     act = run_cli(
         "act", "--project", "acme", "--title", "Grant S3 access",
@@ -59,7 +59,7 @@ def test_ask_accepts_summary(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     ask = run_cli(
         "ask", "--project", "acme", "--title", "Q", "--question", "Q?",
@@ -79,7 +79,7 @@ def test_ask_auto_links_claude_code_session(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
     env["CLAUDE_CODE_SESSION_ID"] = "cli-env-session"
 
     ask = run_cli("ask", "--project", "acme", "--title", "Q", "--question", "Q?", env=env)
@@ -100,7 +100,7 @@ def test_projects_command_flags_folders_shared_by_two_projects(db_path, tmp_path
         project = db.get_or_create_project(conn, name)
         db.create_repository(conn, project["id"], name, str(tmp_path))
 
-    result = run_cli("projects", env=dict(os.environ, ADO_DB=str(db_path)))
+    result = run_cli("projects", env=dict(os.environ, APO_DB=str(db_path)))
 
     assert result.returncode == 0, result.stderr
     assert "Umbrella" in result.stdout and "Hooli" in result.stdout
@@ -118,7 +118,7 @@ def test_project_merge_command_folds_one_project_into_another(db_path, tmp_path)
     db.create_repository(conn, old["id"], "ts", str(tmp_path))
     decision_id = db.create_decision_request(conn, project_id=old["id"], title="Q", question="Q?")
     new = db.get_or_create_project(conn, "Hooli")
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
 
     result = run_cli("project-merge", "--from", "Umbrella", "--into", "Hooli", env=env)
 
@@ -138,7 +138,7 @@ def test_ask_auto_registers_repository_from_cwd(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     ask = run_cli(
         "ask", "--project", "acme", "--title", "Q", "--question", "Q?", env=env, cwd=str(tmp_path),
@@ -158,7 +158,7 @@ def test_answer_records_and_writes_into_the_repo(db_path, tmp_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     repo_path = tmp_path / "checkout"
     repo_path.mkdir()
@@ -193,7 +193,7 @@ def test_answer_without_a_repository_says_so_rather_than_failing_silently(db_pat
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "no-repo")
@@ -212,7 +212,7 @@ def test_pending_lists_answered_not_resolved_decisions_for_repo(db_path, tmp_pat
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -243,7 +243,7 @@ def test_archive_project_command_closes_open_decisions_and_hides_project(db_path
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -268,7 +268,7 @@ def test_show_prints_full_decision_detail(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -305,7 +305,7 @@ def test_show_json(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -321,7 +321,7 @@ def test_show_json(db_path):
 def test_show_unknown_id_says_so_rather_than_failing_silently(db_path):
     import os
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     show = run_cli("show", "999", env=env)
     assert show.returncode == 0
@@ -334,7 +334,7 @@ def test_list_search_filters_by_text(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -354,7 +354,7 @@ def test_list_json(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -370,20 +370,20 @@ def test_init_command_is_wired_up_and_non_interactive_with_yes(db_path):
     import os
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     result = run_cli(
         "init", "--yes", "--skip-linear", "--skip-mcp", "--skip-hook", "--skip-skill", env=env,
     )
     assert result.returncode == 0, result.stderr
-    assert "ado init complete" in result.stdout.lower()
+    assert "apo init complete" in result.stdout.lower()
 
 
 def test_settings_command_lists_connectors(db_path):
     import os
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     result = run_cli("settings", env=env)
     assert result.returncode == 0, result.stderr
@@ -396,7 +396,7 @@ def test_settings_command_disables_and_enables_a_connector(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     off = run_cli("settings", "--disable", "linear", env=env)
     assert off.returncode == 0, off.stderr
@@ -414,7 +414,7 @@ def test_resolve_command_marks_answered_decision_resolved(db_path):
     from apo import db
 
     env = dict(os.environ)
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
@@ -437,7 +437,7 @@ def test_pending_all_says_where_answers_wait_and_how_to_work_them(db_path, tmp_p
 
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     conn = db.get_connection()
     for name in ("acme", "beta"):
         folder = tmp_path / name
@@ -465,7 +465,7 @@ def test_tasks_can_be_listed_claimed_and_completed_from_the_cli(db_path, tmp_pat
 
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path), CLAUDE_CODE_SESSION_ID="sess-cli")
+    env = dict(os.environ, APO_DB=str(db_path), CLAUDE_CODE_SESSION_ID="sess-cli")
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
     db.ensure_repository_for_project(conn, project["id"], str(tmp_path))
@@ -492,7 +492,7 @@ def test_bug_files_a_task_labelled_bug_in_this_folders_project(db_path, tmp_path
 
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
     db.ensure_repository_for_project(conn, project["id"], str(tmp_path))
@@ -516,7 +516,7 @@ def test_bug_takes_a_project_by_name_from_anywhere(db_path, tmp_path):
 
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     conn = db.get_connection()
     project = db.get_or_create_project(conn, "acme")
     repo = tmp_path / "acme"
@@ -537,7 +537,7 @@ def test_bug_outside_a_project_folder_needs_a_project_name(db_path, tmp_path):
 
     from apo import db
 
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
 
     filed = run_cli("bug", "Something broke", env=env, cwd=str(tmp_path))
 

@@ -140,7 +140,7 @@ def test_mcp_tools(setup, monkeypatch):
 def test_cli_retry(setup, db_path):
     conn, _, task = setup
     db.claim_task(conn, task, "s1")
-    env = {**os.environ, "ADO_DB": str(db_path)}
+    env = {**os.environ, "APO_DB": str(db_path)}
     out = run_cli("retry", str(task), "--note", "died", env=env)
     assert out.returncode == 0, out.stderr
     assert db.get_decision_request(db.get_connection(), task)["status"] == "open"
@@ -149,7 +149,7 @@ def test_cli_retry(setup, db_path):
 
 def test_cli_complete_accepts_structured_options(setup, db_path):
     conn, _, task = setup
-    env = {**os.environ, "ADO_DB": str(db_path)}
+    env = {**os.environ, "APO_DB": str(db_path)}
     out = run_cli("complete", str(task), "--note", "n", "--outcome", "partial", "--not-done", "docs", env=env)
     assert out.returncode == 0, out.stderr
     assert db.get_decision_request(db.get_connection(), task)["completion"]["not_done"] == "docs"

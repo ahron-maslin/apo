@@ -1,4 +1,4 @@
-"""Sets up a teammate's own machine to run their own instance of ADO: DB location,
+"""Sets up a teammate's own machine to run their own instance of apo: DB location,
 optional Linear config, MCP server registration, and installing the session-start
 hook + `decisions` skill into their Claude Code config.
 
@@ -68,7 +68,7 @@ def merge_hook(
     so they never add latency to the agent's turn (their output is ignored).
 
     Re-running with the same command updates that entry's timeout/async in place, so
-    an older install picks up a changed hook spec on the next `ado init`.
+    an older install picks up a changed hook spec on the next `apo init`.
 
     `backup=False` is for a caller (run(), below) that's about to make several of
     these calls in one pass and already took a single backup representing the
@@ -107,23 +107,23 @@ def merge_hook(
 
 
 def register_mcp_server(command: list[str] | None = None) -> tuple[bool, str]:
-    """Registers the MCP server via the `claude` CLI, pointed at the installed
-    `ado-mcp` console script rather than a raw path into a checkout. Never raises —
+    """Registers the MCP server via the `claude` CLI, pointed at the installed `apo`
+    command (`apo mcp`) rather than a raw path into a checkout. Never raises —
     a missing `claude` binary or a failed registration (e.g. already registered)
     degrades to a message instead of crashing the wizard.
 
-    Resolves `ado-mcp` to an absolute path when possible, rather than registering the
+    Resolves `apo` to an absolute path when possible, rather than registering the
     bare name: Claude Code will later exec that command from its own process, whose
-    PATH may not match the shell `ado init` ran in (e.g. a project-only venv that
+    PATH may not match the shell `apo init` ran in (e.g. a project-only venv that
     isn't on the system PATH)."""
     if shutil.which("claude") is None:
         return False, (
             "`claude` CLI not found on PATH — register the MCP server manually:\n"
-            "  claude mcp add ai-decision-orchestrator --scope user -- ado-mcp"
+            "  claude mcp add apo --scope user -- apo mcp"
         )
     if command is None:
-        ado_mcp = shutil.which("ado-mcp") or "ado-mcp"
-        command = ["claude", "mcp", "add", "ai-decision-orchestrator", "--scope", "user", "--", ado_mcp]
+        apo_bin = shutil.which("apo") or "apo"
+        command = ["claude", "mcp", "add", "apo", "--scope", "user", "--", apo_bin, "mcp"]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         return False, result.stderr.strip() or "claude mcp add failed"
@@ -133,7 +133,7 @@ def register_mcp_server(command: list[str] | None = None) -> tuple[bool, str]:
 # Seconds: longer than db.PROMPT_HOLD_SECONDS (an hour).
 PROMPT_HOOK_TIMEOUT = 3660
 
-# (event, `ado` subcommand, merge_hook options). Observe-only hooks are async so they
+# (event, `apo` subcommand, merge_hook options). Observe-only hooks are async so they
 # never sit in the agent's turn. Stop stays synchronous with a short timeout: it
 # writes the turn's final state, and a hung Stop hook would BLOCK the agent's turn.
 SESSION_HOOKS = (
@@ -170,7 +170,7 @@ def run(args, home_dir: Path | None = None) -> None:
         entered = input(f"DB location [{config.default_db_path()}]: ").strip()
         db_path = entered or None
     if db_path:
-        write_env_updates(home_env_path, {"ADO_DB": str(Path(db_path).expanduser())})
+        write_env_updates(home_env_path, {"APO_DB": str(Path(db_path).expanduser())})
         print(f"DB location: {db_path}")
     else:
         print(f"DB location: {config.default_db_path()} (default)")
@@ -183,7 +183,7 @@ def run(args, home_dir: Path | None = None) -> None:
     if projects_root:
         root = Path(projects_root).expanduser()
         root.mkdir(parents=True, exist_ok=True)
-        write_env_updates(home_env_path, {"ADO_PROJECTS_ROOT": str(root)})
+        write_env_updates(home_env_path, {"APO_PROJECTS_ROOT": str(root)})
         print(f"Projects folder: {root}")
     else:
         print(f"Projects folder: {config.get_projects_root()}")
@@ -194,10 +194,10 @@ def run(args, home_dir: Path | None = None) -> None:
         api_key, team = args.linear_api_key, args.linear_team
         if not args.yes and not api_key:
             if input("Configure Linear? [y/N]: ").strip().lower() == "y":
-                api_key = getpass.getpass("LINEAR_API_KEY: ").strip()
-                team = input("LINEAR_TEAM (key or id): ").strip()
+                api_key = getpass.getpass("Linear API key: ").strip()
+                team = input("Linear team (key or id): ").strip()
         if api_key and team:
-            write_env_updates(home_env_path, {"LINEAR_API_KEY": api_key, "LINEAR_TEAM": team})
+            write_env_updates(home_env_path, {"APO_LINEAR_API_KEY": api_key, "APO_LINEAR_TEAM": team})
             print("Linear configured.")
         else:
             print("Linear skipped.")
@@ -231,11 +231,11 @@ def run(args, home_dir: Path | None = None) -> None:
         )
 
         # Resolved to an absolute path when possible, same reasoning as
-        # register_mcp_server's ado-mcp resolution: Claude Code execs these from its
-        # own process, whose PATH may not match the shell `ado init` ran in.
-        ado_bin = shutil.which("ado") or "ado"
+        # register_mcp_server's resolution: Claude Code execs these from its own
+        # process, whose PATH may not match the shell `apo init` ran in.
+        apo_bin = shutil.which("apo") or "apo"
         for event, subcommand, options in SESSION_HOOKS:
-            merge_hook(settings_path, event, f"{ado_bin} {subcommand}", backup=False, **options)
+            merge_hook(settings_path, event, f"{apo_bin} {subcommand}", backup=False, **options)
         print("Session-tracking + nudge hooks installed.")
 
-    print("\nado init complete.")
+    print("\napo init complete.")

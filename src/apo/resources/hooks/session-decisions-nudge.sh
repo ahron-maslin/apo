@@ -11,8 +11,8 @@
 #
 # Must never fail a session start — always emits valid JSON, `{}` on any problem.
 #
-# Not auto-registered: add it to ~/.claude/settings.json's SessionStart hooks
-# yourself (see README.md). It only ever reads.
+# `apo init` copies it out of the package and registers it as a SessionStart hook.
+# It only ever reads.
 
 INDEX="$PWD/.claude/decisions/INDEX.md"
 

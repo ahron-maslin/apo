@@ -32,7 +32,7 @@ ANSWERED rows are decisions with an answer waiting; READY rows are tasks.
   waiting") and stop. Do not go looking in the database or the dashboard.
 - **No `.claude/decisions/` here at all** (typically a session started in `~` or some
   folder that isn't a project): don't just stop. Run
-  `ado pending --all`, which
+  `apo pending --all`, which
   lists every project with answers or READY tasks waiting, its folder, and the command
   that works them there. Show the user that list and stop. Never work another repo's
   decisions from here — open a session in that folder instead (or use **Apply in
@@ -48,8 +48,8 @@ is done, close it with `complete_task(task_id=<id>, note="what you did")`.
 
 **If those tools don't exist in this session** (a resumed session keeps the tool list
 it was created with, so one older than the task tools won't have them), use the CLI
-instead — same effect: `ado claim <id>` (exit code 1 = someone else has it, skip it)
-and `ado complete <id> --note "what you did"`. When only part of it is done, pass `outcome="partial"` with `not_done` (and
+instead — same effect: `apo claim <id>` (exit code 1 = someone else has it, skip it)
+and `apo complete <id> --note "what you did"`. When only part of it is done, pass `outcome="partial"` with `not_done` (and
 `done`, `left_for_human`, `branch` if useful) so it stays flagged as partly done.
 Never leave finished work unclosed. The task's file has the description and,
 if it belongs to an outcome, where it fits.
@@ -107,9 +107,9 @@ Tell each subagent explicitly:
 After a subagent reports back, verify the work is actually there (tests run, files
 changed as described). Then mark that decision resolved:
 
-- `mark_decision_resolved(decision_id=<id>)` via the ai-decision-orchestrator MCP
+- `mark_decision_resolved(decision_id=<id>)` via the apo MCP
   server, or
-- `ado resolve <id>`
+- `apo resolve <id>`
 
 This is what flips the row to DONE and stops the session-start nudge. A decision whose
 work is finished but which was never resolved will keep nudging every session forever,

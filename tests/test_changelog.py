@@ -57,7 +57,7 @@ def fake_gh(tmp_path, monkeypatch):
     data = tmp_path / "prs.json"
     script.write_text(f"#!/bin/sh\ncat {data}\n")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_GH_BIN", str(script))
+    monkeypatch.setenv("APO_GH_BIN", str(script))
 
     def set_prs(items):
         prs[:] = items
@@ -120,7 +120,7 @@ def test_a_folder_without_github_is_remembered_and_not_asked_every_time(acme, tm
     script = tmp_path / "failing-gh"
     script.write_text(f"#!/bin/sh\necho x >> {calls}\nexit 1\n")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_GH_BIN", str(script))
+    monkeypatch.setenv("APO_GH_BIN", str(script))
 
     changelog.refresh_pull_requests(str(repo))
     changelog.refresh_pull_requests(str(repo))

@@ -33,7 +33,7 @@ def _never_write_into_the_real_checkout(tmp_path, monkeypatch):
     (db.ensure_repository_for_project), and every state change then writes markdown
     into that repository (repo_writer). Under pytest, cwd is this checkout — so a test
     that just calls create_decision_request without thinking about it would create
-    .claude/decisions/ here, in the orchestrator's own source tree, mixing test
+    .claude/decisions/ here, in apo's own source tree, mixing test
     fixtures into real files. Forcing cwd somewhere disposable makes that structurally
     impossible instead of something each test has to remember."""
     monkeypatch.chdir(tmp_path)
@@ -46,8 +46,8 @@ def _never_read_the_real_claude_runtime(tmp_path, monkeypatch):
     ~/.claude/sessions records or shell out to the real `claude agents` — tests would
     silently depend on whatever sessions happen to be open."""
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "claude-config"))
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(tmp_path / "no-such-claude"))
-    monkeypatch.setenv("ADO_GH_BIN", str(tmp_path / "no-such-gh"))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(tmp_path / "no-such-claude"))
+    monkeypatch.setenv("APO_GH_BIN", str(tmp_path / "no-such-gh"))
 
 
 @pytest.fixture(autouse=True)
@@ -68,8 +68,10 @@ def _never_read_the_real_home(tmp_path, monkeypatch):
 def _fresh_module_state():
     """What a long-running process keeps in memory between requests, reset so no test
     sees another's: Linear ids resolved under some credential, cached pull requests,
-    and when a fleet page was last viewed."""
+    when a fleet page was last viewed, and which old
+    setting names have already been warned about."""
     linear_client.clear_caches()
+    config._warned.clear()
     changelog._pr_cache.clear()
     app._last_viewed_at = 0.0
     app._stopping = False
@@ -77,12 +79,13 @@ def _fresh_module_state():
 
 @pytest.fixture
 def db_path(tmp_path, monkeypatch):
-    """DB isolation *and* API isolation: a fresh DB, and LINEAR_API_KEY/LINEAR_TEAM set
-    blank rather than deleted, since a blank variable hides any .env value."""
+    """DB isolation *and* API isolation: a fresh DB, and APO_LINEAR_API_KEY/APO_LINEAR_TEAM
+    set blank rather than deleted, since a blank variable hides every fallback (the
+    old names, the settings file, an old .env)."""
     path = tmp_path / "orchestrator.db"
-    monkeypatch.setenv("ADO_DB", str(path))
-    monkeypatch.setenv("LINEAR_API_KEY", "")
-    monkeypatch.setenv("LINEAR_TEAM", "")
+    monkeypatch.setenv("APO_DB", str(path))
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "")
     # Tests run inside a live Claude Code session, which sets this for real — blank it
     # so origin_session_id auto-detection tests are explicit about what they're testing
     # rather than silently picking up whatever session is actually running the suite.

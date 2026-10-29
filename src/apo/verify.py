@@ -11,6 +11,8 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
+from apo import __version__
+
 TIMEOUT_SECONDS = 10
 
 
@@ -21,7 +23,7 @@ class Result:
 
 
 def _open_url(url: str, timeout: float):
-    request = urllib.request.Request(url, headers={"User-Agent": "ai-decision-orchestrator verify"})
+    request = urllib.request.Request(url, headers={"User-Agent": f"apo/{__version__} verify"})
     return urllib.request.urlopen(request, timeout=timeout)  # noqa: S310 - http(s) only, checked below
 
 

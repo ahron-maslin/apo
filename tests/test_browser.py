@@ -46,8 +46,8 @@ def _wait_for(port, path, seconds=20):
 @pytest.fixture
 def server(db_path, tmp_path):
     port = _free_port()
-    env = dict(os.environ, ADO_DB=str(db_path), ADO_OFFLINE="1", ADO_CLAUDE_BIN=str(tmp_path / "no-claude"),
-               POLL_SECONDS="100000", LINEAR_API_KEY="", LINEAR_TEAM="")
+    env = dict(os.environ, APO_DB=str(db_path), APO_OFFLINE="1", APO_CLAUDE_BIN=str(tmp_path / "no-claude"),
+               APO_POLL_SECONDS="100000", APO_LINEAR_API_KEY="", APO_LINEAR_TEAM="")
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "apo.web.app:app", "--host", "127.0.0.1", "--port", str(port)],
                             cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

@@ -43,7 +43,7 @@ def test_cancelling_with_a_reason_closes_it_writes_it_to_the_repo_and_offers_und
     response = client.post(f"/items/{item}/cancel", data={"reason": "Filed twice", "next": f"/decisions/{item}"},
                            follow_redirects=False)
 
-    assert response.status_code == 303 and "ado_undo" in response.headers.get("set-cookie", "")
+    assert response.status_code == 303 and "apo_undo" in response.headers.get("set-cookie", "")
     d = db.get_decision_request(db.get_connection(), item)
     assert d["status"] == "cancelled" and d["cancel_reason"] == "Filed twice"
     assert "| CANCELLED |" in (tmp_path / ".claude" / "decisions" / "INDEX.md").read_text()

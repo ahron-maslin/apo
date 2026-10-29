@@ -1,6 +1,8 @@
-#!/usr/bin/env python3
-"""CLI fallback for agents/scripts that can't speak MCP yet: `ask` files a decision
-request, `list` shows them."""
+"""apo: a local dashboard and MCP server for Claude Code.
+
+Set it up with `apo init`. The rest is the dashboard, the MCP server, the hook targets
+Claude Code calls, and a command line for agents and scripts that can't use MCP.
+"""
 import argparse
 import json
 import os
@@ -12,6 +14,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+import apo
 from apo import db
 
 # When this hook process started, which is within milliseconds of the event that
@@ -237,7 +240,7 @@ def _cmd_pending_all(conn, as_json: bool) -> None:
             for folder in folders:
                 print(f"    {folder}")
             for item in group:
-                print(f"  ado move {item['id']} <folder>")
+                print(f"  apo move {item['id']} <folder>")
         print()
 
 
@@ -322,7 +325,7 @@ def _cmd_stuck(args: argparse.Namespace) -> None:
         return
     for t in stuck:
         print(f"[#{t['id']}] claimed {t['claimed_at']} by ended session {t['claimed_by_session_id']}: {t['title']}"
-              f"  (ado retry {t['id']})")
+              f"  (apo retry {t['id']})")
 
 
 def _cmd_move(args: argparse.Namespace) -> None:
@@ -428,7 +431,7 @@ def _cmd_projects(args: argparse.Namespace) -> None:
             keep = entry["newest"]
             print(f"  {entry['path']}: {', '.join(entry['projects'])}")
             for retire in (n for n in entry["projects"] if n != keep):
-                print(f"    suggested (keeps the newest name): ado project-merge --from \"{retire}\" --into \"{keep}\"")
+                print(f"    suggested (keeps the newest name): apo project-merge --from \"{retire}\" --into \"{keep}\"")
 
 
 def _cmd_project_merge(args: argparse.Namespace) -> None:
@@ -453,7 +456,14 @@ def _cmd_project_merge(args: argparse.Namespace) -> None:
 
 def _cmd_init(args: argparse.Namespace) -> None:
     from apo import installer
+
     installer.run(args)
+
+
+def _cmd_mcp(args: argparse.Namespace) -> None:
+    from apo import mcp_server
+
+    mcp_server.main()
 
 
 def _read_hook_payload() -> dict | None:
@@ -500,9 +510,9 @@ def _dashboard_running(port: int) -> bool:
         return False
 
 
-def _start_dashboard(port: int) -> str:
-    """Detached from whoever started it, from this checkout, with --reload so a merge
-    into it deploys itself."""
+def _start_dashboard(port: int, dev: bool = False) -> str:
+    """Detached from whoever started it. `dev` adds --reload, for working on apo
+    itself."""
     from apo import config
 
     if _dashboard_running(port):
@@ -510,10 +520,10 @@ def _start_dashboard(port: int) -> str:
     log = config.get_db_path().parent / "dashboard.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     with open(log, "ab") as out:
+        cmd = [sys.executable, "-m", "uvicorn", "apo.web.app:app", "--host", "127.0.0.1", "--port", str(port)]
         proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "apo.web.app:app", "--reload", "--port", str(port)],
-            cwd=str(Path(__file__).resolve().parent), stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
-            start_new_session=True,
+            cmd + (["--reload"] if dev else []),
+            stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT, start_new_session=True,
         )
     _dashboard_pid_file().write_text(f"{proc.pid}\n")
     return "started"
@@ -524,7 +534,7 @@ def _stop_dashboard() -> str:
     if not pid_file.exists():
         return "not started here"
     try:
-        # --reload runs a reloader and a worker; the group takes both.
+        # With --dev there's a reloader and a worker; the group takes both.
         os.killpg(int(pid_file.read_text().strip()), signal.SIGTERM)
     except (ProcessLookupError, PermissionError, ValueError):
         pass
@@ -537,11 +547,16 @@ def _cmd_dashboard(args: argparse.Namespace) -> None:
 
     port = args.port or config.dashboard_port()
     url = f"http://127.0.0.1:{port}"
-    if args.action == "start":
-        print({"started": f"Started the dashboard at {url}", "running": f"Already running at {url}"}[_start_dashboard(port)])
+    if args.action == "run":
+        from apo.web import app
+
+        app.run_dashboard(port, reload=args.dev)
+    elif args.action == "start":
+        print({"started": f"Started the dashboard at {url}",
+               "running": f"Already running at {url}"}[_start_dashboard(port, dev=args.dev)])
     elif args.action == "stop":
         print({"stopped": "Stopped the dashboard.",
-               "not started here": "No dashboard started by `ado dashboard start` to stop."}[_stop_dashboard()])
+               "not started here": "No dashboard started by `apo dashboard start` to stop."}[_stop_dashboard()])
     else:
         print(f"Running at {url}" if _dashboard_running(port) else f"Not running (nothing answers at {url})")
 
@@ -622,7 +637,7 @@ def _request_id_from_tool_response(response) -> int | None:
 
 
 def _bind_filed_request(conn, p: dict) -> None:
-    """The hook payload for ADO's own create_* call is the one place that knows for
+    """The hook payload for apo's own create_* call is the one place that knows for
     certain which session filed the request (see db.bind_request_to_session)."""
     tool = p.get("tool_name") or ""
     if not (tool.startswith("mcp__") and tool.endswith(_CREATE_REQUEST_TOOLS)):
@@ -875,8 +890,10 @@ def _cmd_sync_errors(args: argparse.Namespace) -> None:
         print()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(prog="apo", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version=f"apo {apo.__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     ask = sub.add_parser("ask", help="File a new decision request")
@@ -1038,7 +1055,7 @@ def main() -> None:
 
     move_p = sub.add_parser("move", help="Put an item in another of its project's folders (so that folder's agents see it)")
     move_p.add_argument("item_id", type=int)
-    move_p.add_argument("folder", help="A folder path, or its name as `ado projects` shows it")
+    move_p.add_argument("folder", help="A folder path, or its name as `apo projects` shows it")
     move_p.set_defaults(func=_cmd_move)
 
     resolve = sub.add_parser(
@@ -1062,10 +1079,17 @@ def main() -> None:
     init.add_argument("--skip-skill", action="store_true")
     init.set_defaults(func=_cmd_init)
 
-    dashboard = sub.add_parser("dashboard", help="Start, stop or check the dashboard server")
-    dashboard.add_argument("action", choices=("start", "stop", "status"))
-    dashboard.add_argument("--port", type=int, default=None, help="Default: ADO_DASHBOARD_PORT, else 8430")
+    dashboard = sub.add_parser(
+        "dashboard", help="Start, stop or check the dashboard; `run` serves it in the foreground (for a service)",
+    )
+    dashboard.add_argument("action", choices=("start", "stop", "status", "run"))
+    dashboard.add_argument("--port", type=int, default=None, help="Default: APO_DASHBOARD_PORT, else 8430")
+    dashboard.add_argument("--dev", action="store_true", help="Reload when apo's own code changes (for working on apo)")
     dashboard.set_defaults(func=_cmd_dashboard)
+
+    mcp = sub.add_parser("mcp", help="Run the MCP server on stdio (Claude Code starts this itself)",
+                         description="Run the MCP server on stdio. Claude Code starts this itself once `apo init` has registered it.")
+    mcp.set_defaults(func=_cmd_mcp)
 
     backfill = sub.add_parser(
         "backfill-summaries",
@@ -1095,8 +1119,15 @@ def main() -> None:
         hook = sub.add_parser(name, help=f"{help_text} — reads its JSON payload from stdin, always exits 0")
         hook.set_defaults(func=func)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     args.func(args)
+
+
+def legacy_main() -> None:
+    """`ado`, the old name, kept for a release or two so existing hooks and habits keep
+    working. The notice goes to stderr: a hook's stdout is what Claude Code reads."""
+    print("ado is deprecated and will be removed; use apo instead.", file=sys.stderr)
+    main()
 
 
 if __name__ == "__main__":

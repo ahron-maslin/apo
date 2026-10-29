@@ -36,7 +36,7 @@
         <option value="{{ f.name }}"{% if f.project %} disabled{% endif %}>{{ f.name }}{% if f.git %} (git){% endif %}{% if f.project %} — {{ f.project }}{% endif %}</option>
         {%- endfor %}
       </select>
-      <p class="field-hint">Subfolders of <code>{{ projects_root | home }}</code> (set by <code>ADO_PROJECTS_ROOT</code>){% if not folder_choices %}: none yet{% endif %}. One that's already a project's is greyed out, with that project's name.</p>
+      <p class="field-hint">Subfolders of <code>{{ projects_root | home }}</code> (set by <code>APO_PROJECTS_ROOT</code>){% if not folder_choices %}: none yet{% endif %}. One that's already a project's is greyed out, with that project's name.</p>
       <div><button type="submit" class="btn btn--primary btn--sm">Create project</button></div>
     </form>
   </details>

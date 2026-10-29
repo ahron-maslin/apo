@@ -3,7 +3,7 @@
 An issue you create in the project's Linear project (the one with its name, unless one
 was picked on its Overview) becomes a goal there, and the sub-issues you add become the
 goal's steps. A step added here becomes a sub-issue in turn. Only issues created by the
-Linear account Switchboard connects as come in: an imported step can be work for an
+Linear account apo connects as come in: an imported step can be work for an
 agent, so nobody else's text gets to write one. Runs on the dashboard's poll loop
 through sources.LinearSource.sync_goals: only while the Linear connector is on, and only
 for projects that have it turned on (db.set_linear_goals).
@@ -17,7 +17,7 @@ Status crosses over on a change, never on a level, and each change only once:
   it again is sent again.
 So a goal reopened here isn't closed again by its still-completed issue, an issue or
 sub-issue reopened in Linear isn't closed again from here, a closed state in Linear is
-never overridden, and what Switchboard does because of a change in Linear (the open
+never overridden, and what apo does because of a change in Linear (the open
 agent tasks it cancels when the issue closes) isn't echoed back to Linear.
 """
 import sqlite3
@@ -27,7 +27,7 @@ from apo import db
 from apo.integrations import linear_client
 
 ERROR_SOURCE = "linear_goals"
-# Switchboard's own decision issues carry this prefix (linear_client.create_issue).
+# apo's own decision issues carry this prefix (linear_client.create_issue).
 # The id check alone misses one whose push reached Linear but isn't saved here yet.
 _OWN_TITLE_PREFIX = "[AI] "
 _CLOSED = ("completed", "canceled")
@@ -140,7 +140,7 @@ def _yours(issue: dict) -> bool:
 
 
 def _is_new_goal(conn: sqlite3.Connection, issue: dict) -> bool:
-    """You filed it, it's still open, and Switchboard didn't file it itself (its own
+    """You filed it, it's still open, and apo didn't file it itself (its own
     issues are filed as you too, through your API key)."""
     if not _yours(issue) or issue["state"]["type"] in _CLOSED:
         return False

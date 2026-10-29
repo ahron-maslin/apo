@@ -71,7 +71,7 @@ def _fake_claude(tmp_path, monkeypatch, fail=False):
     body = "echo 'still limited' >&2; exit 1" if fail else 'echo "Started 3f2a9c1b"'
     fake.write_text(f'#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> {log}\n{body}\n')
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
     return log
 
 

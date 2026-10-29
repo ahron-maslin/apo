@@ -1,6 +1,6 @@
-# Switchboard user guide
+# apo user guide
 
-Switchboard is one place to see every Claude Code session you're running, across every project, and to handle what they need from you: a decision, an action only you can take, something to review. Agents file those requests instead of stopping. You answer when it suits you. The answer goes back into the repository, where the next session picks it up.
+apo is one place to see every Claude Code session you're running, across every project, and to handle what they need from you: a decision, an action only you can take, something to review. Agents file those requests instead of stopping. You answer when it suits you. The answer goes back into the repository, where the next session picks it up.
 
 It costs no LLM tokens to run. Everything you see comes from Claude Code's own hooks and its `claude agents` list.
 
@@ -42,9 +42,9 @@ cd ~/projects/acme && claude
 - `/decisions` there finds nothing, because answers live in each project's `.claude/decisions/`;
 - it shows up as "~ (no project)".
 
-**Resume in the same folder too.** `claude -r <id>` from `~` runs the session in `~`, even though it belongs to its project. Switchboard still files it under the right project (it reads where the transcript lives) and tells the agent where its project is, but `/decisions` only works in the project's folder. Use `cd ~/projects/acme && claude -r <id>`; the resume commands Switchboard gives you already do this.
+**Resume in the same folder too.** `claude -r <id>` from `~` runs the session in `~`, even though it belongs to its project. apo still files it under the right project (it reads where the transcript lives) and tells the agent where its project is, but `/decisions` only works in the project's folder. Use `cd ~/projects/acme && claude -r <id>`; the resume commands apo gives you already do this.
 
-**Start a fresh session now and then.** A resumed session keeps the tools it was created with, so one started before a Switchboard upgrade won't have newer tools such as `claim_task`. The `/decisions` skill falls back to the CLI (`ado claim` / `ado complete`) when they're missing. A fresh `claude` gets everything.
+**Start a fresh session now and then.** A resumed session keeps the tools it was created with, so one started before an apo upgrade won't have newer tools such as `claim_task`. The `/decisions` skill falls back to the CLI (`apo claim` / `apo complete`) when they're missing. A fresh `claude` gets everything.
 
 The first session in a folder registers the project; there's nothing to set up. If an agent named it something you don't recognise (`~/projects/acme-web` showing as "Storefront"), **Rename** it on its project page. The Projects list shows the folder name whenever it differs from the project name.
 
@@ -73,7 +73,7 @@ For work that doesn't need you at the keyboard, add it under **New work** on the
 |---|---|
 | Still open | Just prompt it ("go"). It receives the answer automatically on your next message |
 | Closed | **Apply in background** on the item, or open a session in that project's folder and run `/decisions` |
-| You're not sure where it is | `ado pending --all` lists every project with answers waiting, its folder, and the exact command to run |
+| You're not sure where it is | `apo pending --all` lists every project with answers waiting, its folder, and the exact command to run |
 
 Never run `/decisions` from `~` or from another project's folder. It only works the folder it's in, and it'll point you to the right one.
 
@@ -108,7 +108,7 @@ If you closed it in the meantime, it shows in Your move with:
 1. **Open Now** (`/`, or `g` then `n`). It's everything that needs you, across all projects, best move first.
 2. **Clear what you can.** Most items are one click: accept the agent's recommendation, pick an option, or mark an action done. With a few minutes free, press **I have 5 min** (or `t`) for a lightning round.
 3. **Check Review** for turns that finished while you weren't looking. Prompt that session, or press **Reviewed**.
-4. **Leave.** Turn on notifications in Settings and Switchboard tells you when something has waited long enough to matter, within a daily budget.
+4. **Leave.** Turn on notifications in Settings and apo tells you when something has waited long enough to matter, within a daily budget.
 
 When you come back after 30 minutes or more, Now opens with **Since you were away**: what was filed, answered and finished, and each project's latest recap. **Mark seen** clears it.
 
@@ -218,7 +218,7 @@ When an agent closes an item or a task from the repo, the item says where the wo
 
 Only answers you gave here, from the CLI, or in chat start a session with one click. An answer that came in from a Linear comment needs **Approve and apply**, because that text came from outside this machine.
 
-**What a background agent may do:** by default, exactly what a `claude` you open in that folder may do: Switchboard passes no permission flags. A project's permission level (on its Overview, under **How agents work here**) can loosen or tighten that for the sessions Switchboard starts there: **Accept file edits** passes `--permission-mode acceptEdits` (edits go through; commands still ask), **Plan only** passes `--permission-mode plan` (it reads and plans, changes nothing). Modes that skip permission checks altogether aren't offered. With default settings it reads and searches freely, and stops to ask before every file edit, shell command and tool call that your settings (user-level or the repo's `.claude/settings*.json`) don't already allow. A background session that stops to ask waits for you on the dashboard: its card asks **Allow** / **Deny** for a permission, and links to its page for a question (pick the options, or answer in your own words) or a plan (**Approve the plan**, or **Keep planning** with what to change). Your answer goes back to Claude Code as if you'd given it in its own dialog. **In the terminal** hands the prompt back to Claude Code's dialog instead, for `claude attach <id>`; so does an hour without an answer. Sessions running in a terminal or an editor are never held: their own dialog shows straight away.
+**What a background agent may do:** by default, exactly what a `claude` you open in that folder may do: apo passes no permission flags. A project's permission level (on its Overview, under **How agents work here**) can loosen or tighten that for the sessions apo starts there: **Accept file edits** passes `--permission-mode acceptEdits` (edits go through; commands still ask), **Plan only** passes `--permission-mode plan` (it reads and plans, changes nothing). Modes that skip permission checks altogether aren't offered. With default settings it reads and searches freely, and stops to ask before every file edit, shell command and tool call that your settings (user-level or the repo's `.claude/settings*.json`) don't already allow. A background session that stops to ask waits for you on the dashboard: its card asks **Allow** / **Deny** for a permission, and links to its page for a question (pick the options, or answer in your own words) or a plan (**Approve the plan**, or **Keep planning** with what to change). Your answer goes back to Claude Code as if you'd given it in its own dialog. **In the terminal** hands the prompt back to Claude Code's dialog instead, for `claude attach <id>`; so does an hour without an answer. Sessions running in a terminal or an editor are never held: their own dialog shows straight away.
 
 ## Lightning round
 
@@ -316,7 +316,7 @@ A **Do it** row (an action of yours) has its own **Done**, so something you've a
 
 Any of them can go under one of the project's goals and have a due date. For an agent's task or a bug, tick **Start a background session on it now** to have one start straight away, with the project's permission level.
 
-When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** on its page, or `ado move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `ado pending --all`.
+When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** on its page, or `apo move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `apo pending --all`.
 
 **Decisions** has what's waiting on you, then the **decision log**: every answered decision with its question, the answer, when, and who answered. Filter it with `/`. It's how you avoid deciding something twice.
 
@@ -363,12 +363,12 @@ Agents can create outcomes and steps too.
 
 ### Goals from Linear
 
-You can plan a goal in Linear instead: create an issue and break it into sub-issues. Switchboard turns the issue into a goal and its sub-issues into the goal's steps, and a step you add here becomes a sub-issue there.
+You can plan a goal in Linear instead: create an issue and break it into sub-issues. apo turns the issue into a goal and its sub-issues into the goal's steps, and a step you add here becomes a sub-issue there.
 
 Turn it on per project, on the project's Overview: **Goals from Linear → Turn on**. It's off by default, because a step from Linear can be work for an agent. It needs Linear connected in Settings, with sync on.
 
-- **Which Linear project:** the one with the same name as the Switchboard project, which is where its agents' decisions already go (if it doesn't exist yet, create it in Linear). To use another one, choose **Choose another Linear project** in the same panel and pick from your team's projects. The import then starts again from that moment. Once found, the project is remembered, so renaming the project here doesn't lose it. Switchboard remembers which Linear workspace you connected. Reconnecting to the same workspace, even after a disconnect, keeps everything. Connecting to a different workspace changes four things, since the old workspace's projects and issues don't exist there: every project forgets its Linear project and falls back to the one with its name in the new workspace; the import restarts from that moment, as turning the switch on does, so nothing older in the new workspace comes in; goals imported from the old workspace, and agents' requests already pushed there, are unlinked, so they stay here with their steps and answers but stop syncing (an unlinked request isn't pushed again); and each affected project's Activity says how many goals and requests were unlinked. The switch stays on or off as it was. Decisions still go to the Linear project with the project's current name.
-- **Which issues:** only ones you created, with the Linear account Switchboard connects as. Issues and sub-issues a teammate or an integration creates never come in, because an imported step can be work for an agent. Switchboard also skips:
+- **Which Linear project:** the one with the same name as the apo project, which is where its agents' decisions already go (if it doesn't exist yet, create it in Linear). To use another one, choose **Choose another Linear project** in the same panel and pick from your team's projects. The import then starts again from that moment. Once found, the project is remembered, so renaming the project here doesn't lose it. apo remembers which Linear workspace you connected. Reconnecting to the same workspace, even after a disconnect, keeps everything. Connecting to a different workspace changes four things, since the old workspace's projects and issues don't exist there: every project forgets its Linear project and falls back to the one with its name in the new workspace; the import restarts from that moment, as turning the switch on does, so nothing older in the new workspace comes in; goals imported from the old workspace, and agents' requests already pushed there, are unlinked, so they stay here with their steps and answers but stop syncing (an unlinked request isn't pushed again); and each affected project's Activity says how many goals and requests were unlinked. The switch stays on or off as it was. Decisions still go to the Linear project with the project's current name.
+- **Which issues:** only ones you created, with the Linear account apo connects as. Issues and sub-issues a teammate or an integration creates never come in, because an imported step can be work for an agent. apo also skips:
   - issues it filed itself (titled `[AI] …`);
   - issues that are already done or canceled;
   - sub-issues of sub-issues: only the issue's direct sub-issues become steps.
@@ -386,7 +386,7 @@ Turn it on per project, on the project's Overview: **Goals from Linear → Turn 
   - the issue completed in Linear marks the goal achieved, and canceled drops it. Either way, the goal's open agent tasks (ready or in progress) are cancelled, so no agent picks up work for a finished goal. Your own steps and waits stay as they are;
   - **Mark achieved** here moves the issue to completed, and **Drop** moves it to canceled, along with the sub-issues of the steps the drop cancels.
 
-  Only a change crosses over, and only once. A change made because of the other side isn't sent back: the agent tasks cancelled when the issue closed in Linear don't cancel their sub-issues. Something already closed in Linear is never overridden. Reopen a goal here and Linear won't close it again; reopen an issue or sub-issue in Linear and Switchboard won't close it again. If you reopen a goal here and achieve it again, Linear is told again.
+  Only a change crosses over, and only once. A change made because of the other side isn't sent back: the agent tasks cancelled when the issue closed in Linear don't cancel their sub-issues. Something already closed in Linear is never overridden. Reopen a goal here and Linear won't close it again; reopen an issue or sub-issue in Linear and apo won't close it again. If you reopen a goal here and achieve it again, Linear is told again.
 - **What doesn't sync:** later edits to titles and descriptions, owners after import, and reopening (in either direction).
 
 It runs on the dashboard's poll, every 30 seconds, so the dashboard has to be running. Turning it off for a project stops imports and status sync for that project; turning Linear sync off in Settings stops all of it. If you delete a goal's issue in Linear, drop the goal here too: until you do, Now shows Linear sync failing.
@@ -453,22 +453,22 @@ Press `?` on any page for this list.
 
 ## For agents
 
-Every session that has the `ai-decision-orchestrator` MCP server gets Switchboard's instructions in its system prompt: when to file a decision or an action, how goals and tasks work, that its own checklist is mirrored automatically, and to work from the project's folder. The tools:
+Every session that has the `apo` MCP server gets apo's instructions in its system prompt: when to file a decision or an action, how goals and tasks work, that its own checklist is mirrored automatically, and to work from the project's folder. The tools:
 
 - **Understand the project:** `get_project_brief` (purpose, done-when, links, status, priority, standing rules), `list_outcomes` (goals, their steps and due dates). The standing rules are also in `.claude/decisions/POLICY.md`; agents follow one instead of filing when it answers the question.
 - **File things for you:** `create_decision_request`, `create_action_request` (with link, steps, values, inputs, check), `withdraw_request`. `list_open_questions` / `list_resolved_questions` to check before asking.
 - **Plan work:** `create_outcome` and `add_step`; `list_tasks`, `claim_task` and `complete_task` for agent work (`complete_task` optionally takes `outcome`, `done`, `not_done`, `left_for_human`, `branch`; `retry_task` puts a task back to ready).
 - **Read answers:** `get_action_secret` for secret inputs you provided.
 - **Close the loop:** `answer_decision_request` (when you answer in chat) and `mark_decision_resolved` (when the work is done).
-- **Their own checklist** (TaskCreate / TodoWrite) needs no tool: Switchboard mirrors it from the hooks.
+- **Their own checklist** (TaskCreate / TodoWrite) needs no tool: apo mirrors it from the hooks.
 
-A session resumed from one started before a Switchboard upgrade keeps its old tool list and instructions; start a fresh session to get the new ones.
+A session resumed from one started before an apo upgrade keeps its old tool list and instructions; start a fresh session to get the new ones.
 
-Without MCP, or in a session too old to have a tool, there's the `ado` CLI:
+Without MCP, or in a session too old to have a tool, there's the `apo` CLI:
 
-- **Decisions:** `ado ask`, `ado act`, `ado answer`, `ado list`, `ado pending [--all]`, `ado resolve`.
-- **Tasks:** `ado tasks`, `ado claim <id>`, `ado complete <id> --note "..."`. `ado complete` also takes `--outcome partial`, `--done`, `--not-done`, `--left-for-human` and `--branch`; a partial completion shows as "Partly done". `ado retry <id>` puts a failed, cancelled, finished or stuck-claimed task back to READY (history is kept); `ado stuck` lists claimed tasks whose session has ended. A task's page shows its History: every claim, completion, release and retry.
-- **Bugs:** `ado bug "What's wrong" [--happened ...] [--expected ...] [--steps ...] [--severity low|normal|urgent]`, from the project's folder or with `--project NAME`. It files a task labelled bug, like A bug in New work.
+- **Decisions:** `apo ask`, `apo act`, `apo answer`, `apo list`, `apo pending [--all]`, `apo resolve`.
+- **Tasks:** `apo tasks`, `apo claim <id>`, `apo complete <id> --note "..."`. `apo complete` also takes `--outcome partial`, `--done`, `--not-done`, `--left-for-human` and `--branch`; a partial completion shows as "Partly done". `apo retry <id>` puts a failed, cancelled, finished or stuck-claimed task back to READY (history is kept); `apo stuck` lists claimed tasks whose session has ended. A task's page shows its History: every claim, completion, release and retry.
+- **Bugs:** `apo bug "What's wrong" [--happened ...] [--expected ...] [--steps ...] [--severity low|normal|urgent]`, from the project's folder or with `--project NAME`. It files a task labelled bug, like A bug in New work.
 
 ## Settings
 
@@ -478,8 +478,8 @@ Without MCP, or in a session too old to have a tool, there's the `ado` CLI:
 ## When something looks wrong
 
 - **An answer sits in transit:** nothing is running in that repo. Use **Apply in background**, or copy the resume command.
-- **`/decisions` says there's nothing to do:** check you're in the project's folder, not `~`. `ado pending --all` shows where answers are waiting.
-- **An agent says `claim_task` / `complete_task` don't exist:** its session predates them (it was resumed from an older session). It can use `ado claim` / `ado complete` instead; a fresh session has the tools.
+- **`/decisions` says there's nothing to do:** check you're in the project's folder, not `~`. `apo pending --all` shows where answers are waiting.
+- **An agent says `claim_task` / `complete_task` don't exist:** its session predates them (it was resumed from an older session). It can use `apo claim` / `apo complete` instead; a fresh session has the tools.
 - **A session shows the wrong status:** status refreshes from `claude agents` while the dashboard is open. A session started before the hooks were installed shows up once it's been seen alive.
 - **Two projects for one folder:** Now lists it under Problems. Open one of them and use **Merge into another project**.
 - **A session hit the usage limit:** an open one continues by itself when the limit resets, and Now counts it as waiting, not a problem. If auto-continue is off (`/config`), it shows as a problem: press Enter in its terminal after the reset. If you closed it meanwhile, it's in Your move with **Resume at** (the reset time) and **Resume now**.

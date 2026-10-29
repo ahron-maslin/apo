@@ -1,4 +1,4 @@
-"""`ado init` sets up a teammate's own machine: DB location, optional Linear config,
+"""`apo init` sets up a teammate's own machine: DB location, optional Linear config,
 MCP server registration, and installing the hook + skill into their Claude Code
 config. It's the riskiest code in the packaging work — it mutates a file the
 teammate's whole Claude Code setup depends on and shells out to an external binary —
@@ -15,35 +15,35 @@ def test_write_env_updates_creates_file_with_given_keys(tmp_path):
     from apo import installer
 
     env_path = tmp_path / ".env"
-    installer.write_env_updates(env_path, {"ADO_DB": "/x/y.db"})
+    installer.write_env_updates(env_path, {"APO_DB": "/x/y.db"})
 
-    assert env_path.read_text() == "ADO_DB=/x/y.db\n"
+    assert env_path.read_text() == "APO_DB=/x/y.db\n"
 
 
 def test_write_env_updates_preserves_existing_unrelated_keys(tmp_path):
     from apo import installer
 
     env_path = tmp_path / ".env"
-    env_path.write_text("LINEAR_API_KEY=abc\nLINEAR_TEAM=ENG\n")
+    env_path.write_text("APO_LINEAR_API_KEY=abc\nAPO_LINEAR_TEAM=ENG\n")
 
-    installer.write_env_updates(env_path, {"ADO_DB": "/x/y.db"})
+    installer.write_env_updates(env_path, {"APO_DB": "/x/y.db"})
 
     content = env_path.read_text()
-    assert "LINEAR_API_KEY=abc" in content
-    assert "LINEAR_TEAM=ENG" in content
-    assert "ADO_DB=/x/y.db" in content
+    assert "APO_LINEAR_API_KEY=abc" in content
+    assert "APO_LINEAR_TEAM=ENG" in content
+    assert "APO_DB=/x/y.db" in content
 
 
 def test_write_env_updates_overwrites_an_existing_key(tmp_path):
     from apo import installer
 
     env_path = tmp_path / ".env"
-    env_path.write_text("ADO_DB=/old.db\n")
+    env_path.write_text("APO_DB=/old.db\n")
 
-    installer.write_env_updates(env_path, {"ADO_DB": "/new.db"})
+    installer.write_env_updates(env_path, {"APO_DB": "/new.db"})
 
     content = env_path.read_text()
-    assert "ADO_DB=/new.db" in content
+    assert "APO_DB=/new.db" in content
     assert "/old.db" not in content
 
 
@@ -146,12 +146,12 @@ def test_merge_hook_works_for_any_event_independently(tmp_path):
     from apo import installer
 
     settings_path = tmp_path / "settings.json"
-    installer.merge_hook(settings_path, "PostToolUse", "ado session-heartbeat")
-    installer.merge_hook(settings_path, "Stop", "ado session-stop")
+    installer.merge_hook(settings_path, "PostToolUse", "apo session-heartbeat")
+    installer.merge_hook(settings_path, "Stop", "apo session-stop")
 
     data = json.loads(settings_path.read_text())
-    assert data["hooks"]["PostToolUse"][0]["hooks"][0]["command"] == "ado session-heartbeat"
-    assert data["hooks"]["Stop"][0]["hooks"][0]["command"] == "ado session-stop"
+    assert data["hooks"]["PostToolUse"][0]["hooks"][0]["command"] == "apo session-heartbeat"
+    assert data["hooks"]["Stop"][0]["hooks"][0]["command"] == "apo session-stop"
     # Each event's array is independent — adding Stop must not touch PostToolUse's.
     assert len(data["hooks"]["PostToolUse"]) == 1
 
@@ -160,11 +160,11 @@ def test_merge_hook_supports_an_optional_timeout(tmp_path):
     from apo import installer
 
     settings_path = tmp_path / "settings.json"
-    installer.merge_hook(settings_path, "Stop", "ado session-stop", timeout=2)
+    installer.merge_hook(settings_path, "Stop", "apo session-stop", timeout=2)
 
     data = json.loads(settings_path.read_text())
     hook_entry = data["hooks"]["Stop"][0]["hooks"][0]
-    assert hook_entry["command"] == "ado session-stop"
+    assert hook_entry["command"] == "apo session-stop"
     assert hook_entry["timeout"] == 2
 
 
@@ -172,20 +172,20 @@ def test_merge_hook_can_mark_a_hook_async(tmp_path):
     from apo import installer
 
     settings_path = tmp_path / "settings.json"
-    installer.merge_hook(settings_path, "PostToolUse", "ado session-heartbeat", run_async=True)
+    installer.merge_hook(settings_path, "PostToolUse", "apo session-heartbeat", run_async=True)
 
     hook_entry = json.loads(settings_path.read_text())["hooks"]["PostToolUse"][0]["hooks"][0]
     assert hook_entry["async"] is True
 
 
 def test_merge_hook_rerun_updates_an_existing_entry_in_place(tmp_path):
-    """An install from before async existed must pick it up on the next `ado init`
+    """An install from before async existed must pick it up on the next `apo init`
     without duplicating the entry."""
     from apo import installer
 
     settings_path = tmp_path / "settings.json"
-    installer.merge_hook(settings_path, "PostToolUse", "ado session-heartbeat")
-    installer.merge_hook(settings_path, "PostToolUse", "ado session-heartbeat", run_async=True)
+    installer.merge_hook(settings_path, "PostToolUse", "apo session-heartbeat")
+    installer.merge_hook(settings_path, "PostToolUse", "apo session-heartbeat", run_async=True)
 
     bucket = json.loads(settings_path.read_text())["hooks"]["PostToolUse"]
     assert len(bucket) == 1
@@ -196,8 +196,8 @@ def test_merge_hook_rerun_can_turn_async_back_off(tmp_path):
     from apo import installer
 
     settings_path = tmp_path / "settings.json"
-    installer.merge_hook(settings_path, "Stop", "ado session-stop", run_async=True)
-    installer.merge_hook(settings_path, "Stop", "ado session-stop", timeout=2)
+    installer.merge_hook(settings_path, "Stop", "apo session-stop", run_async=True)
+    installer.merge_hook(settings_path, "Stop", "apo session-stop", timeout=2)
 
     hook_entry = json.loads(settings_path.read_text())["hooks"]["Stop"][0]["hooks"][0]
     assert "async" not in hook_entry
@@ -208,8 +208,8 @@ def test_merge_hook_can_scope_a_hook_to_a_tool_matcher(tmp_path):
     from apo import installer
 
     settings_path = tmp_path / "settings.json"
-    installer.merge_hook(settings_path, "PreToolUse", "ado session-pretool", matcher="AskUserQuestion|ExitPlanMode")
-    installer.merge_hook(settings_path, "PreToolUse", "ado session-pretool", matcher="AskUserQuestion|ExitPlanMode")
+    installer.merge_hook(settings_path, "PreToolUse", "apo session-pretool", matcher="AskUserQuestion|ExitPlanMode")
+    installer.merge_hook(settings_path, "PreToolUse", "apo session-pretool", matcher="AskUserQuestion|ExitPlanMode")
 
     bucket = json.loads(settings_path.read_text())["hooks"]["PreToolUse"]
     assert len(bucket) == 1
@@ -252,11 +252,11 @@ def test_run_installs_the_waiting_state_hooks(tmp_path, monkeypatch):
     assert "async" not in prompt_hook and prompt_hook["timeout"] <= 5
 
 
-def test_register_mcp_server_invokes_claude_cli_with_resolved_ado_mcp_path(monkeypatch):
+def test_register_mcp_server_invokes_claude_cli_with_the_resolved_apo_path(monkeypatch):
     from apo import installer
 
     calls = []
-    which_targets = {"claude": "/usr/bin/claude", "ado-mcp": "/venv/bin/ado-mcp"}
+    which_targets = {"claude": "/usr/bin/claude", "apo": "/venv/bin/apo"}
     monkeypatch.setattr(installer.shutil, "which", lambda name: which_targets.get(name))
 
     class FakeResult:
@@ -273,11 +273,11 @@ def test_register_mcp_server_invokes_claude_cli_with_resolved_ado_mcp_path(monke
 
     assert ok is True
     assert calls == [
-        ["claude", "mcp", "add", "ai-decision-orchestrator", "--scope", "user", "--", "/venv/bin/ado-mcp"]
+        ["claude", "mcp", "add", "apo", "--scope", "user", "--", "/venv/bin/apo", "mcp"]
     ]
 
 
-def test_register_mcp_server_falls_back_to_bare_name_when_ado_mcp_is_unresolvable(monkeypatch):
+def test_register_mcp_server_falls_back_to_bare_name_when_apo_is_unresolvable(monkeypatch):
     from apo import installer
 
     calls = []
@@ -297,7 +297,7 @@ def test_register_mcp_server_falls_back_to_bare_name_when_ado_mcp_is_unresolvabl
 
     installer.register_mcp_server()
 
-    assert calls == [["claude", "mcp", "add", "ai-decision-orchestrator", "--scope", "user", "--", "ado-mcp"]]
+    assert calls == [["claude", "mcp", "add", "apo", "--scope", "user", "--", "apo", "mcp"]]
 
 
 def test_register_mcp_server_reports_missing_claude_cli_without_crashing(monkeypatch):
@@ -349,8 +349,8 @@ def test_run_end_to_end_with_yes_and_explicit_values(tmp_path, monkeypatch):
 
     env_content = (home / ".claude" / "ai-decision-orchestrator" / ".env").read_text()
     assert "custom.db" in env_content
-    assert "LINEAR_API_KEY=key123" in env_content
-    assert "LINEAR_TEAM=ENG" in env_content
+    assert "APO_LINEAR_API_KEY=key123" in env_content
+    assert "APO_LINEAR_TEAM=ENG" in env_content
 
     assert (home / ".claude" / "skills" / "decisions").is_symlink()
 
@@ -382,7 +382,7 @@ def test_run_end_to_end_with_yes_and_explicit_values(tmp_path, monkeypatch):
 def test_run_backs_up_pre_existing_settings_exactly_once(tmp_path, monkeypatch):
     """run() calls merge_hook seven times in one pass (the nudge hook plus six
     session-tracking hooks) — each one used to take its own backup, leaving six
-    redundant copies of the same pre-init state after a single `ado init`. The
+    redundant copies of the same pre-init state after a single `apo init`. The
     timestamp suffix is only second-granular, so on fast, same-second test runs
     the seven calls happen to collide onto one filename and mask the bug — the
     fake clock below forces a distinct timestamp per call so the test actually
@@ -470,7 +470,7 @@ def test_init_asks_where_projects_live_and_saves_it(tmp_path, monkeypatch):
     installer.run(_init_args(yes=False), home_dir=home)
 
     assert any(p.startswith("Where do your projects live?") for p in prompts)
-    assert f"ADO_PROJECTS_ROOT={tmp_path / 'code'}" in _env(home)
+    assert f"APO_PROJECTS_ROOT={tmp_path / 'code'}" in _env(home)
     assert (tmp_path / "code").is_dir()
 
 
@@ -478,7 +478,7 @@ def test_pressing_enter_keeps_the_projects_folder_it_has(tmp_path, monkeypatch):
     from apo import installer
     from apo import config
 
-    monkeypatch.setenv("ADO_PROJECTS_ROOT", str(tmp_path / "already"))
+    monkeypatch.setenv("APO_PROJECTS_ROOT", str(tmp_path / "already"))
     prompts = []
     monkeypatch.setattr("builtins.input", lambda prompt="": prompts.append(prompt) or "")
     home = tmp_path / "home"
@@ -487,7 +487,7 @@ def test_pressing_enter_keeps_the_projects_folder_it_has(tmp_path, monkeypatch):
 
     [asked] = [p for p in prompts if p.startswith("Where do your projects live?")]
     assert str(config.get_projects_root()) in asked
-    assert "ADO_PROJECTS_ROOT" not in _env(home)
+    assert "APO_PROJECTS_ROOT" not in _env(home)
 
 
 def test_the_projects_folder_can_come_from_a_flag(tmp_path, monkeypatch):
@@ -498,7 +498,7 @@ def test_the_projects_folder_can_come_from_a_flag(tmp_path, monkeypatch):
 
     installer.run(_init_args(projects_root=str(tmp_path / "work")), home_dir=home)
 
-    assert f"ADO_PROJECTS_ROOT={tmp_path / 'work'}" in _env(home)
+    assert f"APO_PROJECTS_ROOT={tmp_path / 'work'}" in _env(home)
 
 
 def test_yes_without_the_flag_leaves_the_projects_folder_alone(tmp_path):
@@ -508,4 +508,4 @@ def test_yes_without_the_flag_leaves_the_projects_folder_alone(tmp_path):
 
     installer.run(_init_args(), home_dir=home)
 
-    assert "ADO_PROJECTS_ROOT" not in _env(home)
+    assert "APO_PROJECTS_ROOT" not in _env(home)

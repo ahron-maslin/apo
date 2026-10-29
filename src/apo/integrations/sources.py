@@ -53,7 +53,7 @@ class AnswerSource:
     def retry_pending(self) -> None:
         """Re-attempt any push or resolve that previously failed — the "queue" is just
         the DB rows carrying a recorded error, so a source that was down catches up
-        automatically next time this runs (the poll loop, every POLL_SECONDS) rather
+        automatically next time this runs (the poll loop, every APO_POLL_SECONDS) rather
         than staying stuck until someone notices and retries by hand. Default no-op;
         only sources with a push/resolve step need this.
 

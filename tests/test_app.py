@@ -462,7 +462,7 @@ def test_home_is_now_and_shows_what_needs_you_across_projects(db_path, tmp_path)
 
     text = client.get("/").text
 
-    assert "<title>(2) Now — Switchboard</title>" in text
+    assert "<title>(2) Now — apo</title>" in text
     assert "Your move" in text
     assert "Pick a queue" in text and "acme" in text
     assert "stripe listen" in text and "globex" in text
@@ -700,11 +700,12 @@ def test_activity_page_hides_routine_turn_ends_unless_asked(db_path, tmp_path):
     assert "Turn finished" in client.get("/activity?all=1").text
 
 
-def test_pages_are_branded_switchboard(db_path):
+def test_pages_are_branded_apo(db_path):
     client = make_client(db_path)
-    for path in ("/", "/decisions", "/settings"):
+    for path in ("/", "/decisions", "/settings", "/guide"):
         text = client.get(path).text
-        assert "Switchboard" in text, path
+        assert "<title>" in text and " apo</title>" in text, path
+        assert "Switchboard" not in text, path
         assert "Control Center" not in text, path
         assert "Decision Orchestrator" not in text, path
 
@@ -1233,7 +1234,7 @@ def _projects_root(tmp_path, monkeypatch):
     (root / "acme" / ".git").mkdir(parents=True)
     (root / "acme" / ".git" / "HEAD").write_text("ref: refs/heads/main\n")
     (root / "notes").mkdir()
-    monkeypatch.setenv("ADO_PROJECTS_ROOT", str(root))
+    monkeypatch.setenv("APO_PROJECTS_ROOT", str(root))
     return root
 
 

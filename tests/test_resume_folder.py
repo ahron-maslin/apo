@@ -50,7 +50,7 @@ def test_a_session_in_its_own_folder_is_unaffected(db_path, tmp_path):
 def test_the_session_is_told_where_its_project_is(db_path, tmp_path):
     conn = db.get_connection()
     _, folder = _acme(conn, tmp_path)
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     payload = {"session_id": "s-1", "cwd": str(Path.home()), "source": "resume",
                "transcript_path": _transcript_for(folder, "s-1", tmp_path / "claude-config")}
 

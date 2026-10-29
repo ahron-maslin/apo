@@ -1,4 +1,4 @@
-"""AI Decision Orchestrator.
+"""apo.
 
 Core HTTP API, a dashboard for the create -> list -> answer path, and a Linear poll
 loop.
@@ -159,7 +159,7 @@ async def reconcile_loop() -> None:
 
 
 def _start_background(cwd: str, prompt: str, resume: str | None = None) -> str | None:
-    """Every background session Switchboard starts runs with its project's autonomy."""
+    """Every background session apo starts runs with its project's autonomy."""
     mode = db.permission_mode_for_path(db.get_connection(), cwd)
     return claude_runtime.start_background(cwd, prompt, resume, **({"permission_mode": mode} if mode else {}))
 
@@ -233,7 +233,7 @@ async def lifespan(_app: FastAPI):
         task.cancel()
 
 
-app = FastAPI(title="Switchboard", lifespan=lifespan)
+app = FastAPI(title="apo", lifespan=lifespan)
 # Package data, found through the package rather than cwd, so an installed wheel
 # serves the same files as a checkout.
 templates = Jinja2Templates(directory=str(files("apo.web") / "templates"))
@@ -274,7 +274,7 @@ templates.env.globals["asset"] = _asset
 templates.env.globals["saved_views"] = lambda: db.list_saved_views(db.get_connection())
 templates.env.globals["page_query"] = lambda request: urlencode(
     [(k, v) for k, v in request.query_params.multi_items() if k != "bulk"])
-# A second dashboard run against a copy of the data (ADO_PREVIEW=1) says so on every page.
+# A second dashboard run against a copy of the data (APO_PREVIEW=1) says so on every page.
 templates.env.globals["is_preview"] = config.is_preview
 templates.env.filters["ago"] = _humanize_delta
 templates.env.filters["tokens"] = _tokens
@@ -1416,7 +1416,7 @@ def _item_redirect(conn, item_id: int, next: str | None) -> RedirectResponse:
 
 def _with_undo(response: RedirectResponse, item_id: int, label: str) -> RedirectResponse:
     """A short-lived cookie the next page turns into an Undo toast (static/app.js)."""
-    response.set_cookie("ado_undo", quote(json.dumps({"id": item_id, "label": label})), max_age=60, path="/",
+    response.set_cookie("apo_undo", quote(json.dumps({"id": item_id, "label": label})), max_age=60, path="/",
                         samesite="lax")
     return response
 
@@ -2339,8 +2339,9 @@ def api_get_decision(decision_id: int):
     return decision
 
 
-def run_dashboard() -> None:
-    """Entry point for the `ado-dashboard` console script — same as run.sh, minus
-    --reload, which is a dev-only convenience for this checkout."""
+def run_dashboard(port: int | None = None, reload: bool = False) -> None:
+    """`apo dashboard run`: the dashboard in the foreground, for a service manager or a
+    terminal. `reload` is for working on apo itself."""
     import uvicorn
-    uvicorn.run("apo.web.app:app", host="127.0.0.1", port=8430)
+
+    uvicorn.run("apo.web.app:app", host="127.0.0.1", port=port or config.dashboard_port(), reload=reload)

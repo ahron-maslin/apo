@@ -202,7 +202,7 @@ def test_an_items_page_lets_you_move_it_and_warns_when_it_has_no_folder(client, 
 def test_moving_from_the_cli_by_path_or_name(db_path, globex):
     project, (root, dash) = globex
     conn = db.get_connection()
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     task_id = db.create_task(conn, project_id=project["id"], title="Station Review")
 
     by_path = run_cli("move", str(task_id), dash["local_path"], env=env)
@@ -220,7 +220,7 @@ def test_moving_from_the_cli_by_path_or_name(db_path, globex):
 def test_pending_all_names_an_item_with_no_folder_and_how_to_fix_it(db_path, globex, tmp_path):
     project, (root, dash) = globex
     conn = db.get_connection()
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     task_id = db.create_task(conn, project_id=project["id"], title="Station Review")
     bare = db.get_or_create_project(conn, "bare")
     db.create_task(conn, project_id=bare["id"], title="Somewhere")
@@ -230,7 +230,7 @@ def test_pending_all_names_an_item_with_no_folder_and_how_to_fix_it(db_path, glo
     globex_block = text.split("Globex")[1].split("\n\n")[0]
     assert "no folder chosen" in globex_block
     assert root["local_path"] in globex_block and dash["local_path"] in globex_block
-    assert f"ado move {task_id} <folder>" in globex_block
+    assert f"apo move {task_id} <folder>" in globex_block
     assert "bare — no folder registered" in text
 
     data = json.loads(run_cli("pending", "--all", "--json", env=env).stdout)

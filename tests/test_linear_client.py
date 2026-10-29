@@ -7,8 +7,8 @@ def test_graphql_raises_when_not_configured(linear_client_module):
 
 
 def test_get_team_id_matches_by_key(linear_client_module, config_module, monkeypatch):
-    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
-    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENG")
     linear_client_module.__dict__["_team_id_cache"] = None
     def fake_graphql(query, variables):
         return {"teams": {"nodes": [{"id": "team-1", "key": "ENG", "name": "Engineering"}]}}
@@ -18,8 +18,8 @@ def test_get_team_id_matches_by_key(linear_client_module, config_module, monkeyp
 
 
 def test_create_issue_includes_structured_sections(linear_client_module, config_module, monkeypatch):
-    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
-    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENG")
     monkeypatch.setattr(linear_client_module, "get_team_id", lambda: "team-1")
     monkeypatch.setattr(linear_client_module, "get_or_create_project_id", lambda team_id, name: "proj-1")
 
@@ -63,8 +63,8 @@ def test_create_issue_handles_plain_string_options(linear_client_module, config_
     but create_issue is a public function other callers/tests can reach directly,
     and it previously crashed with `'str' object has no attribute 'get'` on a plain
     list of strings."""
-    monkeypatch.setenv("LINEAR_API_KEY", "fake-key")
-    monkeypatch.setenv("LINEAR_TEAM", "ENG")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "fake-key")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENG")
     monkeypatch.setattr(linear_client_module, "get_team_id", lambda: "team-1")
     monkeypatch.setattr(linear_client_module, "get_or_create_project_id", lambda team_id, name: "proj-1")
 
@@ -134,22 +134,22 @@ def test_ado_offline_blocks_graphql_entirely(monkeypatch, linear_client_module):
     while verifying an unrelated feature."""
     import pytest
 
-    monkeypatch.setenv("ADO_OFFLINE", "1")
+    monkeypatch.setenv("APO_OFFLINE", "1")
 
-    with pytest.raises(RuntimeError, match="ADO_OFFLINE"):
+    with pytest.raises(RuntimeError, match="APO_OFFLINE"):
         linear_client_module._graphql("query { teams { nodes { id } } }", {})
 
 
 def test_linear_source_reports_unconfigured_when_offline(monkeypatch, sources_module, config_module):
-    monkeypatch.setenv("LINEAR_API_KEY", "real-looking-key")
-    monkeypatch.setenv("ADO_OFFLINE", "1")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "real-looking-key")
+    monkeypatch.setenv("APO_OFFLINE", "1")
 
     assert sources_module.LinearSource().is_configured() is False
 
 
 def test_resolve_credentials_falls_back_to_env_when_no_db_credential(linear_client_module, config_module, monkeypatch):
-    monkeypatch.setenv("LINEAR_API_KEY", "env-fallback-key")
-    monkeypatch.setenv("LINEAR_TEAM", "ENV_TEAM")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "env-fallback-key")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENV_TEAM")
 
     assert linear_client_module._resolve_credentials() == ("env-fallback-key", "ENV_TEAM")
 
@@ -159,8 +159,8 @@ def test_resolve_credentials_prefers_db_credential_over_env_fallback(
 , monkeypatch):
     from apo import db
 
-    monkeypatch.setenv("LINEAR_API_KEY", "env-fallback-key")
-    monkeypatch.setenv("LINEAR_TEAM", "ENV_TEAM")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "env-fallback-key")
+    monkeypatch.setenv("APO_LINEAR_TEAM", "ENV_TEAM")
     conn = db.get_connection()
     credentials_module.set_credentials(
         conn, "linear", {"api_key": "db-key", "team": "DB_TEAM"}, display_name="x"
@@ -209,7 +209,7 @@ def test_graphql_sends_db_resolved_api_key_as_authorization_header(
     import json as json_module
     import urllib.request
 
-    monkeypatch.setenv("LINEAR_API_KEY", "env-fallback-key")
+    monkeypatch.setenv("APO_LINEAR_API_KEY", "env-fallback-key")
     conn = db.get_connection()
     credentials_module.set_credentials(conn, "linear", {"api_key": "db-key", "team": "DB_TEAM"}, display_name="x")
 

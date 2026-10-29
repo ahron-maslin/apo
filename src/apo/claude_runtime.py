@@ -31,7 +31,7 @@ def claude_config_dir() -> Path:
 
 def claude_config_dirs() -> list[Path]:
     """Every Claude Code profile whose sessions this machine runs: this process's own
-    first, then any others named in ADO_CLAUDE_CONFIG_DIRS (os.pathsep-separated). A
+    first, then any others named in APO_CLAUDE_CONFIG_DIRS (os.pathsep-separated). A
     session started under another CLAUDE_CONFIG_DIR (a work account, say) reports in
     through its hooks like any other, but its process record and `claude agents`
     listing live in that profile — without it here, reconcile ends those sessions as

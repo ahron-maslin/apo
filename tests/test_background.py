@@ -26,7 +26,7 @@ def fake_claude(tmp_path, monkeypatch):
         "esac\n"
     )
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
     def calls():
         if not log.exists():
@@ -69,7 +69,7 @@ def test_start_background_reports_a_failed_launch(tmp_path, monkeypatch):
     fake = tmp_path / "broken-claude"
     fake.write_text("#!/bin/sh\necho 'not logged in' >&2\nexit 1\n")
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
     with pytest.raises(claude_runtime.LaunchError, match="not logged in"):
         claude_runtime.start_background(str(tmp_path), "hello")
@@ -178,7 +178,7 @@ def test_a_failed_launch_is_shown_not_swallowed(client, tmp_path, monkeypatch):
     fake = tmp_path / "broken-claude"
     fake.write_text("#!/bin/sh\necho 'not logged in' >&2\nexit 1\n")
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
     decision_id = _answered(db.get_connection(), tmp_path)
 
     resp = client.post(f"/decisions/{decision_id}/apply")

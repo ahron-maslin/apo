@@ -71,7 +71,7 @@ def test_a_session_closed_while_limited_can_be_resumed_in_the_background(client,
     fake = tmp_path / "fake-claude"
     fake.write_text(f'#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> {log}\necho "Started 3f2a9c1b"\n')
     fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
-    monkeypatch.setenv("ADO_CLAUDE_BIN", str(fake))
+    monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
     resp = client.post(f"/sessions/{session_id}/resume", follow_redirects=False)
 

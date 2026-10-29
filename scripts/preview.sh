@@ -12,9 +12,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "$0")/.." && pwd)"
 port="${1:-8432}"
-work="${TMPDIR:-/tmp}/ado-preview-$port"
-live_db="${ADO_LIVE_DB:-$HOME/.claude/ai-decision-orchestrator/orchestrator.db}"
-projects_root="${ADO_PROJECTS_ROOT:-$HOME/projects}"
+work="${TMPDIR:-/tmp}/apo-preview-$port"
 python_bin="${PYTHON:-}"
 if [ -z "$python_bin" ]; then
   for candidate in "$here/.venv/bin/python" "$(dirname "$(git -C "$here" rev-parse --path-format=absolute --git-common-dir)")/.venv/bin/python"; do
@@ -22,6 +20,8 @@ if [ -z "$python_bin" ]; then
   done
 fi
 [ -n "$python_bin" ] || { echo "No virtualenv found; set PYTHON=/path/to/python" >&2; exit 1; }
+live_db="${APO_LIVE_DB:-$("$python_bin" -c 'from apo import config; print(config.get_db_path())')}"
+projects_root="$("$python_bin" -c 'from apo import config; print(config.get_projects_root())')"
 
 if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
   echo "Port $port is already in use — pass another: scripts/preview.sh 8433" >&2
@@ -122,6 +122,6 @@ chmod +x "$work/claude"
 
 echo "Preview of $(git -C "$here" branch --show-current) at http://127.0.0.1:$port"
 cd "$here"
-ADO_PREVIEW=1 ADO_OFFLINE=1 ADO_DB="$work/orchestrator.db" ADO_CLAUDE_BIN="$work/claude" POLL_SECONDS=100000 \
-  ADO_PROJECTS_ROOT="$work/projects" ADO_DASHBOARD_AUTOSTART= \
-  LINEAR_API_KEY= LINEAR_TEAM= exec "$python_bin" -m uvicorn apo.web.app:app --host 127.0.0.1 --port "$port" --reload
+APO_PREVIEW=1 APO_OFFLINE=1 APO_DB="$work/orchestrator.db" APO_CLAUDE_BIN="$work/claude" APO_POLL_SECONDS=100000 \
+  APO_PROJECTS_ROOT="$work/projects" APO_DASHBOARD_AUTOSTART= \
+  APO_LINEAR_API_KEY= APO_LINEAR_TEAM= exec "$python_bin" -m uvicorn apo.web.app:app --host 127.0.0.1 --port "$port" --reload

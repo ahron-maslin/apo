@@ -60,7 +60,7 @@ def test_other_sessions_are_not_handed_someone_elses_answer(db_path, tmp_path):
 
 
 def _run_prompt_hook(db_path, prompt="go on"):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     return subprocess.run(
         [sys.executable, "-m", "apo", "session-prompt"], capture_output=True, text=True, env=env,
         input=json.dumps({"session_id": "sess-1", "hook_event_name": "UserPromptSubmit", "prompt": prompt}),

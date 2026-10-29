@@ -102,7 +102,7 @@ def test_report_and_overview_pages_offer_copy_and_download(world, client):
 
 
 def test_cli_status(world, db_path):
-    env = dict(os.environ, ADO_DB=str(db_path))
+    env = dict(os.environ, APO_DB=str(db_path))
     out = run_cli("status", "--project", "acme", "--since", "7d", env=env)
     assert out.returncode == 0, out.stderr
     assert "Add rate limiting" in out.stdout and "Other thing" not in out.stdout

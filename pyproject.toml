@@ -16,6 +16,7 @@ dependencies = [
     "mcp",
     "cryptography",
     "markdown",
+    "platformdirs",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +27,7 @@ Homepage = "https://getapo.pages.dev/"
 
 [project.scripts]
 apo = "apo.cli:main"
+ado = "apo.cli:legacy_main"
 
 [tool.setuptools.dynamic]
 version = { attr = "apo.__version__" }

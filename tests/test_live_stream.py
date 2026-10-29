@@ -28,8 +28,8 @@ def _free_port():
 @pytest.fixture
 def port(db_path, tmp_path):
     port = _free_port()
-    env = dict(os.environ, ADO_DB=str(db_path), ADO_OFFLINE="1", ADO_CLAUDE_BIN=str(tmp_path / "no-claude"),
-               POLL_SECONDS="100000", LINEAR_API_KEY="", LINEAR_TEAM="")
+    env = dict(os.environ, APO_DB=str(db_path), APO_OFFLINE="1", APO_CLAUDE_BIN=str(tmp_path / "no-claude"),
+               APO_POLL_SECONDS="100000", APO_LINEAR_API_KEY="", APO_LINEAR_TEAM="")
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "apo.web.app:app", "--host", "127.0.0.1", "--port", str(port)],
                             cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
@@ -93,7 +93,7 @@ def test_an_open_stream_doesnt_hold_up_a_restart(db_path, tmp_path):
     left open by a browser tab must not keep that restart waiting."""
     db.get_connection()
     port = _free_port()
-    env = dict(os.environ, ADO_DB=str(db_path), ADO_OFFLINE="1", POLL_SECONDS="100000", LINEAR_API_KEY="")
+    env = dict(os.environ, APO_DB=str(db_path), APO_OFFLINE="1", APO_POLL_SECONDS="100000", APO_LINEAR_API_KEY="")
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "apo.web.app:app", "--host", "127.0.0.1", "--port", str(port)],
                             cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:

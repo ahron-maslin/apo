@@ -1,5 +1,5 @@
-"""`ado dashboard start|stop|status`, and keeping it up without a terminal: with
-ADO_DASHBOARD_AUTOSTART on, any Claude Code session starting brings it up if it's
+"""`apo dashboard start|stop|status|run`, and keeping it up without a terminal: with
+APO_DASHBOARD_AUTOSTART on, any Claude Code session starting brings it up if it's
 down (WSL has no systemd by default, so there's often no service manager to ask)."""
 import socket
 
@@ -11,7 +11,7 @@ def cli(db_path, monkeypatch):
     from apo import cli
     from apo import config
 
-    monkeypatch.setenv("ADO_DASHBOARD_AUTOSTART", "")
+    monkeypatch.setenv("APO_DASHBOARD_AUTOSTART", "")
     return cli
 
 
@@ -40,15 +40,44 @@ def test_running_means_something_answers_on_the_port(cli):
     assert not cli._dashboard_running(_free_port())
 
 
-def test_start_launches_uvicorn_detached_from_this_checkout(cli, spawned, db_path):
+def test_start_launches_the_installed_dashboard_detached(cli, spawned, db_path):
+    """From the installed package, wherever it lives, and without --reload: watching
+    for code changes is for working on apo itself, not for using it."""
     port = _free_port()
 
     assert cli._start_dashboard(port) == "started"
 
     [(cmd, kw)] = spawned
-    assert cmd[1:] == ["-m", "uvicorn", "apo.web.app:app", "--reload", "--port", str(port)]
-    assert kw["cwd"] == str(cli.Path(cli.__file__).resolve().parent) and kw["start_new_session"]
+    assert cmd[1:] == ["-m", "uvicorn", "apo.web.app:app", "--host", "127.0.0.1", "--port", str(port)]
+    assert "cwd" not in kw and kw["start_new_session"]
     assert (db_path.parent / "dashboard.pid").read_text().strip() == "4242"
+
+
+def test_dev_mode_reloads_on_code_changes(cli, spawned):
+    cli._start_dashboard(_free_port(), dev=True)
+
+    [(cmd, _)] = spawned
+    assert cmd[-1] == "--reload"
+
+
+def test_the_dashboard_command_uses_the_configured_port(cli, monkeypatch, capsys):
+    monkeypatch.setenv("APO_DASHBOARD_PORT", "9123")
+
+    cli.main(["dashboard", "status"])
+
+    assert "127.0.0.1:9123" in capsys.readouterr().out
+
+
+def test_dashboard_run_serves_in_the_foreground_on_the_configured_port(cli, monkeypatch):
+    import uvicorn
+
+    calls = []
+    monkeypatch.setattr(uvicorn, "run", lambda target, **kw: calls.append((target, kw)))
+    monkeypatch.setenv("APO_DASHBOARD_PORT", "9124")
+
+    cli.main(["dashboard", "run"])
+
+    assert calls == [("apo.web.app:app", {"host": "127.0.0.1", "port": 9124, "reload": False})]
 
 
 def test_start_leaves_a_running_dashboard_alone(cli, spawned):
@@ -75,10 +104,10 @@ def test_stop_without_a_pid_file_says_so(cli, db_path):
 def test_a_session_starting_brings_the_dashboard_up_only_when_asked(cli, spawned, monkeypatch, tmp_path):
     from apo import config
 
-    monkeypatch.setenv("ADO_DASHBOARD_PORT", str(_free_port()))
+    monkeypatch.setenv("APO_DASHBOARD_PORT", str(_free_port()))
     cli._session_start({"session_id": "s-1", "cwd": str(tmp_path)})
     assert spawned == []
 
-    monkeypatch.setenv("ADO_DASHBOARD_AUTOSTART", "1")
+    monkeypatch.setenv("APO_DASHBOARD_AUTOSTART", "1")
     cli._session_start({"session_id": "s-2", "cwd": str(tmp_path)})
     assert len(spawned) == 1

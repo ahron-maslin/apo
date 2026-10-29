@@ -127,7 +127,7 @@ def test_cli_note(acme, db_path):
     conn = acme[0]
     item = _task(acme)
     env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}
-    env["ADO_DB"] = str(db_path)
+    env["APO_DB"] = str(db_path)
 
     result = run_cli("note", str(item), "ping the vendor", env=env)
 

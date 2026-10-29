@@ -1,4 +1,4 @@
-"""What every session learns about Switchboard. Claude Code puts an MCP server's
+"""What every session learns about apo. Claude Code puts an MCP server's
 instructions into each session's system prompt, so they're how an agent knows when to
 file a decision, start a goal, work a task or read the brief — the tool descriptions
 alone don't say how the pieces fit together."""
@@ -19,7 +19,7 @@ def test_the_instructions_cover_every_tool_the_server_offers():
 def test_the_instructions_cover_the_workflow_around_the_tools():
     text = mcp_server.mcp.instructions
 
-    for topic in ("TaskCreate", "/decisions", "project's folder", "ado claim", "resume_plan", "secret"):
+    for topic in ("TaskCreate", "/decisions", "project's folder", "apo claim", "resume_plan", "secret"):
         assert topic in text, topic
 
 
@@ -57,6 +57,7 @@ def test_listing_goals_with_their_steps(db_path, tmp_path):
         ("Write the listing copy", "agent", True), ("Approve the price", "me", False)]
 
 
-def test_sessions_are_told_the_dashboard_is_called_switchboard():
-    assert mcp_server.INSTRUCTIONS.startswith("Switchboard (ADO)")
-    assert "Control Center" not in mcp_server.INSTRUCTIONS
+def test_sessions_are_told_the_dashboard_is_called_apo():
+    assert mcp_server.INSTRUCTIONS.startswith("apo is where")
+    for old in ("Switchboard", "Control Center", "ADO", "ado "):
+        assert old not in mcp_server.INSTRUCTIONS, old
