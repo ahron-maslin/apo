@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "getapo"
 dynamic = ["version"]
 description = "apo (AI Project Orchestration): a local dashboard and MCP server for Claude Code. Agents ask instead of stopping; you answer every project's questions from one queue."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.10"
 keywords = ["claude", "claude-code", "mcp", "agents", "dashboard", "human-in-the-loop"]
 classifiers = [

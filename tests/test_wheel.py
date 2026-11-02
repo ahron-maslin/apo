@@ -49,7 +49,7 @@ def wheel(tmp_path_factory):
     """Built from a clean copy, so leftovers of an editable install can't stand in for
     package data the build would otherwise miss, and the build writes nothing here."""
     source = tmp_path_factory.mktemp("source")
-    for name in ("pyproject.toml", "README.md"):
+    for name in ("pyproject.toml", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"):
         shutil.copy(ROOT / name, source / name)
     shutil.copytree(ROOT / "src", source / "src", ignore=shutil.ignore_patterns("__pycache__", "*.egg-info"))
     out = tmp_path_factory.mktemp("dist")
@@ -69,6 +69,8 @@ def test_the_wheel_carries_the_package_data(wheel):
     assert not any(n.startswith(("tests/", "docs/", "scripts/", "site/")) for n in names)
     metadata = zipfile.ZipFile(wheel).read(next(n for n in names if n.endswith("METADATA"))).decode()
     assert "Name: getapo" in metadata and "Version: 0.1.0" in metadata
+    assert "License-Expression: MIT" in metadata
+    assert {n.rsplit("/", 1)[-1] for n in names if "/licenses/" in n} == {"LICENSE", "THIRD_PARTY_NOTICES.md"}
     entry_points = zipfile.ZipFile(wheel).read(next(n for n in names if n.endswith("entry_points.txt"))).decode()
     assert "apo = apo.cli:main" in entry_points and "ado = apo.cli:legacy_main" in entry_points
 

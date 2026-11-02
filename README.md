@@ -78,3 +78,7 @@ python -m venv .venv
 ```
 
 `-m "not wheel"` leaves out the slow test that builds the wheel and installs it in a fresh virtualenv. `apo dashboard start --dev` reloads when the code changes, and `scripts/preview.sh` runs your checkout as a second dashboard on a copy of your data.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The icons are Lucide's, under the ISC licence: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
