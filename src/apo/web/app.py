@@ -28,9 +28,10 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response, Streamin
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
-from starlette.datastructures import UploadFile as StarletteUploadFile
+from starlette.datastructures import Headers, UploadFile as StarletteUploadFile
+from starlette.responses import PlainTextResponse
 
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 
 from apo import changelog, claude_runtime, config, credentials, db, transcripts, verify
 from apo.integrations import linear_client, sources
@@ -234,6 +235,71 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="apo", lifespan=lifespan)
+
+LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
+_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_FRAME_HEADERS = [
+    (b"x-frame-options", b"DENY"),
+    (b"content-security-policy", b"frame-ancestors 'none'; object-src 'none'; base-uri 'none'"),
+]
+
+
+def _host_name(host: str) -> str:
+    if host.startswith("["):
+        return host.split("]", 1)[0].lower() + "]"
+    return host.split(":", 1)[0].lower()
+
+
+def _origin_of(url: str | None) -> str | None:
+    if not url:
+        return None
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme else url
+
+
+def _refusal(scope) -> tuple[int, str] | None:
+    """Why a request is refused, if it is. The dashboard binds to loopback, but every
+    page open in the user's browser can reach loopback too. A request under a name
+    that isn't a loopback one is DNS rebinding, and a write the browser says came from
+    another origin is a forged form or fetch. Clients that aren't browsers send
+    neither Origin nor Sec-Fetch-Site, so the CLI and curl still get through."""
+    headers = Headers(scope=scope)
+    host = headers.get("host", "")
+    if _host_name(host) not in LOCAL_HOSTS:
+        return 403, "apo only answers to 127.0.0.1 or localhost."
+    if scope["method"] in _SAFE_METHODS:
+        return None
+    site = headers.get("sec-fetch-site")
+    origin = headers.get("origin") or _origin_of(headers.get("referer"))
+    if (site and site not in ("same-origin", "none")) or (origin and origin.lower() != f"http://{host}".lower()):
+        return 403, "Refused: this request came from another site."
+    has_body = int(headers.get("content-length") or 0) > 0 or "transfer-encoding" in headers
+    content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if scope["path"].startswith("/api/") and has_body and content_type != "application/json":
+        return 415, "The API takes application/json."
+    return None
+
+
+class _LoopbackOnly:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        refused = _refusal(scope)
+        if refused:
+            return await PlainTextResponse(refused[1], status_code=refused[0])(scope, receive, send)
+
+        async def send_with_frame_headers(message):
+            if message["type"] == "http.response.start":
+                message["headers"] = [*message.get("headers", []), *_FRAME_HEADERS]
+            await send(message)
+
+        await self.app(scope, receive, send_with_frame_headers)
+
+
+app.add_middleware(_LoopbackOnly)
 # Package data, found through the package rather than cwd, so an installed wheel
 # serves the same files as a checkout.
 templates = Jinja2Templates(directory=str(files("apo.web") / "templates"))

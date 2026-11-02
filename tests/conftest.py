@@ -68,6 +68,12 @@ def _never_read_the_real_home(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _accept_the_test_clients_host(monkeypatch):
+    """TestClient sends Host: testserver, which the dashboard refuses outside tests."""
+    monkeypatch.setattr(app, "LOCAL_HOSTS", app.LOCAL_HOSTS | {"testserver"})
+
+
+@pytest.fixture(autouse=True)
 def _fresh_module_state():
     """What a long-running process keeps in memory between requests, reset so no test
     sees another's: Linear ids resolved under some credential, cached pull requests,
