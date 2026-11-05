@@ -529,17 +529,64 @@ def _start_dashboard(port: int, dev: bool = False) -> str:
     return "started"
 
 
-def _stop_dashboard() -> str:
-    pid_file = _dashboard_pid_file()
-    if not pid_file.exists():
-        return "not started here"
+def _listening_pids(port: int) -> list[int]:
+    """Every process listening on the port (a --reload dashboard is a reloader and a
+    worker), from lsof, which Linux and macOS both have."""
     try:
-        # With --dev there's a reloader and a worker; the group takes both.
-        os.killpg(int(pid_file.read_text().strip()), signal.SIGTERM)
-    except (ProcessLookupError, PermissionError, ValueError):
-        pass
-    pid_file.unlink(missing_ok=True)
-    return "stopped"
+        out = subprocess.run(["lsof", "-nP", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return sorted({int(pid) for pid in out.split() if pid.isdigit()})
+
+
+def _is_dashboard(pid: int) -> bool:
+    try:
+        command = subprocess.run(["ps", "-ww", "-o", "command=", "-p", str(pid)],
+                                 capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return "app:app" in command or "dashboard run" in command
+
+
+def _wait_until_closed(port: int, seconds: float) -> bool:
+    deadline = time.monotonic() + seconds
+    while _dashboard_running(port):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.1)
+    return True
+
+
+def _stop_dashboard(port: int) -> tuple[str, list[int]]:
+    """Stops the dashboard on the port, whoever started it. One started another way (an
+    older install, run.sh, a terminal) has no pid file, and a stale pid file must not
+    report success while the real one keeps serving. Waits for the port to close, so a
+    `start` straight after doesn't find the old one still there. Anything on the port
+    that isn't a dashboard is left alone."""
+    pid_file = _dashboard_pid_file()
+    signalled = False
+    if pid_file.exists():
+        try:
+            # With --dev there's a reloader and a worker; the group takes both.
+            os.killpg(int(pid_file.read_text().strip()), signal.SIGTERM)
+            signalled = True
+        except (ProcessLookupError, PermissionError, ValueError):
+            pass
+        pid_file.unlink(missing_ok=True)
+    if signalled and _wait_until_closed(port, 5):
+        return "stopped", []
+    if not _dashboard_running(port):
+        return ("stopped" if signalled else "not running"), []
+    pids = _listening_pids(port)
+    if not pids or not all(_is_dashboard(pid) for pid in pids):
+        return "not ours", pids
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+    return ("stopped", []) if _wait_until_closed(port, 10) else ("still running", pids)
 
 
 def _cmd_dashboard(args: argparse.Namespace) -> None:
@@ -555,8 +602,12 @@ def _cmd_dashboard(args: argparse.Namespace) -> None:
         print({"started": f"Started the dashboard at {url}",
                "running": f"Already running at {url}"}[_start_dashboard(port, dev=args.dev)])
     elif args.action == "stop":
+        status, pids = _stop_dashboard(port)
+        process = f" (process {', '.join(map(str, pids))})" if pids else ""
         print({"stopped": "Stopped the dashboard.",
-               "not started here": "No dashboard started by `apo dashboard start` to stop."}[_stop_dashboard()])
+               "not running": f"Nothing is running at {url}.",
+               "not ours": f"Something other than the dashboard is using port {port}{process}, so it was left alone.",
+               "still running": f"The dashboard at {url} didn't stop{process}."}[status])
     else:
         print(f"Running at {url}" if _dashboard_running(port) else f"Not running (nothing answers at {url})")
 
