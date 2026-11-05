@@ -93,6 +93,9 @@ Give each subagent everything it needs, because it starts cold:
 - Where the item's file is, so it can re-read the full record.
 - What "done" means for that item.
 
+Start each subagent's description with the item's number, e.g. `#140 Fix DST resume
+bug`: the dashboard reads it to link the subagent's worktree branch back to the item.
+
 Tell each subagent explicitly:
 
 - Implement the answer or task as given. A decision is settled — it is not being asked

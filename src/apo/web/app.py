@@ -937,7 +937,9 @@ def _project_changes(conn, project_id: int, folders: list[dict]) -> dict:
 def _ready_to_merge(conn, project_id: int, folders: list[dict]) -> list[dict]:
     """Each git repository among the project's folders once (a worktree or subfolder is
     the same repository), with its branches the default branch doesn't have yet, each
-    linked to the closed item whose work it is."""
+    linked to the closed item whose work it is, else to the agent that worked in its
+    worktree and that agent's item. The main checkout says nothing about who made the
+    branch in it: every session there passes through it."""
     seen: set[str] = set()
     found = []
     for folder in folders:
@@ -947,8 +949,13 @@ def _ready_to_merge(conn, project_id: int, folders: list[dict]) -> list[dict]:
         seen.add(os.path.realpath(root))
         listing = changelog.mergeable_branches(folder["local_path"])
         items = db.items_by_branch(conn, project_id, (b["branch"] for b in listing["branches"]))
+        agents = db.branch_agents(conn, project_id, {
+            b["branch"]: b["worktree"] for b in listing["branches"]
+            if b["worktree"] and b["worktree"] != listing["main_checkout"]})
         for branch in listing["branches"]:
-            branch["item"] = items.get(branch["branch"])
+            agent = agents.get(branch["branch"]) or {}
+            branch["item"] = items.get(branch["branch"]) or agent.get("item")
+            branch["session"], branch["subagent"] = agent.get("session"), agent.get("subagent")
         found.append({**listing, "folder": folder})
     return found
 

@@ -129,8 +129,8 @@ def test_not_a_repository_lists_nothing(tmp_path):
     folder = tmp_path / "plain"
     folder.mkdir()
 
-    assert changelog.mergeable_branches(str(folder)) == {"default_branch": None, "checkout": None, "blocked": None,
-                                                          "branches": []}
+    assert changelog.mergeable_branches(str(folder)) == {"default_branch": None, "checkout": None,
+                                                          "main_checkout": None, "blocked": None, "branches": []}
 
 
 def test_the_command_shown_is_the_one_that_runs(repo):
@@ -392,3 +392,82 @@ def test_a_merge_conflict_on_the_item_page_says_why(client, acme):
 
     assert "Couldn't merge" in page and "notes.txt" in page
     assert f'action="/decisions/{task}/merge"' in page
+
+
+# --- Who made a branch ----------------------------------------------------------------
+
+
+def _session_row(claude_session_id):
+    return db.get_session(db.get_connection(), claude_session_id)["id"]
+
+
+def test_a_branch_links_the_session_that_worked_in_its_worktree_and_the_task_it_claimed(client, acme):
+    project, repository, repo = acme
+    worktree = _branch(repo, "worktree-notes")
+    conn = db.get_connection()
+    db.register_session(conn, "s-1", str(worktree))
+    task = db.create_task(conn, project_id=project["id"], title="Fix the notes column", repository_id=repository["id"])
+    assert db.claim_task(conn, task, "s-1")
+
+    section = _section(client.get(f"/projects/{project['id']}").text)
+
+    assert f'href="/decisions/{task}"' in section
+    assert f'href="/sessions/{_session_row("s-1")}"' in section
+
+
+def test_a_branch_links_the_item_its_background_session_was_started_for(client, acme):
+    project, repository, repo = acme
+    worktree = _branch(repo, "worktree-notes")
+    conn = db.get_connection()
+    db.register_session(conn, "s-2", str(worktree))
+    conn.execute("UPDATE sessions SET agent_id = 'ab12cd34' WHERE claude_session_id = 's-2'")
+    conn.commit()
+    item = _finished_task(acme, "somewhere-else", title="Started from the dashboard")
+    db.record_dispatch(conn, item, "ab12cd34", resumed=False)
+
+    section = _section(client.get(f"/projects/{project['id']}").text)
+
+    assert f'href="/decisions/{item}"' in section
+    assert f'href="/sessions/{_session_row("s-2")}"' in section
+
+
+def test_a_branch_checked_out_in_the_main_checkout_names_no_session(client, acme):
+    project, repository, repo = acme
+    _git(repo, "switch", "-q", "-c", "local-work")
+    _commit_on_master(repo)
+    conn = db.get_connection()
+    db.register_session(conn, "s-3", str(repo))
+    task = db.create_task(conn, project_id=project["id"], title="Unrelated", repository_id=repository["id"])
+    db.claim_task(conn, task, "s-3")
+
+    section = _section(client.get(f"/projects/{project['id']}").text)
+
+    assert "local-work" in section
+    assert 'href="/sessions/' not in section and f'href="/decisions/{task}"' not in section
+
+
+def test_a_subagent_worktree_links_its_parent_session_and_the_item_it_names(client, acme, tmp_path, monkeypatch):
+    import json
+    from apo import claude_runtime
+
+    project, repository, repo = acme
+    worktree = repo / ".claude" / "worktrees" / "agent-a1b2c3"
+    _git(repo, "worktree", "add", "-q", "-b", "worktree-agent-a1b2c3", str(worktree))
+    (worktree / "feature.txt").write_text("new\n")
+    _git(worktree, "add", "feature.txt")
+    _git(worktree, "commit", "-q", "-m", "Subagent work")
+    conn = db.get_connection()
+    db.register_session(conn, "parent-1", str(repo))
+    task = db.create_task(conn, project_id=project["id"], title="Fix the notes column", repository_id=repository["id"])
+    subagents = tmp_path / "claude" / "projects" / "-acme" / "parent-1" / "subagents"
+    subagents.mkdir(parents=True)
+    (subagents / "agent-a1b2c3.meta.json").write_text(json.dumps({
+        "worktreePath": str(worktree), "worktreeBranch": "worktree-agent-a1b2c3",
+        "description": f"#{task} Fix the notes column"}))
+    monkeypatch.setattr(claude_runtime, "claude_config_dirs", lambda: [tmp_path / "claude"])
+
+    section = _section(client.get(f"/projects/{project['id']}").text)
+
+    assert f'href="/decisions/{task}"' in section
+    assert f'href="/sessions/{_session_row("parent-1")}"' in section
+    assert "Fix the notes column" in section

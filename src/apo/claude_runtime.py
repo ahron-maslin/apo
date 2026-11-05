@@ -44,6 +44,25 @@ def claude_config_dirs() -> list[Path]:
     return dirs
 
 
+def subagent_for_worktree(worktree: str) -> dict | None:
+    """The subagent Claude Code made a worktree for, from the meta file it keeps beside
+    the subagent's transcript, <profile>/projects/<slug>/<parent session>/subagents/
+    agent-<id>.meta.json: {"parent_session_id", "description"}. Its worktrees are named
+    agent-<id>, which is the only reason one is looked for."""
+    name = Path(worktree).name
+    if not re.fullmatch(r"agent-[A-Za-z0-9]+", name):
+        return None
+    for folder in claude_config_dirs():
+        for meta_path in (folder / "projects").glob(f"*/*/subagents/{name}.meta.json"):
+            try:
+                meta = json.loads(meta_path.read_text())
+            except (OSError, ValueError):
+                continue
+            if isinstance(meta, dict) and os.path.realpath(meta.get("worktreePath") or "") == os.path.realpath(worktree):
+                return {"parent_session_id": meta_path.parent.parent.name, "description": meta.get("description")}
+    return None
+
+
 def process_start_ticks(pid: int) -> str | None:
     """Field 22 of /proc/<pid>/stat (start time in clock ticks), which Claude Code
     stores as procStart. Parsed after the last ')' since the command name can itself

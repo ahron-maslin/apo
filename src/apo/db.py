@@ -2228,6 +2228,49 @@ def items_by_branch(conn: sqlite3.Connection, project_id: int, branches: Iterabl
     return found
 
 
+def branch_agents(conn: sqlite3.Connection, project_id: int, worktrees: dict[str, str]) -> dict[str, dict]:
+    """Who made each branch, from the worktree it's checked out in ({branch: path}):
+    the latest session that worked there, or for a subagent's worktree the session that
+    started it, with the item that session claimed or was started for, or that the
+    subagent's description names (#N). {branch: {"session", "item", "subagent"}}."""
+    from apo import claude_runtime
+
+    found: dict[str, dict] = {}
+    for branch, worktree in worktrees.items():
+        subagent = claude_runtime.subagent_for_worktree(worktree)
+        if subagent:
+            row = conn.execute("SELECT * FROM sessions WHERE claude_session_id = ?",
+                               (subagent["parent_session_id"],)).fetchone()
+            named = re.match(r"\s*#(\d+)\b", subagent["description"] or "")
+            item = _project_item(conn, project_id, int(named.group(1))) if named else None
+        else:
+            prefix = worktree.rstrip("/").replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "/%"
+            row = conn.execute("SELECT * FROM sessions WHERE cwd = ? OR cwd LIKE ? ESCAPE '\\' "
+                               "ORDER BY started_at DESC LIMIT 1", (worktree, prefix)).fetchone()
+            item = _session_item(conn, project_id, dict(row)) if row else None
+        if row or item:
+            found[branch] = {"session": {"id": row["id"], "name": _session_name(dict(row))} if row else None,
+                             "item": item, "subagent": subagent["description"] if subagent else None}
+    return found
+
+
+def _project_item(conn: sqlite3.Connection, project_id: int, item_id: int) -> dict | None:
+    row = conn.execute("SELECT id, title FROM decision_requests WHERE id = ? AND project_id = ?",
+                       (item_id, project_id)).fetchone()
+    return dict(row) if row else None
+
+
+def _session_item(conn: sqlite3.Connection, project_id: int, session: dict) -> dict | None:
+    """The item a session last claimed, or was started in the background for."""
+    row = conn.execute(
+        "SELECT id, title FROM decision_requests WHERE project_id = ? AND (claimed_by_session_id = ? "
+        "OR (dispatch_agent_id IS NOT NULL AND dispatch_agent_id = ?)) "
+        "ORDER BY COALESCE(claimed_at, dispatched_at) DESC LIMIT 1",
+        (project_id, session["claude_session_id"], session.get("agent_id")),
+    ).fetchone()
+    return dict(row) if row else None
+
+
 def work_location_phrase(location: dict | None) -> str | None:
     """Where the work is, in words, e.g. "on branch `x` (commit abc1234) — not merged into `master`"."""
     if not location or not location.get("commit"):

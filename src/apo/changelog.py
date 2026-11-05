@@ -184,8 +184,9 @@ def _pair_state(path: str, default_sha: str, branch_sha: str) -> dict | None:
 def mergeable_branches(path: str) -> dict:
     """Local branches with commits the default branch doesn't have, newest first: what
     agents finished in worktrees and nobody has merged yet. checkout is where the default
-    branch is checked out (the merge happens there), blocked why it can't happen now."""
-    listing = {"default_branch": None, "checkout": None, "blocked": None, "branches": []}
+    branch is checked out (the merge happens there), blocked why it can't happen now,
+    main_checkout the repository's own folder as opposed to its added worktrees."""
+    listing = {"default_branch": None, "checkout": None, "main_checkout": None, "blocked": None, "branches": []}
     default = default_branch(path)
     default_sha = _sha(path, f"refs/heads/{default}") if default else None
     if not default_sha:
@@ -193,7 +194,7 @@ def mergeable_branches(path: str) -> dict:
     trees = worktrees(path)
     checkout = next((w["path"] for w in trees if w["branch"] == default), None)
     checked_out = {w["branch"]: w["path"] for w in trees if w["branch"]}
-    listing.update(default_branch=default, checkout=checkout)
+    listing.update(default_branch=default, checkout=checkout, main_checkout=trees[0]["path"] if trees else None)
     out = _git(path, "for-each-ref", f"--no-merged={default_sha}", "--sort=-committerdate",
                f"--format=%(refname){_SEP}%(objectname){_SEP}%(committerdate:iso-strict){_SEP}%(subject)",
                "refs/heads")

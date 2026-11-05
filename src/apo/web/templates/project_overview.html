@@ -152,7 +152,9 @@
                   {% if b.item %}<a href="/decisions/{{ b.item.id }}">{{ ref(b.item.id) }}{{ b.item.title }}</a>{% endif %}
                 </div>
                 <div class="now-reason">{{ b.ahead }} commit{{ "s" if b.ahead != 1 }} to merge{% if b.behind %}, {{ b.behind }} behind{% endif %}
-                  · {{ b.subject }} · {{ b.at | ago }}{% if b.worktree %} · in {{ b.worktree | home }}{% endif %}</div>
+                  · {{ b.subject }} · {{ b.at | ago }}{% if b.worktree %} · in {{ b.worktree | home }}{% endif %}
+                  {%- if b.subagent %} · by subagent “{{ b.subagent }}”{% if b.session %} of <a href="/sessions/{{ b.session.id }}">{{ b.session.name }}</a>{% endif %}
+                  {%- elif b.session %} · by <a href="/sessions/{{ b.session.id }}">{{ b.session.name }}</a>{% endif %}</div>
                 {% if b.conflicts %}<div class="merge-conflicts">{{ icon("alert") }}Likely to conflict in {{ b.conflicts | join(", ") }}</div>{% endif %}
                 <code class="merge-command">{{ b.command | home }}</code>
               </div>
