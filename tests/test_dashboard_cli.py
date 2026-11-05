@@ -157,6 +157,35 @@ def test_a_stale_pid_file_doesnt_report_a_running_dashboard_as_stopped(cli, db_p
     assert _exited(proc)
 
 
+RELOADER = """
+import socket, subprocess, sys, time
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("127.0.0.1", 0))
+s.listen()
+worker = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", str(s.fileno())], pass_fds=[s.fileno()])
+print(s.getsockname()[1], worker.pid, flush=True)
+time.sleep(60)
+"""
+
+
+def test_stop_ends_a_reloading_dashboard_whose_worker_doesnt_name_the_app(cli):
+    """Under --reload the reloader's command line names the app; the worker sharing its
+    socket is a bare multiprocessing child that doesn't."""
+    reloader = subprocess.Popen([sys.executable, "-c", RELOADER, "uvicorn", "app:app", "--reload"],
+                                stdout=subprocess.PIPE, text=True)
+    port, worker = map(int, reloader.stdout.readline().split())
+    try:
+        assert cli._stop_dashboard(port)[0] == "stopped"
+        assert _exited(reloader) and not cli._dashboard_running(port)
+    finally:
+        reloader.kill()
+        try:
+            os.kill(worker, 9)
+        except ProcessLookupError:
+            pass
+
+
 def test_stop_leaves_another_program_on_the_port_alone(cli, listener):
     proc, port = listener("some-other-server")
 

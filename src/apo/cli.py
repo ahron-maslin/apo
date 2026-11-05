@@ -541,12 +541,21 @@ def _listening_pids(port: int) -> list[int]:
 
 
 def _is_dashboard(pid: int) -> bool:
-    try:
-        command = subprocess.run(["ps", "-ww", "-o", "command=", "-p", str(pid)],
+    """The process's command line names the app, or its parent's does: under --reload
+    the worker sharing the reloader's socket is a bare multiprocessing child."""
+    for _ in range(2):
+        try:
+            out = subprocess.run(["ps", "-ww", "-o", "ppid=,command=", "-p", str(pid)],
                                  capture_output=True, text=True, timeout=5).stdout
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return "app:app" in command or "dashboard run" in command
+        except (OSError, subprocess.SubprocessError):
+            return False
+        parent, _, command = out.strip().partition(" ")
+        if "app:app" in command or "dashboard run" in command:
+            return True
+        if not parent.isdigit():
+            return False
+        pid = int(parent)
+    return False
 
 
 def _wait_until_closed(port: int, seconds: float) -> bool:
