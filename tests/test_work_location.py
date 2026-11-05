@@ -236,6 +236,29 @@ def test_the_mcp_tools_record_from_the_folder_the_session_runs_in(acme, monkeypa
     assert _location(task)["branch"] == "feature" and _location(decision_id)["branch"] == "feature"
 
 
+def test_the_mcp_tools_record_from_the_worktree_the_session_moved_into(acme, monkeypatch, tmp_path):
+    """The MCP server stays in the folder the session started in; a session that then
+    enters a worktree does its work there, and the hooks track that as its cwd."""
+    from apo import mcp_server
+
+    _, _, repo = acme
+    worktree = tmp_path / "wt"
+    _git(repo, "worktree", "add", "-q", "-b", "worktree-notes", str(worktree))
+    _git(worktree, "commit", "-q", "--allow-empty", "-m", "Notes")
+    monkeypatch.chdir(repo)
+    monkeypatch.setattr(mcp_server.claude_runtime, "current_session_id", lambda pid=None: "agent-1")
+    conn = db.get_connection()
+    db.register_session(conn, "agent-1", str(repo))
+    db._move_session(conn, "agent-1", str(worktree))
+    task, decision_id = _task(acme), _answered_decision(acme)
+
+    assert mcp_server.complete_task(task_id=task, note="Wrote it") == {"completed": True}
+    assert mcp_server.mark_decision_resolved(decision_id) == {"resolved": True}
+
+    assert _location(task)["branch"] == "worktree-notes"
+    assert _location(decision_id)["branch"] == "worktree-notes"
+
+
 def test_the_cli_records_from_the_folder_it_runs_in(acme, db_path):
     _, _, repo = acme
     _commit_on(repo, "feature")

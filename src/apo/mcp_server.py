@@ -46,6 +46,15 @@ def _origin_session_id(explicit: str | None) -> str | None:
     return explicit or claude_runtime.current_session_id() or os.environ.get("CLAUDE_CODE_SESSION_ID")
 
 
+def _working_dir(conn) -> str:
+    """Where the calling session works now. This server stays in the folder the session
+    started in, so a session that has since entered a worktree is only found there
+    through the cwd its hooks keep up to date."""
+    session_id = _origin_session_id(None)
+    session = db.get_session(conn, session_id) if session_id else None
+    return (session or {}).get("cwd") or os.getcwd()
+
+
 def _resolve_filing(conn, project: str, repository: str | None):
     """The folder the server runs in identifies the project (see
     db.resolve_project_for_filing); an explicit repository name still wins."""
@@ -259,7 +268,7 @@ def mark_decision_resolved(decision_id: int) -> dict:
     the session-start nudge, so call it when finished. No-op (resolved=False) if the
     decision isn't currently in the 'answered' state."""
     conn = db.get_connection()
-    resolved = db.resolve_decision_request(conn, decision_id, cwd=os.getcwd())
+    resolved = db.resolve_decision_request(conn, decision_id, cwd=_working_dir(conn))
     return {"resolved": resolved}
 
 
@@ -409,7 +418,8 @@ def complete_task(
     do (merge, deploy); branch is the local branch the work is committed on, exactly
     as git names it, which the item's page offers to merge with one click."""
     try:
-        completed = db.complete_task(db.get_connection(), task_id, note=note, cwd=os.getcwd(), outcome=outcome,
+        conn = db.get_connection()
+        completed = db.complete_task(conn, task_id, note=note, cwd=_working_dir(conn), outcome=outcome,
                                      done=done, not_done=not_done, left_for_human=left_for_human, branch=branch)
     except ValueError as exc:
         return {"completed": False, "error": str(exc)}
