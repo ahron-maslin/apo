@@ -1,5 +1,5 @@
 """Cross-project 'This week' view and the outcome progress trend. Read-only over existing data."""
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +15,13 @@ def conn(db_path):
 
 def _ago(days):
     return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+
+def _days_ago_at_noon(days):
+    """Noon local time, `days` calendar days back. The stall badge counts calendar days,
+    and exactly days*24 hours back lands on a different date near midnight once the
+    clocks have changed in between."""
+    return datetime.combine(date.today() - timedelta(days=days), time(12)).astimezone().isoformat()
 
 
 def _week():
@@ -133,7 +140,7 @@ def test_outcome_page_and_goals_list_show_trend_and_warning(db_path, conn):
     p = db.get_or_create_project(conn, "acme")["id"]
     o = db.create_outcome(conn, p, "Stalled goal")
     db.add_step(conn, o, "x", "me")
-    conn.execute("UPDATE outcomes SET created_at = ? WHERE id = ?", (_ago(15), o))
+    conn.execute("UPDATE outcomes SET created_at = ? WHERE id = ?", (_days_ago_at_noon(15), o))
     conn.commit()
     client = TestClient(app_module.app)
     for path in (f"/outcomes/{o}", "/projects", f"/projects/{p}"):
