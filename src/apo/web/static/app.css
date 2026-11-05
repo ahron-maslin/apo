@@ -1422,3 +1422,16 @@ a.now-title:hover { text-decoration: underline; }
 .saved-view-form { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
 .search-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); flex-basis: 100%; }
 .search-filters .input { flex: none; min-width: 0; }
+
+/* Ready to merge */
+.merge-list { list-style: none; margin: 0; padding: 0; }
+.merge-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); padding: var(--s-4) var(--s-5); }
+.merge-item + .merge-item { border-top: 1px solid var(--border); }
+.merge-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.merge-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); overflow-wrap: anywhere; }
+.merge-command { font-size: var(--fs-xs); color: var(--text-3); overflow-wrap: anywhere; }
+.merge-conflicts { display: flex; align-items: center; gap: var(--s-1); font-size: var(--fs-sm); color: var(--warning); }
+.merge-repo { font-size: var(--fs-sm); font-weight: 600; margin: var(--s-3) 0 var(--s-2); color: var(--text-2); }
+.merge-more > summary { margin: var(--s-3) 0 var(--s-2); color: var(--text-2); }
+.merge-result { margin-top: var(--s-3); }
+@media (max-width: 640px) { .merge-item { flex-direction: column; } }

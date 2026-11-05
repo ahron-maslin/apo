@@ -209,6 +209,10 @@ Each item's delivery is tracked: *pending*, then *delivered* (the session was to
 
 When an agent closes an item or a task from the repo, the item says where the work is: its branch and commit, and whether that's merged into the default branch yet ("Work is on branch `fix-nav` (commit abc1234) — not merged into `master`"). Work done in a worktree or on a side branch isn't in your checkout until it's merged. Closing an item yourself from the dashboard records nothing.
 
+**Merge** on a finished item merges its branch (the one the agent named with `branch`, else the one it closed the item from) into the default branch. It's plain git, no agent: the page shows the exact command first. The merge happens in the checkout that has the default branch, which must have no uncommitted changes to tracked files; if the default branch isn't checked out anywhere, a fast-forward just moves it, and anything else merges in a temporary checkout that is removed afterwards. A conflict is backed out and the page names the files, so nothing is left half-merged. Nothing is pushed.
+
+**Ready to merge** on a project's Overview lists every local branch with commits its main branch doesn't have, newest first, each with how far ahead and behind it is, the worktree it's checked out in, the item it belongs to, and the files it would likely conflict in. Each has the same Merge button.
+
 ### Apply in background
 
 **Apply in background** runs `claude --bg` with `/decisions #N`:

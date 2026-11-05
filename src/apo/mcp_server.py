@@ -406,7 +406,8 @@ def complete_task(
     """Mark a task you finished done; note says what you did. Optional: outcome 'done'
     (default) or 'partial' when part is left, which stays flagged as partly done;
     done / not_done say what was and wasn't; left_for_human is what only the user can
-    do (merge, deploy); branch is where the work is."""
+    do (merge, deploy); branch is the local branch the work is committed on, exactly
+    as git names it, which the item's page offers to merge with one click."""
     try:
         completed = db.complete_task(db.get_connection(), task_id, note=note, cwd=os.getcwd(), outcome=outcome,
                                      done=done, not_done=not_done, left_for_human=left_for_human, branch=branch)

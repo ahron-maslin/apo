@@ -1,4 +1,15 @@
-{% set where = decision.work_location | work_location %}
+{% set where = (merge or decision.work_location) | work_location %}
 {% if where %}
-  <p class="delivery">{{ icon("git") }}<span>Work is {{ where | code_spans }}.</span></p>
+  <p class="delivery">{{ icon("git") }}<span>Work is {{ where | code_spans }}.
+    {%- if merge and not merge.merged %} {{ merge.ahead }} commit{{ "s" if merge.ahead != 1 }} to merge{% if merge.behind %}, {{ merge.behind }} behind{% endif %}.{% endif %}</span></p>
+{% endif %}
+{% if merge and not merge.merged and merge.conflicts %}
+  <p class="delivery merge-conflicts">{{ icon("alert") }}<span>Likely to conflict in {{ merge.conflicts | join(", ") }}.</span></p>
+{% endif %}
+{% include "_merge_result.html" %}
+{% if merge and not merge.merged %}
+  <form method="post" action="/decisions/{{ decision.id }}/merge" class="apply-form">
+    <button type="submit" class="btn btn--sm {{ 'btn--secondary' if merge.conflicts else 'btn--primary' }}"{% if merge.blocked %} disabled{% endif %}>{{ icon("git") }}Merge into {{ merge.default_branch }}</button>
+    <span class="field-hint">{% if merge.blocked %}{{ merge.blocked }}{% else %}Runs <code>{{ merge.command | home }}</code>. No agent; a conflict is backed out.{% endif %}</span>
+  </form>
 {% endif %}

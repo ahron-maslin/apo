@@ -2180,6 +2180,54 @@ def current_work_location(conn: sqlite3.Connection, item: dict) -> dict | None:
     return location
 
 
+def item_branches(item: dict) -> list[str]:
+    """Branches an item's work may be on, most trusted first: the one the agent named when
+    it closed the item, then the one checked out where it closed it."""
+    named = ((item.get("completion") or {}).get("branch") or "").strip()
+    recorded = (item.get("work_location") or {}).get("branch")
+    return [b for b in dict.fromkeys((named, recorded)) if b]
+
+
+def item_merge(conn: sqlite3.Connection, item: dict) -> dict | None:
+    """A closed item's branch measured against the default branch (changelog.branch_state),
+    with the folder it's in, for the item page's Merge button. None when the item isn't
+    closed or none of its branches exists locally."""
+    if item.get("status") != "resolved":
+        return None
+    from apo import changelog
+    from apo import repo_writer
+
+    repository = repo_writer._resolve_repository(conn, item["repository_id"], item["project_id"])
+    if repository is None:
+        return None
+    for branch in item_branches(item):
+        state = changelog.branch_state(repository["local_path"], branch)
+        if state:
+            return {**state, "repository_id": repository["id"]}
+    return None
+
+
+def items_by_branch(conn: sqlite3.Connection, project_id: int, branches: Iterable[str]) -> dict[str, dict]:
+    """Closed items of a project by which of these branches their work is on (the first
+    of item_branches that is one of them); the latest item wins a branch."""
+    wanted = set(branches)
+    if not wanted:
+        return {}
+    rows = conn.execute(
+        "SELECT id, title, completion, work_location FROM decision_requests WHERE project_id = ? "
+        "AND status = 'resolved' AND (completion LIKE '%\"branch\"%' OR work_location IS NOT NULL) "
+        "ORDER BY resolved_at DESC LIMIT 300",
+        (project_id,),
+    ).fetchall()
+    found: dict[str, dict] = {}
+    for row in rows:
+        item = {"completion": _loads(row["completion"]), "work_location": _loads(row["work_location"])}
+        branch = next((b for b in item_branches(item) if b in wanted), None)
+        if branch:
+            found.setdefault(branch, {"id": row["id"], "title": row["title"]})
+    return found
+
+
 def work_location_phrase(location: dict | None) -> str | None:
     """Where the work is, in words, e.g. "on branch `x` (commit abc1234) — not merged into `master`"."""
     if not location or not location.get("commit"):

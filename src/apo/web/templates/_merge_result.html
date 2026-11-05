@@ -1,0 +1,12 @@
+{% if merged %}
+  <div class="alert tone-success merge-result" role="status">
+    {{ icon("check-circle") }}
+    <div class="alert-body"><span class="alert-title">Merged <code>{{ merged }}</code> into <code>{{ merged_into }}</code></span></div>
+  </div>
+{% endif %}
+{% if merge_error %}
+  <div class="alert tone-danger merge-result" role="alert">
+    {{ icon("alert") }}
+    <div class="alert-body"><span class="alert-title">Couldn't merge</span><p>{{ merge_error }}</p></div>
+  </div>
+{% endif %}

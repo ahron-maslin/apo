@@ -51,6 +51,8 @@ it was created with, so one older than the task tools won't have them), use the 
 instead — same effect: `apo claim <id>` (exit code 1 = someone else has it, skip it)
 and `apo complete <id> --note "what you did"`. When only part of it is done, pass `outcome="partial"` with `not_done` (and
 `done`, `left_for_human`, `branch` if useful) so it stays flagged as partly done.
+Work committed on a branch (a worktree's, say) gets `branch=<its exact local branch
+name>` either way: the item's page then offers to merge it with one click.
 Never leave finished work unclosed. The task's file has the description and,
 if it belongs to an outcome, where it fits.
 

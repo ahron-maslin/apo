@@ -894,13 +894,16 @@ def _project_context(conn, project_id: int, tab: str, **extra) -> dict:
 
 
 @app.get("/projects/{project_id}")
-def project_page(request: Request, project_id: int, choose_linear: int = 0):
+def project_page(request: Request, project_id: int, choose_linear: int = 0, merged: str = "", into: str = "",
+                 merge_error: str = ""):
     _mark_viewed()
     conn = db.get_connection()
     ctx = _project_context(conn, project_id, "overview")
     queue = ctx["queue"]
     return templates.TemplateResponse(request, "project_overview.html", {
         **ctx,
+        "ready_to_merge": _ready_to_merge(conn, project_id, ctx["repositories"]),
+        "merged": merged, "merged_into": into, "merge_error": merge_error,
         "brief": db.get_project_brief(conn, project_id),
         "statuses": db.PROJECT_STATUSES,
         "items": [(lane, item) for lane in ("problems", "your_move", "asks", "in_transit", "review") for item in queue[lane]],
@@ -929,6 +932,77 @@ def _project_changes(conn, project_id: int, folders: list[dict]) -> dict:
     changes["days"] = days
     changes["several_folders"] = len(folders) > 1
     return changes
+
+
+def _ready_to_merge(conn, project_id: int, folders: list[dict]) -> list[dict]:
+    """Each git repository among the project's folders once (a worktree or subfolder is
+    the same repository), with its branches the default branch doesn't have yet, each
+    linked to the closed item whose work it is."""
+    seen: set[str] = set()
+    found = []
+    for folder in folders:
+        root = db.git_root(folder["local_path"])
+        if root is None or os.path.realpath(root) in seen:
+            continue
+        seen.add(os.path.realpath(root))
+        listing = changelog.mergeable_branches(folder["local_path"])
+        items = db.items_by_branch(conn, project_id, (b["branch"] for b in listing["branches"]))
+        for branch in listing["branches"]:
+            branch["item"] = items.get(branch["branch"])
+        found.append({**listing, "folder": folder})
+    return found
+
+
+def _project_folder(conn, project_id: int, repository_id: int) -> dict:
+    folder = next((f for f in db.project_repositories(conn, project_id) if f["id"] == repository_id), None)
+    if folder is None:
+        raise HTTPException(status_code=404, detail="That folder isn't one of this project's")
+    return folder
+
+
+def _merged_redirect(back: str, result: dict) -> RedirectResponse:
+    if not result["ok"]:
+        return _with_param(back, "merge_error", result["error"])
+    base, _, anchor = back.partition("#")
+    query = urlencode({"merged": result["branch"], "into": result["into"]})
+    return RedirectResponse(f"{base}{'&' if '?' in base else '?'}{query}" + (f"#{anchor}" if anchor else ""),
+                            status_code=303)
+
+
+@app.post("/projects/{project_id}/branches/merge")
+def merge_branch_route(project_id: int, repository: int = Form(...), branch: str = Form(...)):
+    """Merge a branch into the default branch with plain git: no agent involved."""
+    conn = db.get_connection()
+    _project_row(conn, project_id)
+    folder = _project_folder(conn, project_id, repository)
+    result = changelog.merge_branch(folder["local_path"], branch)
+    item = db.items_by_branch(conn, project_id, [branch]).get(branch)
+    _record_merge(conn, project_id, item["id"] if item else None, result)
+    return _merged_redirect(f"/projects/{project_id}#ready-to-merge", result)
+
+
+@app.post("/decisions/{decision_id}/merge")
+def merge_item_branch(decision_id: int):
+    """Merge the branch a closed item's work is on, the same way as on the project page."""
+    conn = db.get_connection()
+    item = db.get_decision_request(conn, decision_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    back = f"/decisions/{decision_id}#work-heading"
+    merge = db.item_merge(conn, item)
+    if merge is None:
+        return _with_param(back, "merge_error", "This item's work isn't on a local branch that could be merged.")
+    repository = db.get_repository(conn, merge["repository_id"])
+    result = changelog.merge_branch(repository["local_path"], merge["branch"])
+    _record_merge(conn, item["project_id"], decision_id, result)
+    return _merged_redirect(back, result)
+
+
+def _record_merge(conn, project_id: int, item_id: int | None, result: dict) -> None:
+    if result["ok"] and not result["already"]:
+        db.record_event(conn, verb="branch.merged", actor="human", project_id=project_id, decision_id=item_id,
+                        summary=f"Merged {result['branch']} into {result['into']}"
+                                + (f" — #{item_id}" if item_id else ""))
 
 
 def _linear_goals_panel(conn, project, choose: bool) -> dict:
@@ -2116,7 +2190,7 @@ def decisions_moved(project: str | None = None):
 
 @app.get("/decisions/{decision_id}")
 def decision_detail(request: Request, decision_id: int, unverified: str | None = None, launch_error: str | None = None,
-                    note_error: str | None = None):
+                    note_error: str | None = None, merged: str = "", into: str = "", merge_error: str = ""):
     conn = db.get_connection()
     decision = db.get_decision_request(conn, decision_id)
     if not decision:
@@ -2135,6 +2209,8 @@ def decision_detail(request: Request, decision_id: int, unverified: str | None =
         {
             "active_nav": "decisions",
             "decision": decision,
+            "merge": db.item_merge(conn, decision),
+            "merged": merged, "merged_into": into, "merge_error": merge_error,
             "project_name": db.get_project_name(conn, decision["project_id"]),
             "repository": repository,
             "transit": next((d for d in db.list_in_transit(conn) if d["id"] == decision_id), None),

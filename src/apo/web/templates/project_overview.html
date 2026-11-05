@@ -132,6 +132,44 @@
       </div>
     </section>
 
+    <section class="section" id="ready-to-merge" aria-labelledby="merge-heading">
+      {% set repos = ready_to_merge | selectattr("branches") | list %}
+      <div class="section-head">
+        <h2 class="section-title" id="merge-heading">Ready to merge</h2>
+        <span class="hint">Branches with work their main branch doesn't have yet</span>
+      </div>
+      {% include "_merge_result.html" %}
+      {% for r in repos %}
+        {% if ready_to_merge | length > 1 %}<h3 class="merge-repo">{{ r.folder.label or r.folder.name }} <span class="muted">{{ r.folder.local_path | home }}</span></h3>{% endif %}
+        {% if r.blocked %}<p class="delivery">{{ icon("alert") }}<span>{{ r.blocked }}</span></p>{% endif %}
+        <ul class="history-list surface merge-list">
+          {% for b in r.branches %}
+            {% if loop.index == 9 %}</ul><details class="disclosure merge-more"><summary>{{ r.branches | length - 8 }} more branch{{ "es" if r.branches | length - 8 != 1 }}</summary><ul class="history-list surface merge-list">{% endif %}
+            <li class="merge-item">
+              <div class="merge-main">
+                <div class="merge-name">
+                  <code>{{ b.branch }}</code>
+                  {% if b.item %}<a href="/decisions/{{ b.item.id }}">{{ ref(b.item.id) }}{{ b.item.title }}</a>{% endif %}
+                </div>
+                <div class="now-reason">{{ b.ahead }} commit{{ "s" if b.ahead != 1 }} to merge{% if b.behind %}, {{ b.behind }} behind{% endif %}
+                  · {{ b.subject }} · {{ b.at | ago }}{% if b.worktree %} · in {{ b.worktree | home }}{% endif %}</div>
+                {% if b.conflicts %}<div class="merge-conflicts">{{ icon("alert") }}Likely to conflict in {{ b.conflicts | join(", ") }}</div>{% endif %}
+                <code class="merge-command">{{ b.command | home }}</code>
+              </div>
+              <form method="post" action="/projects/{{ p.id }}/branches/merge">
+                <input type="hidden" name="repository" value="{{ r.folder.id }}">
+                <input type="hidden" name="branch" value="{{ b.branch }}">
+                <button type="submit" class="btn btn--sm {{ 'btn--secondary' if b.conflicts else 'btn--primary' }}"{% if r.blocked %} disabled{% endif %}>Merge into {{ r.default_branch }}</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+        {% if r.branches | length > 8 %}</details>{% endif %}
+      {% else %}
+        <p class="hint">Nothing waiting to be merged.</p>
+      {% endfor %}
+    </section>
+
     <section class="section" id="rules" aria-labelledby="agents-here-heading">
       <div class="section-head"><h2 class="section-title" id="agents-here-heading">How agents work here</h2></div>
       <p class="hint">What agents may do without asking, and the answers they should give themselves instead of asking you.</p>
