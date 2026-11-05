@@ -47,7 +47,8 @@ def commits(path: str, since: str, limit: int = 200) -> list[dict]:
 
 def _git(path: str, *args: str) -> subprocess.CompletedProcess | None:
     try:
-        return subprocess.run(["git", "-C", path, *args], capture_output=True, text=True, timeout=GIT_TIMEOUT)
+        return subprocess.run(["git", "-C", path, *args], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=GIT_TIMEOUT)
     except (OSError, subprocess.SubprocessError):
         return None
 

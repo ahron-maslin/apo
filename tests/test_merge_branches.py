@@ -97,6 +97,18 @@ def test_flags_a_branch_that_would_conflict(repo):
     assert clash["conflicts"] == ["notes.txt"]
 
 
+def test_a_branch_with_non_utf8_content_still_lists(repo):
+    worktree = _branch(repo, "clash", filename="notes.txt", content="one\nzwei\nthree\n")
+    (worktree / "image.bin").write_bytes(b"\x89PNG\r\n\x9c\xff\xfe\x00binary")
+    _git(worktree, "add", "image.bin")
+    _git(worktree, "commit", "-q", "-m", "Add a binary file")
+    _commit_on_master(repo)
+
+    (clash,) = changelog.mergeable_branches(str(repo))["branches"]
+
+    assert clash["conflicts"] == ["notes.txt"]
+
+
 def test_a_dirty_default_checkout_blocks_merging(repo):
     _branch(repo, "feature")
     (repo / "notes.txt").write_text("edited, not committed\n")
