@@ -48,7 +48,7 @@
           <div class="alert-body"><span class="alert-title">Couldn't start it</span><p>{{ launch_error }}</p></div>
         </div>
       {% endif %}
-      {% if decision.status == "open" and repository %}
+      {% if decision.status == "open" and repository and not dispatch_in_flight %}
         <form method="post" action="/decisions/{{ decision.id }}/start" class="apply-form">
           <button type="submit" class="btn btn--primary btn--sm">{{ icon("zap") }}Start a background session on it</button>
           <span class="field-hint">Runs <code>/decisions #{{ decision.id }}</code> in {{ repository.local_path | home }}.</span>

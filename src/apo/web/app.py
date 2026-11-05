@@ -2147,6 +2147,7 @@ def decision_detail(request: Request, decision_id: int, unverified: str | None =
             "attempts": db.list_attempts(conn, decision_id) if decision["kind"] == "task" else [],
             "effort_text": db.effort_text(db.task_effort(conn, decision_id)),
             "claim_stale": decision["kind"] == "task" and any(t["id"] == decision_id for t in db.stuck_claims(conn)),
+            "dispatch_in_flight": db.dispatch_in_flight(conn, decision),
             "folders": folders,
             "dependencies": db.item_dependencies(conn, decision_id),
             "dependency_candidates": db.dependency_candidates(conn, decision_id)
@@ -2179,6 +2180,8 @@ async def start_task(decision_id: int):
     back = f"/decisions/{decision_id}"
     if task["kind"] != "task" or task["status"] != "open":
         return _with_launch_error(back, "Only a task that's ready for an agent can be started.")
+    if db.dispatch_in_flight(conn, task):
+        return _with_launch_error(back, f"Already started in the background (claude attach {task['dispatch_agent_id']}).")
     error = await _dispatch(conn, decision_id)
     return _with_launch_error(back, error) if error else RedirectResponse(back, status_code=303)
 

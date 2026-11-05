@@ -161,6 +161,40 @@ def test_a_failed_start_lands_on_the_saved_item_with_the_reason_and_a_retry(clie
     assert f'action="/decisions/{item["id"]}/start"' in html
 
 
+def test_an_item_already_started_in_the_background_offers_no_second_start(client, acme, launches):
+    client.post(f"/projects/{acme['id']}/items", data={"kind": "bug", "title": "Crash on save", "run_now": "1"})
+    item = _only(db.get_connection(), acme["id"])
+
+    html = client.get(f"/decisions/{item['id']}").text
+
+    assert "Started in the background" in html
+    assert f'action="/decisions/{item["id"]}/start"' not in html
+
+
+def test_starting_it_again_while_its_session_is_on_the_way_launches_nothing(client, acme, launches):
+    client.post(f"/projects/{acme['id']}/items", data={"kind": "task", "title": "Add rate limiting", "run_now": "1"})
+    item = _only(db.get_connection(), acme["id"])
+
+    resp = client.post(f"/decisions/{item['id']}/start", follow_redirects=False)
+
+    assert len(launches) == 1
+    assert "launch_error=" in resp.headers["location"]
+
+
+def test_the_start_button_comes_back_once_that_session_ended_without_taking_it(client, acme, launches, tmp_path):
+    client.post(f"/projects/{acme['id']}/items", data={"kind": "task", "title": "Add rate limiting", "run_now": "1"})
+    conn = db.get_connection()
+    item = _only(conn, acme["id"])
+    db.register_session(conn, "bg-1", str(tmp_path))
+    db.reconcile_live_sessions(conn, [{"id": "3f2a9c1b", "kind": "background", "sessionId": "bg-1",
+                                       "cwd": str(tmp_path), "status": "busy"}])
+    db.session_end(conn, "bg-1")
+
+    html = client.get(f"/decisions/{item['id']}").text
+
+    assert f'action="/decisions/{item["id"]}/start"' in html
+
+
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
 

@@ -3710,6 +3710,19 @@ def record_dispatch(conn: sqlite3.Connection, decision_id: int, agent_id: str | 
                  summary=f"Applying #{decision_id} in background ({how}): {decision['title']}")
 
 
+def dispatch_in_flight(conn: sqlite3.Connection, decision: dict) -> bool:
+    """A background session was started on it recently and hasn't been seen to end.
+    The item stays open until that session claims it, which can take a while."""
+    recent = (datetime.now(timezone.utc) - timedelta(hours=STUCK_AFTER_HOURS)).isoformat()
+    if (decision["dispatched_at"] or "") <= recent:
+        return False
+    agent_id = decision["dispatch_agent_id"]
+    return not agent_id or conn.execute(
+        "SELECT 1 FROM sessions WHERE agent_id = ? AND status = 'ended' AND ended_at >= ?",
+        (agent_id, decision["dispatched_at"]),
+    ).fetchone() is None
+
+
 def get_session(conn: sqlite3.Connection, claude_session_id: str) -> dict | None:
     row = conn.execute("SELECT * FROM sessions WHERE claude_session_id = ?", (claude_session_id,)).fetchone()
     return dict(row) if row else None
