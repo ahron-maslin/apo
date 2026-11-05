@@ -436,3 +436,19 @@ def test_the_burnup_chart_keeps_its_distance_from_the_steps(server, tmp_path):
                         " - document.querySelector('.outcome-trend').getBoundingClientRect().bottom")
 
     assert _in_browser(f"{server}/outcomes/{outcome_id}", ".outcome-trend", act) >= 12
+
+
+def test_a_note_spans_the_notes_list_instead_of_a_narrow_column(server, tmp_path):
+    conn = db.get_connection()
+    decision_id = db.create_decision_request(conn, project_id=_project(conn, tmp_path)["id"], title="Pick a queue",
+                                             question="Which queue?")
+    db.add_note(conn, decision_id, "Both queues were tried under the same load, and the second one kept up with "
+                                   "every burst, so it is almost certainly the right choice.", author="0a1b2c3d4e5f")
+
+    async def act(js):
+        return await js("[document.querySelector('.note-body').getBoundingClientRect().width,"
+                        " document.querySelector('.notes-list').clientWidth]")
+
+    note_width, list_width = _in_browser(f"{server}/decisions/{decision_id}", ".note-body", act,
+                                         window_size=(1280, 900))
+    assert note_width >= list_width * 0.8

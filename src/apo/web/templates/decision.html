@@ -235,7 +235,7 @@
                 <div>
                   <span class="owner-pill owner-{{ 'me' if n.author == 'human' else 'agent' }}">{{ "You" if n.author == "human" else (n.author if n.author == "agent" else "Agent " ~ n.author[:8]) }}</span>
                   <time class="muted" datetime="{{ n.created_at }}">{{ n.created_at | ago }}</time>
-                  <div class="note-body" style="white-space: pre-wrap">{{ n.body }}</div>
+                  <div class="note-body">{{ n.body }}</div>
                 </div>
               </li>
             {% endfor %}

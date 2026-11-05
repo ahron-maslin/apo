@@ -697,6 +697,8 @@ form.add-item .btn { --btn-h: 32px; }
                   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .history-answer b { font-weight: 500; color: var(--text-2); }
 .history-item time { font-size: var(--fs-xs); color: var(--text-3); white-space: nowrap; padding-top: 2px; }
+.notes-list .history-item { grid-template-columns: minmax(0, 1fr); }
+.note-body { margin-top: var(--s-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ---------- Decision detail ---------- */
 .breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: var(--fs-sm); color: var(--text-3); margin-bottom: var(--s-5); }
