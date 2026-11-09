@@ -5,6 +5,7 @@ through Claude Code's own sign-in, with hooks, tools and MCP off, so it never sh
 up as a session itself."""
 import html as html_lib
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -182,3 +183,38 @@ def test_a_session_without_a_folder_gets_the_bare_resume_command(client, db_path
     html = client.get(f"/sessions/{sid}").text
 
     assert 'data-copy="claude --resume s-2"' in html
+
+
+def _tool_call(at, *commands):
+    return _line(type="assistant", timestamp=at, message={"content": [
+        {"type": "tool_use", "name": "Bash", "input": {"command": c}} for c in commands]})
+
+
+def _tool_groups(page):
+    """Each folded run of tool calls on the page: (its id, how many calls)."""
+    return [(gid, int(n)) for gid, n in re.findall(
+        r'<details class="disclosure" id="([^"]+)">\s*<summary>.*?(\d+) tool calls?</summary>', page, re.S)]
+
+
+def test_a_run_of_tool_calls_keeps_its_id_while_more_calls_join_it(client, session):
+    """The live refresh reopens a group you expanded by its id, so the id can't move as the group grows."""
+    page = f"/sessions/{session['id']}"
+    session["path"].write_text(TRANSCRIPT + "\n" + _tool_call("2026-10-21T10:31:00Z", "git status") + "\n")
+    (first, _), (growing, one) = _tool_groups(client.get(page).text)
+
+    with session["path"].open("a") as f:
+        f.write(_tool_call("2026-10-21T10:31:05Z", "git diff") + "\n")
+
+    assert one == 1 and _tool_groups(client.get(page).text) == [(first, 1), (growing, 2)]
+    assert first != growing
+
+
+def test_tool_runs_started_by_one_message_get_ids_of_their_own(client, session):
+    session["path"].write_text(_line(type="assistant", timestamp="2026-10-21T10:00:05Z", message={"content": [
+        {"type": "tool_use", "name": "Read", "input": {"file_path": "a.py"}},
+        {"type": "text", "text": "Now the other file."},
+        {"type": "tool_use", "name": "Read", "input": {"file_path": "b.py"}}]}) + "\n")
+
+    ids = [gid for gid, _ in _tool_groups(client.get(f"/sessions/{session['id']}").text)]
+
+    assert len(ids) == 2 and len(set(ids)) == 2

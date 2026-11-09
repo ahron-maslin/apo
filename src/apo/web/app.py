@@ -1916,16 +1916,23 @@ def _session(conn, session_id: int) -> dict:
 
 
 def _conversation(session: dict) -> dict | None:
-    """The transcript's entries, with each run of tool calls folded into one block."""
+    """The transcript's entries, with each run of tool calls folded into one block. A
+    block's key comes from when its first call was made, so it stays put while calls
+    join the run and while older entries scroll out of the window."""
     path = transcripts.find(session["claude_session_id"], claude_runtime.claude_config_dirs())
     if not path:
         return None
     conversation = transcripts.conversation(str(path))
     blocks: list[dict] = []
-    for entry in conversation["entries"]:
+    keys: set[str] = set()
+    for n, entry in enumerate(conversation["entries"]):
         if entry["kind"] == "tool":
             if not blocks or blocks[-1]["kind"] != "tools":
-                blocks.append({"kind": "tools", "items": []})
+                key = re.sub(r"[^0-9A-Za-z]+", "-", entry["at"]).strip("-") if entry["at"] else f"n{n}"
+                while key in keys:
+                    key += "-2"
+                keys.add(key)
+                blocks.append({"kind": "tools", "items": [], "key": key})
             blocks[-1]["items"].append(entry)
         else:
             blocks.append(entry)

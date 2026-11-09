@@ -281,6 +281,40 @@ def test_achieved_on_a_goal_card_wins_over_the_card_link(server, tmp_path):
     assert on_top and path == f"/projects/{project['id']}"
     assert db.get_outcome(db.get_connection(), outcome_id)["status"] == "achieved"
 
+
+def test_an_expanded_run_of_tool_calls_stays_open_when_the_session_adds_one(server, tmp_path):
+    transcript = tmp_path / "claude-config" / "projects" / "-home-acme" / "s-1.jsonl"
+    transcript.parent.mkdir(parents=True)
+
+    def tool_call(at, command):
+        return json.dumps({"type": "assistant", "timestamp": at, "message": {"content": [
+            {"type": "tool_use", "name": "Bash", "input": {"command": command}}]}}) + "\n"
+
+    transcript.write_text(json.dumps({"type": "user", "origin": {"kind": "human"}, "timestamp": "2026-10-21T10:00:00Z",
+                                      "message": {"role": "user", "content": "Fix the login test"}}) + "\n"
+                          + tool_call("2026-10-21T10:00:05Z", "pytest")
+                          + json.dumps({"type": "assistant", "timestamp": "2026-10-21T10:00:07Z", "message": {
+                              "content": [{"type": "text", "text": "One fails. Looking at the diff."}]}}) + "\n"
+                          + tool_call("2026-10-21T10:00:08Z", "git status"))
+    conn = db.get_connection()
+    project = _project(conn, tmp_path)
+    db.register_session(conn, "s-1", str(tmp_path))
+    session_id = conn.execute("SELECT id FROM sessions WHERE claude_session_id = 's-1'").fetchone()["id"]
+    group = ".conversation-tools:last-of-type details"
+
+    async def act(js):
+        await js(f"document.querySelector('{group} summary').click()")
+        with transcript.open("a") as f:
+            f.write(tool_call("2026-10-21T10:00:09Z", "git diff"))
+        db.add_work(db.get_connection(), project["id"], "me", "Something commits, as a hook would")
+        for _ in range(80):
+            if await js(f"document.querySelector('{group} summary').textContent.includes('2 tool calls')"):
+                return await js(f"[...document.querySelectorAll('.conversation-tools details')].map(d => d.open)")
+            await asyncio.sleep(0.1)
+        return "no refresh"
+
+    assert _in_browser(f"{server}/sessions/{session_id}", group, act) == [False, True]
+
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 
 

@@ -93,7 +93,7 @@
         {% for block in conversation.blocks %}
           {% if block.kind == "tools" %}
             <li class="conversation-tools">
-              <details class="disclosure">
+              <details class="disclosure" id="tools-{{ block.key }}">
                 <summary>{{ icon("chevron-right", cls="chev") }}{{ block["items"] | length }} tool call{{ "s" if block["items"] | length != 1 }}</summary>
                 <ul>{% for t in block["items"] %}<li><code>{{ t.text }}</code></li>{% endfor %}</ul>
               </details>
