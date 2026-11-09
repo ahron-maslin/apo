@@ -1,5 +1,5 @@
 {% extends "projects_shell.html" %}
-{% from "_macros.html" import icon, ref, linear_badge, due_badge, due_buckets, burnup, stall_warning %}
+{% from "_macros.html" import icon, ref, linear_badge, due_badge, due_buckets, burnup, stall_warning, goal_achieve %}
 {% from "_project_macros.html" import status_labels, status_buttons %}
 
 {% set autonomy_labels = {"ask": "Ask first", "edits": "Accept file edits", "plan": "Plan only"} %}
@@ -51,6 +51,7 @@
                 {% if pr.ready_to_close %}<span class="badge tone-info">Ready to close</span>{% endif %}
                 {{ stall_warning(o.trend) }}
                 <span class="outcome-count">{{ pr.done }}/{{ pr.total }}</span>
+                {{ goal_achieve(o, pr, "/projects/" ~ p.id) }}
               </div>
               <span class="progress" aria-hidden="true"><span style="width: {{ (100 * pr.done / pr.total) | round | int if pr.total else 0 }}%"></span></span>
               {{ burnup(o.trend, 120, 24) }}

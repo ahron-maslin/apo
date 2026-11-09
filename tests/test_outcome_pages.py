@@ -1,4 +1,6 @@
 """The outcome pages: list, create, the checklist with owners, and the moves on it."""
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -91,3 +93,48 @@ def test_outcome_status_buttons_and_achieving_from_now(client):
     client.post(f"/outcomes/{outcome_id}/status", data={"status": "achieved", "next": "/"})
     assert db.get_outcome(conn, outcome_id)["status"] == "achieved"
     assert client.post(f"/outcomes/{outcome_id}/status", data={"status": "bogus"}).status_code == 400
+
+
+def _achieve_form(html, outcome_id):
+    """The Achieved form on outcome_id's goal card: (hidden fields, its confirm question), or None."""
+    form = re.search(rf'<form([^>]*action="/outcomes/{outcome_id}/status"[^>]*)>(.*?)</form>', html, re.S)
+    if not form:
+        return None
+    confirm = re.search(r'data-confirm="([^"]*)"', form.group(1))
+    return (dict(re.findall(r'<input type="hidden" name="(\w+)" value="([^"]*)"', form.group(2))),
+            confirm.group(1) if confirm else None)
+
+
+def _ready_goal():
+    outcome_id, ids = _outcome(**{"Only step": "agent"})
+    db.complete_step(db.get_connection(), ids["Only step"], by="agent")
+    return outcome_id
+
+
+def test_a_goal_card_marks_the_goal_achieved_without_opening_it(client):
+    outcome_id = _ready_goal()
+    project = db.find_project(db.get_connection(), "acme")
+
+    for page in (f"/projects/{project['id']}", "/projects"):
+        assert _achieve_form(client.get(page).text, outcome_id) == ({"status": "achieved", "next": page}, None), page
+
+
+def test_achieving_a_goal_with_open_steps_from_its_card_asks_first(client):
+    two_open, _ = _outcome(**{"Configure the build": "agent", "Add DNS record": "me"})
+    no_steps = db.create_outcome(db.get_connection(), db.find_project(db.get_connection(), "acme")["id"], "Pick a name")
+    page = client.get("/projects").text
+
+    assert "2 steps are still open" in _achieve_form(page, two_open)[1]
+    assert _achieve_form(page, no_steps)[1] is None
+
+
+def test_achieved_from_a_card_comes_back_to_the_page_without_that_card(client):
+    outcome_id = _ready_goal()
+    page = f"/projects/{db.find_project(db.get_connection(), 'acme')['id']}"
+    fields, _ = _achieve_form(client.get(page).text, outcome_id)
+
+    resp = client.post(f"/outcomes/{outcome_id}/status", data=fields, follow_redirects=False)
+
+    assert resp.status_code == 303 and resp.headers["location"] == page
+    assert db.get_outcome(db.get_connection(), outcome_id)["status"] == "achieved"
+    assert _achieve_form(client.get(page).text, outcome_id) is None

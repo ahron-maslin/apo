@@ -833,6 +833,7 @@ a.now-title:hover { text-decoration: underline; }
 .outcome-card a[target="_blank"] { position: relative; z-index: 1; }
 .outcome-description { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); }
 .outcome-count { margin-left: auto; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.outcome-card-action { position: relative; z-index: 1; }
 .outcome-next { margin: 0; font-size: var(--fs-sm); color: var(--text-2); }
 .owner-pill { display: inline-flex; align-items: center; padding: 0 var(--s-2); border-radius: var(--r-full); font-size: var(--fs-xs);
               font-weight: 600; border: 1px solid var(--border); white-space: nowrap; }

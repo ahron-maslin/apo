@@ -1,5 +1,5 @@
 {% extends "projects_shell.html" %}
-{% from "_macros.html" import icon, empty_state, linear_badge, due_badge, burnup, stall_warning %}
+{% from "_macros.html" import icon, empty_state, linear_badge, due_badge, burnup, stall_warning, goal_achieve %}
 {% from "_project_macros.html" import project_row with context %}
 
 {% set owner_labels = {"me": "You", "agent": "Agent", "external": "Waiting"} %}
@@ -71,6 +71,7 @@
             {{ stall_warning(o.trend) }}
             {{ due_badge(o.due_on) }}
             <span class="outcome-count">{{ pr.done }}/{{ pr.total }}</span>
+            {{ goal_achieve(o, pr, "/projects") }}
           </div>
           <span class="progress" aria-hidden="true"><span style="width: {{ (100 * pr.done / pr.total) | round | int if pr.total else 0 }}%"></span></span>
           {{ burnup(o.trend, 120, 24) }}

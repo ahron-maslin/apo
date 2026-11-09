@@ -362,6 +362,7 @@ The page recommends one. Fresh once the session carries 100k tokens or more, or 
 - A step that's blocked stays out of Now until what it waits on is done.
 - Agent steps become **tasks** in the repo's `INDEX.md`, so the next session (or `/decisions`) picks them up.
 - When every step is done, the outcome shows up in Review: **Mark achieved**, or add more steps.
+- Each goal card on an Overview has its own **Achieved**, so a goal that's already true closes without opening it. If steps are still open it asks first, and those steps stay open.
 
 Agents can create outcomes and steps too.
 

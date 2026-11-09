@@ -75,3 +75,12 @@
 {% macro stall_warning(trend) -%}
 {%- if trend and trend.stalled_days -%}<span class="badge tone-warning" title="No step has been finished for {{ trend.stalled_days }} days">No progress for {{ trend.stalled_days }} days</span>{%- endif -%}
 {%- endmacro %}
+
+{% macro goal_achieve(o, pr, next) -%}
+  {%- set open_steps = pr.total - pr.done -%}
+  <form method="post" action="/outcomes/{{ o.id }}/status" class="inline-form outcome-card-action"
+    {%- if open_steps %} data-confirm="{{ open_steps }} step{{ 's are' if open_steps != 1 else ' is' }} still open. Mark “{{ o.title }}” achieved anyway? The open steps stay open."{% endif %}>
+    <input type="hidden" name="status" value="achieved"><input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="btn btn--{{ 'primary' if pr.ready_to_close else 'ghost' }} btn--sm" data-goal-achieved aria-label="Mark achieved: {{ o.title }}">{{ icon("check") }}Achieved</button>
+  </form>
+{%- endmacro %}

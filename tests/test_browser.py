@@ -260,6 +260,27 @@ def test_done_on_a_work_row_closes_it_and_stays_on_work(server, tmp_path):
     assert db.get_decision_request(db.get_connection(), action)["status"] == "resolved"
 
 
+
+def test_achieved_on_a_goal_card_wins_over_the_card_link(server, tmp_path):
+    """The whole card is a link to the goal; the button on it has to catch its own clicks."""
+    conn = db.get_connection()
+    project = _project(conn, tmp_path)
+    outcome_id = db.create_outcome(conn, project["id"], "Launch the site")
+    db.complete_step(conn, db.add_step(conn, outcome_id, "Only step", owner="agent"), by="agent")
+
+    async def act(js):
+        on_top = await js("(() => { const b = document.querySelector('[data-goal-achieved]'); b.scrollIntoView({block: 'center'});"
+                          " const r = b.getBoundingClientRect();"
+                          " return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2).closest('[data-goal-achieved]') === b; })()")
+        await js("document.querySelector('[data-goal-achieved]').click()")
+        await asyncio.sleep(2)
+        return on_top, await js("location.pathname")
+
+    on_top, path = _in_browser(f"{server}/projects/{project['id']}", "[data-goal-achieved]", act)
+
+    assert on_top and path == f"/projects/{project['id']}"
+    assert db.get_outcome(db.get_connection(), outcome_id)["status"] == "achieved"
+
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 
 
