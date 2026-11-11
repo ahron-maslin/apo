@@ -769,13 +769,42 @@ def project_report(request: Request, project_id: int, end: str | None = None):
     })
 
 
-def _filtered_work(conn, project_id: int | None, ctx: dict, label: str, owner: str, status: str) -> dict:
-    """The Work tab narrowed by its filter bar; no params leaves it untouched."""
+OWNER_NAMES = {"me": "Me", "agent": "An agent", "external": "Someone else"}
+DUE_FILTERS = {"overdue": ("overdue", "Overdue"), "soon": ("due_soon", "Due soon"), "stuck": ("stuck", "Stuck")}
+WORK_GROUPS = ("needs_you", "ready", "in_progress", "waiting", "done")
+
+
+def _filtered_work(conn, project_id: int | None, ctx: dict, label: str, owner: str, status: str, due: str = "") -> dict:
+    """The Work tab narrowed by its Filter menu and by the overdue / due soon / stuck
+    counts; no params leaves it untouched. Each filter in use becomes a chip whose link
+    is the same page without it."""
     label, owner, status = label.strip().lower(), owner.strip(), status.strip()
-    ctx["filters"] = {"label": label, "owner": owner, "status": status, "active": bool(label or owner or status)}
+    due = due if due in DUE_FILTERS else ""
+    ctx["filters"] = {"label": label, "owner": owner, "status": status, "active": bool(label or owner or status or due)}
     ctx["filter_labels"] = db.known_labels(conn, project_id)
     ctx["filter_statuses"] = db.WORK_STATUSES
-    ctx["work"] = db.filter_work(ctx["work"], label, owner, status)
+    work = ctx["work"]
+    if due:
+        ids = {i["id"] for i in work[DUE_FILTERS[due][0]]}
+        work = {**work, **{key: [i for i in work[key] if i["id"] in ids] for key in WORK_GROUPS}}
+    ctx["work"] = db.filter_work(work, label, owner, status)
+    ctx["due_param"] = due
+    params = {"label": label, "owner": owner, "status": status, "due": due}
+    sort = {"sort": "due"} if ctx.get("sort") == "due" else {}
+
+    def href(**query):
+        query = {k: v for k, v in query.items() if v}
+        return "?" + urlencode(query) if query else ""
+
+    base = "/projects/work" if project_id is None else f"/projects/{project_id}/work"
+    shown = {"label": lambda v: v, "owner": lambda v: OWNER_NAMES.get(v, v),
+             "status": lambda v: db.WORK_STATUSES.get(v, v) if isinstance(db.WORK_STATUSES, dict) else v,
+             "due": lambda v: DUE_FILTERS[v][1]}
+    ctx["filter_chips"] = [
+        {"text": f"{name.capitalize() if name != 'due' else 'Showing'}: {shown[name](value)}",
+         "href": base + href(**{**params, name: "", **sort})}
+        for name, value in params.items() if value]
+    ctx["sort_links"] = {"filed": base + href(**params), "due": base + href(**params, sort="due")}
     return ctx
 
 
@@ -784,10 +813,10 @@ def _work_sort(sort: str) -> dict:
 
 
 @app.get("/projects/work")
-def all_work_page(request: Request, sort: str = "", label: str = "", owner: str = "", status: str = ""):
+def all_work_page(request: Request, sort: str = "", label: str = "", owner: str = "", status: str = "", due: str = ""):
     _mark_viewed()
     conn = db.get_connection()
-    ctx = _filtered_work(conn, None, _all_context(conn, "work", **_work_sort(sort)), label, owner, status)
+    ctx = _filtered_work(conn, None, _all_context(conn, "work", **_work_sort(sort)), label, owner, status, due)
     db.add_token_usage(conn, ctx["work"]["done"])
     return templates.TemplateResponse(request, "all_work.html", {
         **ctx,
@@ -814,14 +843,15 @@ def _destinations(conn) -> list[dict]:
 
 @app.post("/projects/items")
 async def all_item_route(project: str = Form(...), title: str = Form(""), detail: str = Form(""),
-                         owner: str = Form("agent"), labels: str = Form("")):
-    """The project picker's value is "project" or "project:folder"."""
+                         kind: str = Form(""), owner: str = Form("agent"), labels: str = Form(""), due_on: str = Form("")):
+    """The project picker's value is "project" or "project:folder". kind is task, bug or
+    me; owner is the older form's agent/me."""
     project_part, _, repository = project.partition(":")
     if not project_part.isdigit():
         raise HTTPException(status_code=400, detail="Pick a project")
     project = int(project_part)
-    response = await _add_work(project, "me" if owner == "me" else "task", title, repository, detail=detail,
-                                labels=labels)
+    kind = kind if kind in ("task", "bug", "me") else ("me" if owner == "me" else "task")
+    response = await _add_work(project, kind, title, repository, detail=detail, labels=labels, due_on=due_on or None)
     if response.headers.get("location", "").startswith(f"/projects/{project}/work"):
         return RedirectResponse(response.headers["location"].replace(f"/projects/{project}/work", "/projects/work", 1),
                                 status_code=303)
@@ -1091,11 +1121,11 @@ def project_linear_project_route(project_id: int, linear_project: str = Form(...
 
 @app.get("/projects/{project_id}/work")
 def project_work_page(request: Request, project_id: int, sort: str = "", label: str = "", owner: str = "",
-                      status: str = ""):
+                      status: str = "", due: str = ""):
     _mark_viewed()
     conn = db.get_connection()
     ctx = _filtered_work(conn, project_id, _project_context(conn, project_id, "work", **_work_sort(sort)),
-                         label, owner, status)
+                         label, owner, status, due)
     db.add_token_usage(conn, ctx["work"]["done"])
     return templates.TemplateResponse(request, "project_work.html", {
         **ctx, "severities": db.BUG_SEVERITIES,
@@ -1393,7 +1423,6 @@ async def search_page(request: Request, q: str = "", deep: int = 0, status: str 
 
 SEARCH_FILTER_NAMES = {"status": "Status", "project": "Project", "owner": "Owner", "label": "Label",
                        "since": "From", "until": "To"}
-OWNER_NAMES = {"me": "Me", "agent": "An agent", "external": "Someone else"}
 
 
 def _filter_chips(q: str, deep: int, filters: dict) -> list[dict]:

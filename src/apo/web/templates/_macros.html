@@ -47,9 +47,9 @@
 {% macro due_buckets(work, href) -%}
 {%- if work.overdue or work.due_soon or work.stuck %}
 <p class="due-summary">
-  {%- if work.overdue %}<a class="badge tone-danger" href="{{ href }}">{{ work.overdue | length }} overdue</a>{% endif %}
-  {%- if work.due_soon %} <a class="badge tone-warning" href="{{ href }}">{{ work.due_soon | length }} due soon</a>{% endif %}
-  {%- if work.stuck %} <a class="badge tone-warning" href="{{ href }}">{{ work.stuck | length }} stuck</a>{% endif %}
+  {%- if work.overdue %}<a class="badge tone-danger" href="{{ href }}?due=overdue">{{ work.overdue | length }} overdue</a>{% endif %}
+  {%- if work.due_soon %} <a class="badge tone-warning" href="{{ href }}?due=soon">{{ work.due_soon | length }} due soon</a>{% endif %}
+  {%- if work.stuck %} <a class="badge tone-warning" href="{{ href }}?due=stuck">{{ work.stuck | length }} stuck</a>{% endif %}
 </p>
 {%- endif %}
 {%- endmacro %}

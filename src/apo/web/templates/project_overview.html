@@ -36,7 +36,7 @@
     <section class="section" aria-labelledby="needs-heading">
       <div class="section-head">
         <h2 class="section-title" id="needs-heading">Needs you</h2>
-        {{ due_buckets(work, "/projects/" ~ p.id ~ "/work?sort=due") }}
+        {{ due_buckets(work, "/projects/" ~ p.id ~ "/work") }}
         <a class="section-link" href="/?project={{ p.name | urlencode }}" data-hotkey="o">Open in Now <kbd aria-hidden="true">o</kbd></a>
       </div>
       <div data-live-region="queue">

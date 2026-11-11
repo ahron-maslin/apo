@@ -719,6 +719,14 @@
   });
   document.addEventListener("app:enhance", syncBulk);
 
+  // Picking A bug in New work opens its folded fields: what happened goes there.
+  document.addEventListener("change", function (event) {
+    var kind = event.target;
+    if (!kind.matches || !kind.matches('.new-work input[name="kind"]') || kind.value !== "bug") return;
+    var more = kind.form && kind.form.querySelector(".new-work-more");
+    if (more) more.open = true;
+  });
+
   // --- Lightbox for attachment thumbnails ---
 
   var lightbox = null;

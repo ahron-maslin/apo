@@ -198,7 +198,7 @@ def test_new_work_shows_the_fields_for_the_kind_you_pick(server, tmp_path):
     project = _project(db.get_connection(), tmp_path)
 
     async def act(js):
-        shown = "(sel) => document.querySelector(sel).getClientRects().length > 0"
+        shown = "(sel) => { const el = document.querySelector(sel); return !el.closest('details:not([open])') && el.getClientRects().length > 0; }"
         state = f"[({shown})('#work-expected'), ({shown})('input[name=run_now]')]"
         before = await js(state)
         await js("document.querySelector('input[name=kind][value=bug]').click()")
@@ -207,8 +207,9 @@ def test_new_work_shows_the_fields_for_the_kind_you_pick(server, tmp_path):
         me = await js(state)
         return before, bug, me
 
+    # Start a session sits under More, which picking A bug opens; Me never starts one.
     assert _in_browser(f"{server}/projects/{project['id']}/work", "#work-title", act) == (
-        [False, True], [True, True], [False, False])
+        [False, False], [True, True], [False, False])
 
 
 def test_new_work_taller_than_the_window_scrolls_on_its_own(server, tmp_path):
@@ -317,7 +318,7 @@ def test_an_expanded_run_of_tool_calls_stays_open_when_the_session_adds_one(serv
 
 
 def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
-    """Each bulk button can be clicked, the filters share one row, and a long state
+    """Each bulk button can be clicked, sort and Filter share one row, and a long state
     badge stops before the title."""
     conn = db.get_connection()
     project = _project(conn, tmp_path)
@@ -331,7 +332,7 @@ def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
           const topmost = el => { const r = el.getBoundingClientRect();
             return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); };
           const buttons = [...document.querySelectorAll('#bulk-form button')];
-          const tops = [...document.querySelectorAll('.filter-bar select')].map(s => Math.round(s.getBoundingClientRect().top));
+          const tops = [...document.querySelectorAll('.sort-toggle, .filter-menu > summary')].map(s => Math.round(s.getBoundingClientRect().top + s.getBoundingClientRect().height / 2));
           const overlaps = [...document.querySelectorAll('.work-list .history-item')].filter(row => {
             const badge = row.querySelector(':scope > .badge'), body = row.querySelector(':scope > div');
             return badge.getBoundingClientRect().right > body.getBoundingClientRect().left;
@@ -340,7 +341,7 @@ def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
                   filterRows: new Set(tops).size, overlaps};
         })()""")
 
-    result = _in_browser(f"{server}/projects/{project['id']}/work", ".filter-bar", act, window_size=(1440, 900))
+    result = _in_browser(f"{server}/projects/{project['id']}/work", ".filter-menu", act, window_size=(1440, 900))
 
     assert result == {"covered": [], "filterRows": 1, "overlaps": 0}
 

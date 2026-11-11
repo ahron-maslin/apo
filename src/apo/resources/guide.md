@@ -308,19 +308,23 @@ The header shows the project's purpose under its name, and the gear next to it o
 - **Ready for an agent:** tasks and bugs nobody has claimed yet.
 - **In progress:** claimed tasks, and answers on their way to an agent.
 - **Waiting:** blocked on another item, or on someone outside.
-- **Done this week.**
+- **Done this week:** the latest five, with **Show all**.
+
+Above the list, one row: **Filed** / **Due** sorts it, **Filter** narrows it by owner, status or label, and the **overdue**, **due soon** and **stuck** counts show just those items when you click one. Each filter in use shows as a chip; click it to drop that filter.
+
+Each open row's **…** has the moves you rarely need: **Do this next**, **Move up** and **Move down**, snooze (for your own items), and **Cancel**, which closes it without doing it (you can undo it right after).
 
 Tick a row's box and a bar appears at the bottom of the list for every ticked row at once: snooze, reassign, set a due date, mark done or cancel.
 
 A **Do it** row (an action of yours) has its own **Done**, so something you've already done closes without opening it, and you stay on Work. `e` does the same for the row you've picked with `j`/`k`. If the action has a check, it runs first; if it fails, the item opens with why, and **Mark done anyway**.
 
-**New work** on the Work tab is the one way to add something to a project (`a` jumps to it). Pick who it's for:
+**New work** on the Work tab is the one way to add something to a project (`a` jumps to it). It opens on who it's for and what; **More** has the detail, screenshots, goal, folder, due date, labels and starting a session. Pick who it's for:
 
 - **An agent:** a READY task in the repo's `INDEX.md`, so the next session (or `/decisions`) picks it up.
-- **A bug** (`b`): what's wrong, and optionally what happened, what you expected, how to reproduce it and how bad it is. It's a task for the project's agents, labelled bug.
+- **A bug** (`b`, which also opens **More**): what's wrong, and optionally what happened, what you expected, how to reproduce it and how bad it is. It's a task for the project's agents, labelled bug.
 - **Me:** it lands on your Now.
 
-Any of them can go under one of the project's goals and have a due date. For an agent's task or a bug, tick **Start a background session on it now** to have one start straight away, with the project's permission level.
+Any of them can go under one of the project's goals and have a due date. On All projects, New work asks which project first. For an agent's task or a bug, tick **Start a background session on it now** to have one start straight away, with the project's permission level.
 
 When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** under **Manage** on its page, or `apo move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `apo pending --all`.
 

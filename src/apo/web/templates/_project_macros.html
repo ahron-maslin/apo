@@ -95,33 +95,42 @@
       {{ label_chips(i.labels, next) }}{{ note_count_badge(i.note_count) }}
       {% if i.summary and i.summary != i.title %}<div class="now-reason">{{ i.summary }}</div>{% endif %}
       {% if i.effort_text %}<div class="now-reason">Took {{ i.effort_text }}</div>{% endif %}
-      {% if ranking and i.state not in ("Done", "Partly done", "Cancelled") %}
-        <div class="rank-controls">
-          {% for direction, label in (("top", "Do this next"), ("up", "Move up"), ("down", "Move down")) %}
-            <form method="post" action="/items/{{ i.id }}/rank" class="inline-form" data-enhance="swap" data-swap-target='[data-live-region="work"]' data-loading-text="">
-              <input type="hidden" name="next" value="{{ next }}">
-              <button type="submit" class="btn btn--ghost btn--sm" name="direction" value="{{ direction }}" aria-label="{{ label }}: {{ i.title }}">{{ {"top": "Next", "up": "Up", "down": "Down"}[direction] }}</button>
-            </form>
-          {% endfor %}
-        </div>
-      {% endif %}
     </div>
-    {% if i.kind == "action" and i.state == "Do it" %}
-      <div class="work-row-end">
+    {% set open_row = i.state not in ("Done", "Partly done", "Cancelled") %}
+    <div class="work-row-end">
+      {% if i.kind == "action" and i.state == "Do it" %}
         <form method="post" action="/decisions/{{ i.id }}/answer" class="inline-form">
           <input type="hidden" name="choice" value="done"><input type="hidden" name="next" value="{{ next }}">
           <button type="submit" class="btn btn--secondary btn--sm" data-key-done aria-label="Done: {{ i.title }}">{{ icon("check") }}Done</button>
         </form>
-        {% if i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
-      </div>
-    {% elif i.kind == "task" and i.state in ("Claimed", "Partly done") %}
-      <div class="work-row-end">
-        <form method="post" action="/items/{{ i.id }}/retry" class="inline-form">
-          <input type="hidden" name="next" value="{{ next }}">
-          <button type="submit" class="btn btn--secondary btn--sm" aria-label="Retry: {{ i.title }}">Retry</button>
-        </form>
-        {% if i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
-      </div>
-    {% elif i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
+      {% endif %}
+      {% if i.since %}<span class="muted">{{ i.since | ago }}</span>{% endif %}
+      {% if open_row %}
+        <details class="row-more menu disclosure">
+          <summary class="btn btn--ghost btn--sm" aria-label="More for #{{ i.id }}">…</summary>
+          <div class="menu-pop">
+            {% if ranking %}
+              {% for direction, label in (("top", "Do this next"), ("up", "Move up"), ("down", "Move down")) %}
+                <form method="post" action="/items/{{ i.id }}/rank" class="inline-form" data-enhance="swap" data-swap-target='[data-live-region="work"]' data-loading-text="">
+                  <input type="hidden" name="next" value="{{ next }}">
+                  <button type="submit" class="btn btn--ghost btn--sm" name="direction" value="{{ direction }}" aria-label="{{ label }}: {{ i.title }}">{{ label }}</button>
+                </form>
+              {% endfor %}
+            {% endif %}
+            {% if i.owner == "you" %}
+              <form method="post" action="/decisions/{{ i.id }}/snooze" class="inline-form">
+                <input type="hidden" name="next" value="{{ next }}">
+                <button type="submit" name="preset" value="tomorrow" class="btn btn--ghost btn--sm">{{ icon("clock") }}Snooze till tomorrow</button>
+                <button type="submit" name="preset" value="week" class="btn btn--ghost btn--sm">{{ icon("clock") }}Snooze a week</button>
+              </form>
+            {% endif %}
+            <form method="post" action="/items/{{ i.id }}/cancel" class="inline-form">
+              <input type="hidden" name="next" value="{{ next }}">
+              <button type="submit" class="btn btn--ghost btn--sm" title="Not wanted any more. You can undo it right after.">{{ icon("x") }}Cancel: close without doing it</button>
+            </form>
+          </div>
+        </details>
+      {% endif %}
+    </div>
   </li>
 {%- endmacro %}

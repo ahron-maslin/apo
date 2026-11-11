@@ -1,0 +1,44 @@
+{#
+  The Work list, for one project or all of them (show_project): one toolbar row (sort,
+  the Filter menu, the overdue / due soon / stuck counts that filter), the filters in use
+  as chips, then the groups. Done this week shows its latest five.
+#}
+{% from "_macros.html" import due_buckets, icon %}
+{% from "_project_macros.html" import work_row, filter_bar %}
+{% set groups = [("needs_you", "Needs you", "warning"), ("ready", "Ready for an agent", "neutral"),
+                 ("in_progress", "In progress", "info"), ("waiting", "Waiting", "neutral"), ("done", "Done this week", "success")] %}
+<div class="work-toolbar">
+  <div class="sort-toggle" role="group" aria-label="Sort">
+    <a href="{{ sort_links.filed }}"{% if sort != "due" %} aria-current="true"{% endif %}>Filed</a>
+    <a href="{{ sort_links.due }}"{% if sort == "due" %} aria-current="true"{% endif %}>Due</a>
+  </div>
+  <details class="menu filter-menu disclosure">
+    <summary class="btn btn--ghost btn--sm">Filter{% if filter_chips %} <span class="count-chip">{{ filter_chips | length }}</span>{% endif %}</summary>
+    <div class="menu-pop filter-pop">{{ filter_bar(request.url.path, filters, filter_labels, filter_statuses, {"sort": sort, "due": due_param}) }}</div>
+  </details>
+  {{ due_buckets(work, request.url.path) }}
+</div>
+{% if filter_chips %}
+  <p class="filter-chips">{% for c in filter_chips %}<a class="badge filter-chip tone-neutral" href="{{ c.href }}" title="Remove this filter">{{ c.text }} {{ icon("x") }}</a>{% endfor %}</p>
+{% endif %}
+{% if not (work.needs_you or work.ready or work.in_progress or work.waiting or work.done) %}
+  <p class="hint">{% if filters.active %}Nothing matches this filter.{% elif show_project %}Nothing open in any project.{% else %}Nothing open. Add work, a bug or something for yourself with New work, or start a goal on the Overview.{% endif %}</p>
+{% endif %}
+{% for key, label, tone in groups %}{% if work[key] %}
+  {% set ranking = not show_project and sort != "due" and key != "done" %}
+  {% set rows = work[key] %}
+  <section class="section" aria-labelledby="work-{{ key }}">
+    <div class="section-head"><h2 class="section-title" id="work-{{ key }}">{{ label }} <span class="count-chip">{{ rows | length }}</span></h2></div>
+    <ul class="history-list surface project-queue work-list">
+      {% for i in (rows[:5] if key == "done" else rows) %}{{ work_row(i, tone, request.url.path, show_project=show_project, ranking=ranking) }}{% endfor %}
+    </ul>
+    {% if key == "done" and rows | length > 5 %}
+      <details class="show-all disclosure">
+        <summary>Show all {{ rows | length }}</summary>
+        <ul class="history-list surface project-queue work-list">
+          {% for i in rows[5:] %}{{ work_row(i, tone, request.url.path, show_project=show_project) }}{% endfor %}
+        </ul>
+      </details>
+    {% endif %}
+  </section>
+{% endif %}{% endfor %}

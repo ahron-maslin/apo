@@ -1248,6 +1248,24 @@ a.now-title:hover { text-decoration: underline; }
 .report-bug-row .input { width: auto; }
 .report-bug-now { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); }
 
+.work-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-4); }
+.work-toolbar .due-summary { margin: 0 0 0 auto; }
+.sort-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.sort-toggle a { padding: 4px 12px; font-size: var(--fs-sm); color: var(--text-2); text-decoration: none; }
+.sort-toggle a + a { border-left: 1px solid var(--border); }
+.sort-toggle a[aria-current] { background: var(--surface-2); color: var(--text); font-weight: 500; }
+.filter-menu .menu-pop { left: 0; right: auto; min-width: 300px; padding: var(--s-3); }
+.filter-pop .filter-bar { flex-direction: column; align-items: stretch; margin: 0; }
+.filter-pop .filter-field { justify-content: space-between; }
+.row-more .menu-pop { min-width: 220px; }
+.row-more .menu-pop form { display: flex; flex-direction: column; }
+.work-row-end { flex-wrap: nowrap; }
+.show-all > summary { cursor: pointer; font-size: var(--fs-sm); color: var(--text-2); margin: var(--s-2) 0; width: max-content; }
+.new-work-more > summary { cursor: pointer; font-size: var(--fs-sm); color: var(--text-2); display: flex; align-items: center; gap: var(--s-1); list-style: none; }
+.new-work-more > summary::-webkit-details-marker { display: none; }
+.new-work-more > summary .chev { transition: transform .15s; }
+.new-work-more[open] > summary .chev { transform: rotate(90deg); }
+.new-work-more-body { padding: var(--s-2) 0 0; }
 .kind-picker { display: flex; flex-wrap: wrap; gap: var(--s-3); border: 0; margin: 0; padding: 0; min-width: 0; }
 .kind-picker legend { padding: 0; margin-bottom: var(--s-1); width: 100%; }
 .kind-picker label { display: inline-flex; align-items: center; gap: var(--s-1); font-size: var(--fs-sm); cursor: pointer; }
@@ -1509,3 +1527,12 @@ form.settings-body { padding: 0; margin: 0; }
 .merge-more > summary { margin: var(--s-3) 0 var(--s-2); color: var(--text-2); }
 .merge-result { margin-top: var(--s-3); }
 @media (max-width: 640px) { .merge-item { flex-direction: column; } }
+
+/* Work rows on a phone: the state sits above the title instead of taking a column. */
+@media (max-width: 600px) {
+  .history-item.has-check { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .history-item.has-check > .bulk-check { grid-row: span 2; }
+  .history-item.has-check > .state-badge { grid-column: 2; grid-row: 1; justify-self: start; max-width: 100%; }
+  .history-item.has-check > div:not(.work-row-end) { grid-column: 2 / 4; grid-row: 2; }
+  .history-item.has-check > .work-row-end { grid-column: 3; grid-row: 1; }
+}
