@@ -1,6 +1,6 @@
 {% extends "projects_shell.html" %}
 {% from "_project_macros.html" import work_row, filter_bar, label_chips %}
-{% from "_bulk.html" import bulk_bar, views_panel %}
+{% from "_bulk.html" import bulk_bar, bulk_flash %}
 {% from "_macros.html" import due_buckets %}
 
 {% set groups = [("needs_you", "Needs you", "warning"), ("ready", "Ready for an agent", "neutral"),
@@ -9,8 +9,7 @@
 {% block tab %}
 <div class="detail-layout">
   <div class="project-main" data-live-region="work" data-keylist>
-    {{ bulk_bar(request) }}
-    {{ views_panel(request) }}
+    {{ bulk_flash(request) }}
     {{ due_buckets(work, "#work-overdue") }}
     {{ filter_bar(request.url.path, filters, filter_labels, filter_statuses, {"sort": sort}, "?sort=due" if sort == "due" else "") }}
     {% set fq = ('label=' ~ (filters.label | urlencode) ~ '&owner=' ~ filters.owner ~ '&status=' ~ filters.status) if filters.active else '' %}
@@ -35,6 +34,7 @@
         </ul>
       </section>
     {% endif %}{% endfor %}
+    {{ bulk_bar(request) }}
   </div>
 
   <aside class="detail-aside project-aside">

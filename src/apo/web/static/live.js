@@ -8,6 +8,7 @@
   function busy(region) {
     var active = document.activeElement;
     if (active && region.contains(active) && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName)) return true;
+    if (region.querySelector('input[name="ids"]:checked')) return true;
     return Array.from(region.querySelectorAll("textarea, input[type=text]")).some(function (f) { return f.value; });
   }
 

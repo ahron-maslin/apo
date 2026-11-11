@@ -56,6 +56,12 @@
       return { label: "Report a bug to " + project.name + ": " + bugTitle,
                run: { method: "post", action: "/projects/" + project.id + "/items", fields: { kind: "bug", title: bugTitle } } };
     }
+    if (first === "view" && words.length > 1) {
+      var viewName = words.slice(1).join(" ");
+      return { label: "Save this page as the view “" + viewName + "”",
+               run: { method: "post", action: "/views",
+                      fields: { name: viewName, path: location.pathname, query: location.search.replace(/^\?/, "") } } };
+    }
     if (first === "accept" && (words[1] || "").toLowerCase() === "all") {
       return { label: "Review sure, reversible recommendations to accept in bulk", run: { href: "/accept" } };
     }

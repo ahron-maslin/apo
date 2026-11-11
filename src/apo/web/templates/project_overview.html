@@ -1,6 +1,6 @@
 {% extends "projects_shell.html" %}
 {% from "_macros.html" import icon, ref, linear_badge, due_badge, due_buckets, burnup, stall_warning, goal_achieve %}
-{% from "_project_macros.html" import status_labels, status_buttons %}
+{% from "_project_macros.html" import status_labels %}
 
 {% set autonomy_labels = {"ask": "Ask first", "edits": "Accept file edits", "plan": "Plan only"} %}
 {% set autonomy_hints = {"ask": "Agents stop and ask before every edit and command, as a claude you open yourself would.", "edits": "File edits go through; commands still ask.", "plan": "Agents read and plan, and change nothing."} %}
@@ -32,11 +32,9 @@
       </details>
     </section>
 
-    <div class="report-actions" aria-label="Status to paste">{{ status_buttons("/projects/" ~ p.id ~ "/status") }}</div>
-
     <section class="section" aria-labelledby="goals-heading">
       <div class="section-head"><h2 class="section-title" id="goals-heading">Goals</h2></div>
-      <p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else. A project can have several, one after another.</p>
+      {% if not outcomes %}<p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else. A project can have several, one after another.</p>{% endif %}
       {% if outcomes %}
         <div class="outcome-list">
           {% for o in outcomes %}
@@ -75,9 +73,9 @@
           </form>
         </details>
       {% endif %}
+      {% if linear_goals.on or linear_goals.connected %}
       <div class="surface linear-goals" id="linear-goals">
         <h3>Goals from Linear</h3>
-        {% if linear_goals.on or linear_goals.connected %}
           <p>{% if linear_goals.on %}On.{% else %}Off.{% endif %} A new issue you create in the Linear project “{{ linear_goals.project_name }}” becomes a goal here, and its sub-issues become its steps. Steps you add here become sub-issues.</p>
           {% if linear_goals.on and not linear_goals.connected %}<p class="muted">Linear isn't connected or its sync is off in <a href="/settings">Settings</a>, so nothing comes in until it's back.</p>{% endif %}
           <form method="post" action="/projects/{{ p.id }}/linear-goals">
@@ -98,10 +96,8 @@
           {% elif linear_goals.connected %}
             <p><a href="/projects/{{ p.id }}?choose_linear=1#linear-goals">Choose another Linear project</a></p>
           {% endif %}
-        {% else %}
-          <p class="muted">Connect Linear in <a href="/settings">Settings</a> to turn issues filed there into goals here.</p>
-        {% endif %}
       </div>
+      {% endif %}
     </section>
 
     <section class="section" aria-labelledby="needs-heading">
@@ -133,8 +129,9 @@
       </div>
     </section>
 
+    {% set repos = ready_to_merge | selectattr("branches") | list %}
+    {% if repos or merged or merge_error or (ready_to_merge | selectattr("blocked") | list) %}
     <section class="section" id="ready-to-merge" aria-labelledby="merge-heading">
-      {% set repos = ready_to_merge | selectattr("branches") | list %}
       <div class="section-head">
         <h2 class="section-title" id="merge-heading">Ready to merge</h2>
         <span class="hint">Branches with work their main branch doesn't have yet</span>
@@ -168,10 +165,9 @@
           {% endfor %}
         </ul>
         {% if r.branches | length > 8 %}</details>{% endif %}
-      {% else %}
-        <p class="hint">Nothing waiting to be merged.</p>
       {% endfor %}
     </section>
+    {% endif %}
 
     <section class="section" id="rules" aria-labelledby="agents-here-heading">
       <div class="section-head"><h2 class="section-title" id="agents-here-heading">How agents work here</h2></div>

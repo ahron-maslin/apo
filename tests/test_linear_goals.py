@@ -1067,12 +1067,12 @@ def test_the_project_page_turns_goals_from_linear_on_and_off(client, acme, confi
     assert "Turn on" in client.get(f"/projects/{acme['id']}").text
 
 
-def test_the_project_page_says_to_connect_linear_first(client, acme):
+def test_without_linear_the_project_page_leaves_goals_from_linear_out(client, acme):
     db.set_linear_goals(db.get_connection(), acme["id"], False)
 
     page = client.get(f"/projects/{acme['id']}").text
 
-    assert "Connect Linear" in page and 'action="/projects/%d/linear-goals"' % acme["id"] not in page
+    assert 'id="linear-goals"' not in page and 'action="/projects/%d/linear-goals"' % acme["id"] not in page
 
 
 def test_a_project_left_on_while_linear_is_disconnected_can_still_be_turned_off(client, acme):

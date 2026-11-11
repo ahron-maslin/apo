@@ -68,6 +68,7 @@ def test_saving_status_and_priority_together(client, acme):
 
 
 def test_goals_from_linear_sit_with_the_goals(client, acme):
+    db.set_linear_goals(db.get_connection(), acme["id"], True)
     section = _section(client.get(f"/projects/{acme['id']}").text, "goals-heading")
 
     assert 'id="linear-goals"' in section

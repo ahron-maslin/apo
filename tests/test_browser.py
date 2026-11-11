@@ -326,6 +326,7 @@ def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
     db.add_step(conn, outcome_id, "Store review", owner="external", waiting_on="App store review for version 2")
 
     async def act(js):
+        await js("document.querySelector('.bulk-check').click()")
         return await js("""(() => {
           const topmost = el => { const r = el.getBoundingClientRect();
             return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); };
@@ -342,6 +343,43 @@ def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
     result = _in_browser(f"{server}/projects/{project['id']}/work", ".filter-bar", act, window_size=(1440, 900))
 
     assert result == {"covered": [], "filterRows": 1, "overlaps": 0}
+
+
+def test_the_bulk_bar_shows_while_rows_are_ticked(server, tmp_path):
+    conn = db.get_connection()
+    project = _project(conn, tmp_path)
+    db.add_work(conn, project["id"], "me", "Renew the domain")
+    db.add_work(conn, project["id"], "me", "Call the bank")
+
+    async def act(js):
+        state = "(() => { const w = document.querySelector('[data-bulk]'); return [w.hidden, w.open, w.querySelector('[data-bulk-count]').textContent]; })()"
+        seen = [await js(state)]
+        await js("document.querySelectorAll('.bulk-check')[1].click()")
+        seen.append(await js(state))
+        await js("document.querySelector('[data-bulk-clear]').click()")
+        seen.append(await js(state))
+        return seen
+
+    seen = _in_browser(f"{server}/projects/{project['id']}/work", "[data-bulk]", act)
+
+    assert [s[:2] for s in seen] == [[True, False], [False, True], [True, False]] and seen[1][2] == "1 selected"
+
+
+def test_the_palette_saves_the_page_as_a_view(server, tmp_path):
+    _project(db.get_connection(), tmp_path)
+
+    async def act(js):
+        await js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'k', ctrlKey: true, bubbles: true}))")
+        await asyncio.sleep(0.5)
+        await js("""(() => { const i = document.querySelector('[data-palette-input]'); i.value = 'view Mine first';
+                   i.dispatchEvent(new Event('input', {bubbles: true}));
+                   i.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); })()""")
+        await asyncio.sleep(2)
+
+    _in_browser(f"{server}/projects/work?owner=me", "[data-palette-input]", act)
+
+    assert [(v["name"], v["path"], v["query"]) for v in db.list_saved_views(db.get_connection())] == [
+        ("Mine first", "/projects/work", "owner=me")]
 
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 

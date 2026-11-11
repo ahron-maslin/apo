@@ -56,7 +56,7 @@
 
 <section class="section" id="goals" aria-labelledby="goals-heading">
   <div class="section-head"><h2 class="section-title" id="goals-heading">Goals</h2></div>
-  <p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else.</p>
+  {% if not outcomes %}<p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else.</p>{% endif %}
   {% if outcomes %}
     <div class="outcome-list">
       {% for o in outcomes %}

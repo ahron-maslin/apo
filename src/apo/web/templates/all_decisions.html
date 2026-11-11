@@ -1,6 +1,6 @@
 {% extends "projects_shell.html" %}
 {% from "_macros.html" import icon, ref %}
-{% from "_bulk.html" import bulk_bar, bulk_check, views_panel %}
+{% from "_bulk.html" import bulk_bar, bulk_flash, bulk_check %}
 
 {% set sources = {"dashboard": "you", "cli": "you (CLI)", "mcp": "you, in chat", "linear": "Linear", "archive": "closed on archive",
                   "human": "you", "agent": "an agent"} %}
@@ -10,8 +10,7 @@
   <div class="section-head"><h2 class="section-title" id="open-decisions">Waiting on you <span class="count-chip">{{ open_decisions | length }}</span></h2></div>
   <div data-live-region="open-decisions">
   {% if open_decisions %}
-    {{ bulk_bar(request) }}
-    {{ views_panel(request) }}
+    {{ bulk_flash(request) }}
     <ul class="history-list surface project-queue">
       {% for d in open_decisions %}
         <li class="history-item has-check">
@@ -24,6 +23,7 @@
         </li>
       {% endfor %}
     </ul>
+    {{ bulk_bar(request) }}
   {% else %}
     <p class="hint">Nothing to decide in any project right now.</p>
   {% endif %}

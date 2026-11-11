@@ -4,11 +4,18 @@
 #}
 {% from "_macros.html" import icon %}
 
-{% macro bulk_bar(request) -%}
+{% macro bulk_flash(request) -%}
   {% set flash = request.query_params.get("bulk") %}
   {% if flash %}<p class="hint bulk-flash" role="status">{{ flash }}</p>{% endif %}
+{%- endmacro %}
+
+{# Folded until a row is ticked (static/app.js shows it then); without script, a disclosure. #}
+{% macro bulk_bar(request) -%}
+  <details class="bulk-wrap" data-bulk>
+  <summary class="bulk-open">Select several…</summary>
   <form method="post" action="/bulk" id="bulk-form" class="bulk-bar surface" aria-label="Actions for the checked rows">
     <input type="hidden" name="next" value="{% set pq = page_query(request) %}{{ request.url.path }}{{ '?' ~ pq if pq else '' }}">
+    <strong class="bulk-count" data-bulk-count></strong>
     <label class="bulk-all"><input type="checkbox" data-select-all="#bulk-form"> Select all</label>
     <span class="bulk-group">
       <select class="input" name="preset" aria-label="Snooze until">
@@ -28,7 +35,9 @@
     </span>
     <button type="submit" class="btn btn--secondary btn--sm" name="action" value="done">{{ icon("check") }}Mark done</button>
     <button type="submit" class="btn btn--secondary btn--sm" name="action" value="cancel" data-confirm="Cancel every checked item? Each can still be undone from its own page right after.">Cancel</button>
+    <button type="button" class="btn btn--ghost btn--sm bulk-clear" data-bulk-clear aria-label="Clear the selection">{{ icon("x") }}</button>
   </form>
+  </details>
 {%- endmacro %}
 
 {% macro bulk_check(id) -%}

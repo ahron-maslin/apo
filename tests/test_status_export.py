@@ -96,7 +96,7 @@ def test_status_download_header(world, client):
 
 def test_report_and_overview_pages_offer_copy_and_download(world, client):
     pid = world["pid"]
-    for url in (f"/projects/{pid}", f"/projects/{pid}/report", "/projects/report"):
+    for url in (f"/projects/{pid}/report", "/projects/report"):
         html = client.get(url).text
         assert "Copy status" in html and "status.md" in html
 

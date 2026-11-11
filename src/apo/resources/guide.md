@@ -148,7 +148,7 @@ The page has lanes:
 - **Problems:** faults only you can recover from. A session that crashed mid-turn or stopped on an API error, Linear sync failing, two projects claiming one folder.
 - **Your move:** ranked by how blocked the agent is, times how long it has waited, divided by how long it'll take you. Each item shows its rough time (`~2m`).
 - **Asks:** requests whose agent is still working on other things meanwhile. Not urgent yet.
-- **In transit:** answered, on the way to an agent.
+- **In transit:** answered, on the way to an agent. It's folded into one line ("2 answers on their way to agents"); open it to see them.
 - **Review:** finished turns you haven't looked at.
 
 At the top:
@@ -211,7 +211,7 @@ When an agent closes an item or a task from the repo, the item says where the wo
 
 **Merge** on a finished item merges its branch (the one the agent named with `branch`, else the one it closed the item from) into the default branch. It's plain git, no agent: the page shows the exact command first. The merge happens in the checkout that has the default branch, which must have no uncommitted changes to tracked files; if the default branch isn't checked out anywhere, a fast-forward just moves it, and anything else merges in a temporary checkout that is removed afterwards. A conflict is backed out and the page names the files, so nothing is left half-merged. Nothing is pushed.
 
-**Ready to merge** on a project's Overview lists every local branch with commits its main branch doesn't have, newest first, each with how far ahead and behind it is, the worktree it's checked out in, the item it belongs to, and the files it would likely conflict in. Each has the same Merge button.
+**Ready to merge** on a project's Overview lists every local branch with commits its main branch doesn't have, newest first, each with how far ahead and behind it is, the worktree it's checked out in, the item it belongs to, and the files it would likely conflict in. Each has the same Merge button. The section only appears when something is waiting.
 
 ### Apply in background
 
@@ -310,6 +310,8 @@ A project's page is where you work on it. Its header shows the health dot and th
 - **Waiting:** blocked on another item, or on someone outside.
 - **Done this week.**
 
+Tick a row's box and a bar appears at the bottom of the list for every ticked row at once: snooze, reassign, set a due date, mark done or cancel. The Decisions tabs have it too.
+
 A **Do it** row (an action of yours) has its own **Done**, so something you've already done closes without opening it, and you stay on Work. `e` does the same for the row you've picked with `j`/`k`. If the action has a check, it runs first; if it fails, the item opens with why, and **Mark done anyway**.
 
 **New work** on the Work tab is the one way to add something to a project (`a` jumps to it). Pick who it's for:
@@ -370,7 +372,7 @@ Agents can create outcomes and steps too.
 
 You can plan a goal in Linear instead: create an issue and break it into sub-issues. apo turns the issue into a goal and its sub-issues into the goal's steps, and a step you add here becomes a sub-issue there.
 
-Turn it on per project, on the project's Overview: **Goals from Linear → Turn on**. It's off by default, because a step from Linear can be work for an agent. It needs Linear connected in Settings, with sync on.
+Turn it on per project, on the project's Overview: **Goals from Linear → Turn on** (it shows there once Linear is connected). It's off by default, because a step from Linear can be work for an agent. It needs Linear connected in Settings, with sync on.
 
 - **Which Linear project:** the one with the same name as the apo project, which is where its agents' decisions already go (if it doesn't exist yet, create it in Linear). To use another one, choose **Choose another Linear project** in the same panel and pick from your team's projects. The import then starts again from that moment. Once found, the project is remembered, so renaming the project here doesn't lose it. apo remembers which Linear workspace you connected. Reconnecting to the same workspace, even after a disconnect, keeps everything. Connecting to a different workspace changes four things, since the old workspace's projects and issues don't exist there: every project forgets its Linear project and falls back to the one with its name in the new workspace; the import restarts from that moment, as turning the switch on does, so nothing older in the new workspace comes in; goals imported from the old workspace, and agents' requests already pushed there, are unlinked, so they stay here with their steps and answers but stop syncing (an unlinked request isn't pushed again); and each affected project's Activity says how many goals and requests were unlinked. The switch stays on or off as it was. Decisions still go to the Linear project with the project's current name.
 - **Which issues:** only ones you created, with the Linear account apo connects as. Issues and sub-issues a teammate or an integration creates never come in, because an imported step can be work for an agent. apo also skips:
@@ -438,6 +440,7 @@ You get one reminder after 4 hours, then it only ranks. Handling a move clears i
 | `accept all` | Open Accept in bulk |
 | `plan 5` / `round` | Lightning round: 5 minutes / everything |
 | `search stripe webhook` | Search |
+| `view Mine first` | Save this page, with its filters and sort, as a view the palette lists |
 | `bug acme Login button does nothing` | Report a bug to a project |
 | `go projects` | Go to a page |
 | `seen` | Mark "Since you were away" seen |

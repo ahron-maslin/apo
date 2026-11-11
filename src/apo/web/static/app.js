@@ -694,6 +694,31 @@
     document.querySelectorAll('input[name="ids"][form="' + id + '"]').forEach(function (row) { row.checked = box.checked; });
   });
 
+  // The bulk bar stays out of the way until a row is ticked, then says how many.
+  function syncBulk() {
+    document.querySelectorAll("[data-bulk]").forEach(function (wrap) {
+      var form = wrap.querySelector("form");
+      if (!form) return;
+      var n = document.querySelectorAll('input[name="ids"][form="' + form.id + '"]:checked').length;
+      wrap.classList.add("is-scripted");
+      wrap.hidden = n === 0;
+      wrap.open = n > 0;
+      var count = wrap.querySelector("[data-bulk-count]");
+      if (count) count.textContent = n + " selected";
+    });
+  }
+  document.addEventListener("change", function (event) {
+    if (event.target.matches && event.target.matches('input[name="ids"], [data-select-all]')) syncBulk();
+  });
+  document.addEventListener("click", function (event) {
+    var clear = event.target.closest && event.target.closest("[data-bulk-clear]");
+    if (!clear) return;
+    var id = clear.closest("form").id;
+    document.querySelectorAll('input[name="ids"][form="' + id + '"], [data-select-all="#' + id + '"]').forEach(function (b) { b.checked = false; });
+    syncBulk();
+  });
+  document.addEventListener("app:enhance", syncBulk);
+
   // --- Lightbox for attachment thumbnails ---
 
   var lightbox = null;

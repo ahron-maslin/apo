@@ -1421,6 +1421,12 @@ a.now-title:hover { text-decoration: underline; }
 .page-desc .project-folder { display: inline-block; max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .bulk-check { margin-top: 4px; }
 .bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); margin-bottom: var(--s-4); }
+.bulk-wrap { margin-top: var(--s-4); }
+.bulk-wrap > summary { cursor: pointer; font-size: var(--fs-sm); color: var(--text-2); width: max-content; }
+.bulk-wrap.is-scripted { position: sticky; bottom: var(--s-3); z-index: 5; margin-top: var(--s-3); }
+.bulk-wrap.is-scripted > summary { display: none; }
+.bulk-wrap.is-scripted .bulk-bar { margin-bottom: 0; box-shadow: var(--shadow-lg, 0 8px 24px rgb(0 0 0 / .14)); }
+.bulk-count:empty { display: none; }
 .bulk-group { display: inline-flex; gap: var(--s-2); align-items: center; }
 .bulk-bar .input { flex: none; min-width: 0; }
 .bulk-flash { font-weight: 600; }

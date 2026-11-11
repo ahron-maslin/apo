@@ -135,8 +135,6 @@ def test_view_routes_and_palette(client, db_path):
                     follow_redirects=False)
     assert r.status_code == 303
     assert r.headers["location"] == "/search?q=bug&status=open"
-    html = client.get("/search").text
-    assert "Open bugs" in html and "/search?q=bug&amp;status=open" in html
     views = client.get("/api/palette").json()["views"]
     assert views == [{"id": 1, "name": "Open bugs", "href": "/search?q=bug&status=open"}]
     assert client.post("/views/1/delete", follow_redirects=False).status_code == 303

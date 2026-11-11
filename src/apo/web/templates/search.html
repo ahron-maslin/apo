@@ -52,8 +52,6 @@
     </div>
   </form>
 
-  {% from "_bulk.html" import views_panel %}
-  {{ views_panel(request) }}
 
   {% if error %}<p class="hint tone-danger" role="alert">{{ error }} (dates are YYYY-MM-DD)</p>{% endif %}
 

@@ -296,12 +296,10 @@ def test_the_project_page_lists_branches_ready_to_merge(client, acme):
     assert 'action="/projects/%d/branches/merge"' % project["id"] in section
 
 
-def test_the_section_says_when_nothing_is_waiting(client, acme):
+def test_the_section_stays_away_when_nothing_is_waiting(client, acme):
     project, _, _ = acme
 
-    section = _section(client.get(f"/projects/{project['id']}").text)
-
-    assert "Nothing waiting to be merged" in section
+    assert 'id="ready-to-merge"' not in client.get(f"/projects/{project['id']}").text
 
 
 def test_merge_from_the_project_page(client, acme):

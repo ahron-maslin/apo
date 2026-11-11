@@ -111,7 +111,16 @@
     </section>
   {% endif %}
 
-  {% for lane, heading, hint, glyph in lanes %}{% set items = q[lane] %}{% if items %}
+  {% for lane, heading, hint, glyph in lanes %}{% set items = q[lane] %}{% if items and lane == "in_transit" %}
+  <details class="section now-lane lane-in_transit now-transit disclosure">
+    <summary>{{ icon("chevron-right", cls="chev") }}{{ items | length }} answer{{ "s" if items | length != 1 }} on {{ "their" if items | length != 1 else "its" }} way to {{ "agents" if items | length != 1 else "an agent" }}</summary>
+    <div class="now-list surface">
+      {% for item in items %}
+      {% include "_now_item.html" %}
+      {% endfor %}
+    </div>
+  </details>
+  {% elif items %}
   <section class="section now-lane lane-{{ lane }}" aria-labelledby="lane-{{ lane }}">
     <div class="section-head">
       <h2 class="section-title" id="lane-{{ lane }}">{{ heading }} <span class="count-chip">{{ items | length }}</span></h2>
@@ -152,10 +161,6 @@
     {% endcall %}
   {% endif %}
 
-  <p class="now-quiet">
-    {{ q.quiet.working }} working · {{ q.quiet.at_rest }} at rest ·
-    <a href="/projects/agents">All agents</a> · <a href="/projects/decisions">All decisions</a> · <a href="/projects/activity">Activity</a>
-  </p>
 </main>
 {% endblock %}
 
