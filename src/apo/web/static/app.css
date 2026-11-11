@@ -1490,6 +1490,11 @@ form.settings-body { padding: 0; margin: 0; }
 .saved-view-list li { display: inline-flex; align-items: center; gap: var(--s-1); }
 .saved-view-form { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
 .search-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); flex-basis: 100%; }
+.search-filters-fold { flex-basis: 100%; }
+.search-filters-fold > summary { width: max-content; }
+.search-filters-fold[open] > summary { margin-bottom: var(--s-2); }
+.filter-chips { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0 0 var(--s-4); }
+.filter-chip { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
 .search-filters .input { flex: none; min-width: 0; }
 
 /* Ready to merge */

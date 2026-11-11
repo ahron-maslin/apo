@@ -1,4 +1,6 @@
 """Bulk actions over several rows, saved views, and the Search filter bar."""
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -188,3 +190,17 @@ def test_search_page_filter_bar(client, db_path, tmp_path):
     assert "webhook alpha" in html
     assert "Nothing matches" in client.get("/search?q=stripe&status=resolved").text
     assert "YYYY-MM-DD" in client.get("/search?q=stripe&since=bad").text
+
+
+def test_search_filters_fold_until_one_is_set(client, db_path, tmp_path):
+    _file(db.get_connection(), tmp_path, title="Stripe webhook alpha")
+
+    plain = client.get("/search?q=stripe").text
+    fold = re.search(r'<details class="search-filters-fold[^"]*"([^>]*)>', plain)
+    assert fold and "open" not in fold.group(1)
+
+    filtered = client.get("/search?q=stripe&status=open&owner=me").text
+    assert re.search(r'<details class="search-filters-fold[^"]*"[^>]*\bopen\b', filtered)
+    chips = dict(re.findall(r'<a class="badge filter-chip[^"]*" href="([^"]+)"[^>]*>([^<]+)', filtered))
+    assert {v.strip(): k for k, v in chips.items()} == {
+        "Status: open": "/search?q=stripe&amp;owner=me", "Owner: Me": "/search?q=stripe&amp;status=open"}

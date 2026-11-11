@@ -1384,11 +1384,31 @@ async def search_page(request: Request, q: str = "", deep: int = 0, status: str 
         groups.setdefault(hit["kind"], []).append(hit)
     return templates.TemplateResponse(request, "search.html", {
         "active_nav": "search", "q": q, "deep": bool(deep), "groups": groups, "terms": db._search_terms(q),
-        "filters": filters, "filtered": filtered, "error": error,
+        "filters": filters, "filtered": filtered, "error": error, "filter_chips": _filter_chips(q, deep, filters),
         "filter_labels": db.known_labels(conn),
         "project_names": [r["name"] for r in conn.execute(
             "SELECT name FROM projects WHERE archived_at IS NULL ORDER BY name COLLATE NOCASE")],
     })
+
+
+SEARCH_FILTER_NAMES = {"status": "Status", "project": "Project", "owner": "Owner", "label": "Label",
+                       "since": "From", "until": "To"}
+OWNER_NAMES = {"me": "Me", "agent": "An agent", "external": "Someone else"}
+
+
+def _filter_chips(q: str, deep: int, filters: dict) -> list[dict]:
+    """One chip per filter in use; its link is the same search without it."""
+    base = {"q": q} if q else {}
+    if deep:
+        base["deep"] = "1"
+    chips = []
+    for name, label in SEARCH_FILTER_NAMES.items():
+        if not filters[name]:
+            continue
+        rest = {**base, **{k: v for k, v in filters.items() if v and k != name}}
+        shown = OWNER_NAMES.get(filters[name], filters[name]) if name == "owner" else filters[name].replace("_", " ")
+        chips.append({"text": f"{label}: {shown}", "href": "/search" + (f"?{urlencode(rest)}" if rest else "")})
+    return chips
 
 
 @app.post("/bulk")
