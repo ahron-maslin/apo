@@ -134,3 +134,16 @@
     </div>
   </li>
 {%- endmacro %}
+
+{# A row's … with Cancel: closes an open item without opening it, back on next. #}
+{% macro close_menu(item_id, next) -%}
+  <details class="row-more menu disclosure">
+    <summary class="btn btn--ghost btn--sm" aria-label="More for #{{ item_id }}">…</summary>
+    <div class="menu-pop">
+      <form method="post" action="/items/{{ item_id }}/cancel" class="inline-form">
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="btn btn--ghost btn--sm" title="Not wanted any more. You can undo it right after.">{{ icon("x") }}Cancel: close without doing it</button>
+      </form>
+    </div>
+  </details>
+{%- endmacro %}

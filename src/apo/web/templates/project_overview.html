@@ -1,6 +1,6 @@
 {% extends "projects_shell.html" %}
 {% from "_macros.html" import icon, ref, due_buckets, goal_card %}
-{% from "_project_macros.html" import status_labels %}
+{% from "_project_macros.html" import status_labels, close_menu %}
 
 {% set lane_labels = {"problems": "Problem", "your_move": "Your move", "asks": "Ask pending", "in_transit": "In transit", "review": "Review"} %}
 
@@ -51,7 +51,10 @@
                 {% else %}<a href="/projects/{{ p.id }}/agents">{{ item.title }}</a>{% endif %}
                 <div class="now-reason">{{ item.reason }}</div>
               </div>
-              {% if item.since %}<span class="muted">{{ item.since | ago }}</span>{% endif %}
+              <div class="work-row-end">
+                {% if item.since %}<span class="muted">{{ item.since | ago }}</span>{% endif %}
+                {% if item.decision and item.decision.status in ("open", "in_progress") %}{{ close_menu(item.decision.id, "/projects/" ~ p.id) }}{% endif %}
+              </div>
             </li>
           {% endfor %}
         </ul>

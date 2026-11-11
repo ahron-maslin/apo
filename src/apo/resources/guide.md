@@ -312,7 +312,7 @@ The header shows the project's purpose under its name, and the gear next to it o
 
 Above the list, one row: **Filed** / **Due** sorts it, **Filter** narrows it by owner, status or label, and the **overdue**, **due soon** and **stuck** counts show just those items when you click one. Each filter in use shows as a chip; click it to drop that filter.
 
-Each open row's **…** has the moves you rarely need: **Do this next**, **Move up** and **Move down**, snooze (for your own items), and **Cancel**, which closes it without doing it (you can undo it right after).
+Anywhere an open item is listed (Now, Work, Decisions, a project's Overview, Search), its **…** has **Cancel**, so you can close it without opening it. On Work, each open row's **…** also has the moves you rarely need: **Do this next**, **Move up** and **Move down**, and snooze (for your own items). Cancel closes an item without doing it, and you can undo it right after.
 
 Tick a row's box and a bar appears at the bottom of the list for every ticked row at once: snooze, reassign, set a due date, mark done or cancel.
 
@@ -368,7 +368,7 @@ The page recommends one. Fresh once the session carries 100k tokens or more, or 
 - A step that's blocked stays out of Now until what it waits on is done.
 - Agent steps become **tasks** in the repo's `INDEX.md`, so the next session (or `/decisions`) picks them up.
 - When every step is done, the outcome shows up in Review: **Mark achieved**, or add more steps.
-- Each goal card on an Overview has its own **Achieved**, so a goal that's already true closes without opening it. If steps are still open it asks first, and those steps stay open.
+- Each goal card on an Overview has its own **Achieved**, so a goal that's already true closes without opening it. If steps are still open it asks first, and those steps stay open. Its **…** has **Drop**, which asks first because it cancels the goal's open steps.
 
 Agents can create outcomes and steps too.
 

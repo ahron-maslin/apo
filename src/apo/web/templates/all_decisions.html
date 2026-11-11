@@ -1,5 +1,6 @@
 {% extends "projects_shell.html" %}
 {% from "_macros.html" import icon, ref %}
+{% from "_project_macros.html" import close_menu %}
 
 {% set sources = {"dashboard": "you", "cli": "you (CLI)", "mcp": "you, in chat", "linear": "Linear", "archive": "closed on archive",
                   "human": "you", "agent": "an agent"} %}
@@ -31,6 +32,7 @@
               <a class="btn btn--secondary btn--sm" href="{{ d.href }}">Answer</a>
             {% endif %}
             <span class="muted">{{ d.since | ago }}</span>
+            {{ close_menu(d.id, request.url.path) }}
           </div>
         </li>
       {% endfor %}

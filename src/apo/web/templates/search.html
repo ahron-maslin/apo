@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import icon, empty_state %}
-{% from "_project_macros.html" import filter_bar, label_chips %}
+{% from "_project_macros.html" import filter_bar, label_chips, close_menu %}
 {% block title %}{% if q %}{{ q }} — {% endif %}Search — apo{% endblock %}
 {% block body_class %}page-search{% endblock %}
 
@@ -82,6 +82,7 @@
                   {% if h.project_name %}<span class="badge badge--square tone-neutral">{{ h.project_name }}</span>{% endif %}
                   <span class="badge tone-neutral">{{ h.subkind if h.kind == "item" else h.status }}{% if h.kind == "item" %} · {{ h.status }}{% endif %}</span>
                   {% if h.kind == "item" %}{{ label_chips(h.labels, "/search") }}{% endif %}
+                  {% if h.kind == "item" and h.status in ("open", "in_progress") %}<span class="search-hit-end">{{ close_menu(h.ref, request.url.path ~ ("?" ~ request.url.query if request.url.query else "")) }}</span>{% endif %}
                 </div>
                 {% if h.snippet %}<p class="search-snippet">{{ h.snippet | highlight(terms) }}</p>{% endif %}
                 {% if h.resume_command and h.status == "ended" %}

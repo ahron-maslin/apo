@@ -393,6 +393,24 @@ def test_a_link_to_an_items_notes_opens_them(server, tmp_path):
 
     assert _in_browser(f"{server}/decisions/{item}#notes", "#notes", act) is True
 
+
+def test_a_goal_cards_menu_opens_over_the_card_link(server, tmp_path):
+    conn = db.get_connection()
+    project = _project(conn, tmp_path)
+    db.create_outcome(conn, project["id"], "Launch the site")
+
+    async def act(js):
+        on_top = await js("(() => { const s = document.querySelector('.outcome-card .row-more > summary'); s.scrollIntoView({block: 'center'});"
+                          " const r = s.getBoundingClientRect();"
+                          " return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2).closest('summary') === s; })()")
+        await js("document.querySelector('.outcome-card .row-more > summary').click()")
+        await asyncio.sleep(0.3)
+        drop = await js("(() => { const b = [...document.querySelectorAll('.outcome-card .row-more button')].find(b => b.textContent.includes('Drop'));"
+                        " const r = b.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2).closest('button') === b; })()")
+        return on_top, drop, await js("location.pathname")
+
+    assert _in_browser(f"{server}/projects/{project['id']}", ".outcome-card", act) == (True, True, f"/projects/{project['id']}")
+
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 
 

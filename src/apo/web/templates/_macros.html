@@ -102,6 +102,16 @@
       {% elif not pr.total %}<span class="outcome-next muted">No steps yet</span>
       {% else %}<span class="outcome-next"></span>{% endif %}
       {{ goal_achieve(o, pr, next) }}
+      <details class="row-more menu disclosure outcome-card-action">
+        <summary class="btn btn--ghost btn--sm" aria-label="More for {{ o.title }}">…</summary>
+        <div class="menu-pop">
+          <form method="post" action="/outcomes/{{ o.id }}/status" class="inline-form"
+                data-confirm="Drop “{{ o.title }}”? Its open steps are cancelled{% if o.linear_url %}, and so is {{ o.linear_identifier }} in Linear{% endif %}.">
+            <input type="hidden" name="status" value="dropped"><input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn btn--ghost btn--sm">{{ icon("x") }}Drop this goal</button>
+          </form>
+        </div>
+      </details>
     </div>
   </div>
 {%- endmacro %}

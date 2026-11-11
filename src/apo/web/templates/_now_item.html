@@ -4,7 +4,7 @@
   lightning round).
 #}
 {% from "_macros.html" import icon, ref, due_badge, stuck_badge %}
-{% from "_project_macros.html" import note_count_badge %}
+{% from "_project_macros.html" import note_count_badge, close_menu %}
 {% set item_next = item_next or "/" %}
 <article class="now-row kind-{{ item.kind }}" data-key="{{ item.key }}" data-now-row>
   <span class="now-glyph" aria-hidden="true">{{ glyph }}</span>
@@ -66,7 +66,7 @@
             {% endif %}
           </form>
         </details>
-        <details class="now-more menu disclosure">
+        <details class="now-more row-more menu disclosure">
           <summary class="btn btn--ghost btn--sm" aria-label="More for #{{ item.decision.id }}">…</summary>
           <div class="menu-pop">
             <form method="post" action="/items/{{ item.decision.id }}/cancel" class="inline-form">
@@ -136,6 +136,9 @@
         {% if item.decision.needs_approval %}<input type="hidden" name="approved" value="1">{% endif %}
         <button type="submit" class="btn btn--primary btn--sm" data-now-primary>{{ icon("zap") }}{{ "Approve and apply in background" if item.decision.needs_approval else "Apply in background" }}</button>
       </form>
+    {% endif %}
+    {% if item.decision and item.decision.status in ("open", "in_progress") and not (item.kind in ("decision", "action") and lane in ("your_move", "asks")) %}
+      <div class="now-actions">{{ close_menu(item.decision.id, item_next) }}</div>
     {% endif %}
     {% if item.resume_command %}
       <div class="now-actions">
