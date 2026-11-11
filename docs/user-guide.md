@@ -62,7 +62,7 @@ For work that doesn't need you at the keyboard, add it under **New work** on the
 
 ### 4. Answer from Now
 
-- Most items are one click. With a few minutes free, **I have 5 min** runs a lightning round.
+- Most items are one click: a decision's **Accept** button carries the agent's suggestion and how sure it is. With a few minutes free, `t` runs a 5-minute lightning round.
 - For an action: do the thing, then press **Done**. If it has a check, the check runs first.
 - **Snooze** what can wait.
 - Answer each item in **one** place. If you settle something in a chat with the agent, the agent records it with `answer_decision_request`, so the dashboard and the repo stay in step.
@@ -85,7 +85,7 @@ The **Review** lane holds turns that finished while you weren't looking. Read th
 
 - **Weekly report** (Projects → Weekly report, or a project's Overview): per project, what got done and decided, what's blocked on you or overdue, how long agents waited on you, and commits. **Copy as Markdown** for a status update, or **Print**.
 - **Projects:** anything red or amber, anything dormant you meant to keep going.
-- **Time in your court** on Now: are agents waiting on you more than they should?
+- **Time in your court** (the weekly report, or hover Now's summary line): are agents waiting on you more than they should?
 - **Activity** for what happened.
 
 ### Usage limits
@@ -106,11 +106,11 @@ If you closed it in the meantime, it shows in Your move with:
 ## The daily loop
 
 1. **Open Now** (`/`, or `g` then `n`). It's everything that needs you, across all projects, best move first.
-2. **Clear what you can.** Most items are one click: accept the agent's recommendation, pick an option, or mark an action done. With a few minutes free, press **I have 5 min** (or `t`) for a lightning round.
+2. **Clear what you can.** Most items are one click: accept the agent's recommendation, pick an option, or mark an action done. With a few minutes free, press `t` (or **…** → Lightning round) for a lightning round.
 3. **Check Review** for turns that finished while you weren't looking. Prompt that session, or press **Reviewed**.
 4. **Leave.** Turn on notifications in Settings and apo tells you when something has waited long enough to matter, within a daily budget.
 
-When you come back after 30 minutes or more, Now opens with **Since you were away**: what was filed, answered and finished, and each project's latest recap. **Mark seen** clears it.
+When you come back after 30 minutes or more, Now opens with a **Since you were away** line: what was filed, answered and finished, and what's overdue or stuck. Open it for each project's latest recap. **Mark seen** clears it.
 
 ## What's in it
 
@@ -153,8 +153,10 @@ The page has lanes:
 
 At the top:
 
-- **The summary line:** how many items are waiting on you and roughly how long they'll take.
-- **Time in your court:** how long agents waited on you today (added up across items), your median answer time this week, and the oldest move you're holding.
+- **The summary line:** how many items are waiting on you and roughly how long they'll take. Hover it for **time in your court**: how long agents waited on you today (added up across items), your median answer time this week, and the oldest move you're holding.
+- **…** next to it: the lightning round (`t`) and Accept in bulk (`b`).
+
+Each move shows its project, title, age and rough time on one line, with notes, due dates and "stuck" badges beside them, then the reason in two lines. A decision's **Accept** button says what you're accepting. **…** on the row has **Cancel**, which closes it without doing it (you can undo it right after). An answer nothing will pick up has **Copy resume command** (`c`).
 
 The list doesn't reshuffle under your pointer. New things show as an **Updates** pill; press `r` to apply them.
 
@@ -226,7 +228,7 @@ Only answers you gave here, from the CLI, or in chat start a session with one cl
 
 ## Lightning round
 
-**I have 2 / 5 / 15 min** (or `t` for 5) fills that much time with your moves: the most valuable per minute first. It always includes at least one item.
+**Lightning round** (`t` on Now, or **…** → Lightning round, for 5 minutes; `plan 2`, `plan 15` or `round` in the palette for other lengths) fills that much time with your moves: the most valuable per minute first. It always includes at least one item.
 
 The round shows one card at a time:
 
@@ -244,7 +246,7 @@ The plan is fixed when the round starts. Answering doesn't pull new items into t
 
 ## Accept in bulk
 
-When agents are sure, you shouldn't have to click through each one. **Accept in bulk** (`b` on Now, or `accept all` in the palette) lists the open decisions where:
+When agents are sure, you shouldn't have to click through each one. **Accept in bulk** (`b` on Now, **…** → Accept in bulk, or `accept all` in the palette) lists the open decisions where:
 
 - the agent is at least 85% sure, and
 - it marked its pick as **easy to reverse**.

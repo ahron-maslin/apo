@@ -128,10 +128,12 @@ def test_pages_show_the_badges_and_sort(acme):
     _age(conn, item, db.STUCK_ITEM_DAYS + 1)
     client = TestClient(__import__("apo.web.app", fromlist=["app"]).app)
 
-    for url in (f"/projects/{project['id']}/work", "/projects/work", "/"):
+    for url, stuck in ((f"/projects/{project['id']}/work", f"Stuck for {db.STUCK_ITEM_DAYS + 1} days"),
+                       ("/projects/work", f"Stuck for {db.STUCK_ITEM_DAYS + 1} days"),
+                       ("/", f"Stuck {db.STUCK_ITEM_DAYS + 1}d")):
         text = client.get(url).text
         assert "Overdue" in text, url
-        assert f"Stuck for {db.STUCK_ITEM_DAYS + 1} days" in text, url
+        assert stuck in text, url
     overview = client.get(f"/projects/{project['id']}").text
     assert "1 overdue" in overview and "1 stuck" in overview
     assert client.get(f"/projects/{project['id']}/work?sort=due").status_code == 200

@@ -501,7 +501,7 @@ def test_white_text_on_the_accent_fill_is_readable_in_both_themes(server, tmp_pa
 
 FOCUSED_SHADOWS = """(async () => {
     const out = {};
-    for (const selector of ['.btn--primary', '.plan-bar .btn--secondary']) {
+    for (const selector of ['.btn--primary', '.work-row-end .btn--secondary']) {
         const el = document.querySelector(selector);
         el.focus();
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -521,7 +521,7 @@ def test_keyboard_focus_rings_filled_and_outlined_buttons(server, tmp_path):
     async def act(js):
         return await js(FOCUSED_SHADOWS)
 
-    for selector, (visible, shadow) in _in_browser(f"{server}/", ".plan-bar", act).items():
+    for selector, (visible, shadow) in _in_browser(f"{server}/projects/{project['id']}/work", ".work-row-end", act).items():
         assert visible, selector
         assert "0px 0px 0px 4px" in shadow, f"{selector}: {shadow}"
 
@@ -538,7 +538,7 @@ def test_the_now_page_fits_a_phone_screen(server, tmp_path):
     async def act(js):
         return await js("[innerWidth, document.documentElement.scrollWidth]")
 
-    width, scroll_width = _in_browser(f"{server}/", ".plan-bar-bulk", act, window_size=(360, 800))
+    width, scroll_width = _in_browser(f"{server}/", "[data-now-row]", act, window_size=(360, 800))
     assert width == 360
     assert scroll_width <= width
 

@@ -23,14 +23,17 @@
       {% endif %}
       </div>
       <span class="now-meta">
+        {%- if item.decision and item.decision.note_count %}{{ note_count_badge(item.decision.note_count) }}{% endif %}
+        {%- if item.due_bucket %}{{ due_badge(item.decision.due_on) }}{% endif %}
+        {%- if item.stuck %}<span class="badge tone-warning" title="{{ item.stuck.reason | capitalize }}">Stuck {{ item.stuck.days }}d</span>{% endif %}
         {%- if item.since %}<time datetime="{{ item.since }}">{{ item.since | ago }}</time>{% endif %}
         {%- if item.effort %} · ~{{ "30s" if item.effort < 1 else (item.effort | int) ~ "m" }}{% endif -%}
       </span>
     </div>
     <p class="now-reason">{{ item.reason }}</p>
-    {% if item.decision and item.decision.note_count %}<p class="now-due">{{ note_count_badge(item.decision.note_count) }}</p>{% endif %}
-    {% if item.due_bucket or item.stuck %}<p class="now-due">{{ due_badge(item.decision.due_on) }}{{ stuck_badge(item.stuck) }}</p>{% endif %}
-    {% if item.kind == "decision" and item.decision.recommendation %}
+    {#- In a lane with moves, the Accept button itself carries the suggestion. -#}
+    {% set suggestion_on_button = item.kind == "decision" and item.decision.recommendation and lane in ("your_move", "asks") and not item_open_answer %}
+    {% if item.kind == "decision" and item.decision.recommendation and not suggestion_on_button %}
       <p class="now-suggestion">{{ icon("bulb") }}<span><strong>Suggested:</strong> {{ item.decision.recommendation }}
         {%- if item.decision.confidence %} <span class="muted">· {{ item.decision.confidence }}% sure</span>{% endif %}</span></p>
     {% endif %}
@@ -41,7 +44,7 @@
         {% elif item.kind == "decision" and item.decision.recommendation %}
           <form method="post" action="/decisions/{{ item.decision.id }}/answer" class="inline-form">
             <input type="hidden" name="choice" value="recommendation"><input type="hidden" name="next" value="{{ item_next }}">
-            <button type="submit" class="btn btn--primary btn--sm" title="{{ item.decision.recommendation }}" data-now-primary>{{ icon("bulb") }}Accept recommendation</button>
+            <button type="submit" class="btn btn--primary btn--sm now-accept" title="Accept: {{ item.decision.recommendation }}" data-now-primary>{{ icon("bulb") }}<span class="now-accept-text">Accept: {{ item.decision.recommendation }}</span>{% if item.decision.confidence %}<span class="now-accept-sure">· {{ item.decision.confidence }}%</span>{% endif %}</button>
           </form>
         {% elif item.kind == "action" %}
           <form method="post" action="/decisions/{{ item.decision.id }}/answer" class="inline-form">
@@ -63,10 +66,15 @@
             {% endif %}
           </form>
         </details>
-        <form method="post" action="/items/{{ item.decision.id }}/cancel" class="inline-form">
-          <input type="hidden" name="next" value="{{ item_next }}">
-          <button type="submit" class="btn btn--ghost btn--sm" title="Not wanted any more. You can undo it right after.">{{ icon("x") }}Cancel</button>
-        </form>
+        <details class="now-more menu disclosure">
+          <summary class="btn btn--ghost btn--sm" aria-label="More for #{{ item.decision.id }}">…</summary>
+          <div class="menu-pop">
+            <form method="post" action="/items/{{ item.decision.id }}/cancel" class="inline-form">
+              <input type="hidden" name="next" value="{{ item_next }}">
+              <button type="submit" class="btn btn--ghost btn--sm" title="Not wanted any more. You can undo it right after.">{{ icon("x") }}Cancel: close without doing it</button>
+            </form>
+          </div>
+        </details>
         <details class="now-answer disclosure"{% if item_open_answer %} open{% endif %}>
           <summary{% if item_open_answer %} hidden{% endif %}>{{ icon("chevron-right", cls="chev") }}{{ "Answer…" if item.kind == "decision" else "Note or other answer…" }}</summary>
           {% set composer_decision_id = item.decision.id %}
@@ -130,9 +138,8 @@
       </form>
     {% endif %}
     {% if item.resume_command %}
-      <div class="copy-command">
-        <code>{{ item.resume_command }}</code>
-        <button type="button" class="btn btn--secondary btn--sm" data-copy="{{ item.resume_command }}">Copy</button>
+      <div class="now-actions">
+        <button type="button" class="btn btn--secondary btn--sm" data-copy="{{ item.resume_command }}" title="{{ item.resume_command }}">{{ icon("terminal") }}Copy resume command</button>
       </div>
     {% endif %}
   </div>

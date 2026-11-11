@@ -15,46 +15,31 @@
   <header class="page-header">
     <div>
       <h1>Now{% if filter_project %} <span class="filter-chip">{{ filter_project }} <a href="/" aria-label="Show every project">{{ icon("x") }}</a></span>{% endif %}</h1>
-      <p class="page-desc now-summary">
-        {%- if q.your_move %}{{ q.your_move | length }} waiting on you{% if q.your_move_minutes %} (~{{ q.your_move_minutes }} min){% endif %}{% else %}Nothing is waiting on you{% endif %}
-        {%- if q.problems %} · {{ q.problems | length }} problem{{ "s" if q.problems | length != 1 }}{% endif %}
-        {%- if q.asks %} · {{ q.asks | length }} ask{{ "s" if q.asks | length != 1 }} pending{% endif %}
-        {%- if q.in_transit %} · {{ q.in_transit | length }} in transit{% endif %}
-        {%- if q.review %} · {{ q.review | length }} to review{% endif %}
+      {#- How long agents waited on you is a weekly-review number: it rides along as the summary's tooltip. -#}
+      {%- set court_parts = [] -%}
+      {%- if court.waited_today_minutes %}{% set _ = court_parts.append("Agents waited " ~ (court.waited_today_minutes | hours) ~ " on you today across " ~ court.moves_waited_today ~ " move" ~ ("s" if court.moves_waited_today != 1 else "")) %}{% endif -%}
+      {%- if court.median_answer_minutes is not none %}{% set _ = court_parts.append("median answer " ~ (court.median_answer_minutes | duration) ~ " this week") %}{% endif -%}
+      {%- if court.oldest %}{% set _ = court_parts.append("oldest move you hold: " ~ court.oldest.hours ~ "h") %}{% endif %}
+      <p class="page-desc now-summary"{% if court_parts %} title="{{ court_parts | join(' · ') }}"{% endif %}>
+        {%- if q.your_move %}{{ q.your_move | length }} waiting on you{% if q.your_move_minutes %} · ~{{ q.your_move_minutes }} min{% endif %}{% else %}Nothing is waiting on you{% endif %}
         {%- if q.quiet.usage_limit %} · {{ q.quiet.usage_limit }} waiting for the usage limit to reset{% endif %}
-        · {{ q.quiet.working }} working
       </p>
     </div>
-    <button type="button" class="btn btn--secondary btn--sm updates-pill" data-updates hidden>
-      {{ icon("refresh") }}<span data-updates-label>Updates</span><kbd aria-hidden="true">r</kbd>
-    </button>
+    <div class="now-header-actions">
+      <button type="button" class="btn btn--secondary btn--sm updates-pill" data-updates hidden>
+        {{ icon("refresh") }}<span data-updates-label>Updates</span><kbd aria-hidden="true">r</kbd>
+      </button>
+      {% if q.your_move or bulk_count %}
+        <details class="now-more-menu menu disclosure">
+          <summary class="btn btn--ghost btn--sm" aria-label="More ways to clear your moves">…</summary>
+          <div class="menu-pop">
+            {% if q.your_move %}<a class="btn btn--ghost btn--sm" href="/round?minutes=5" data-hotkey="t">Lightning round, 5 minutes <kbd aria-hidden="true">t</kbd></a>{% endif %}
+            {% if bulk_count %}<a class="btn btn--ghost btn--sm" href="/accept" data-hotkey="b">Accept {{ bulk_count }} sure, reversible recommendation{{ "s" if bulk_count != 1 }} <kbd aria-hidden="true">b</kbd></a>{% endif %}
+          </div>
+        </details>
+      {% endif %}
+    </div>
   </header>
-
-  {% if court.waited_today_minutes or court.oldest or court.median_answer_minutes is not none %}
-    <p class="court-line">
-      {%- set parts = [] -%}
-      {%- if court.waited_today_minutes %}{% set _ = parts.append("Agents waited " ~ (court.waited_today_minutes | hours) ~ " on you today across " ~ court.moves_waited_today ~ " move" ~ ("s" if court.moves_waited_today != 1 else "")) %}{% endif -%}
-      {%- if court.median_answer_minutes is not none %}{% set _ = parts.append("median answer " ~ (court.median_answer_minutes | duration) ~ " this week") %}{% endif -%}
-      {{ parts | join(" · ") }}
-      {%- if court.oldest %}{% if parts %} · {% endif %}oldest move you hold: {{ court.oldest.hours }}h
-        (<a href="/decisions/{{ court.oldest.id }}">{{ court.oldest.title }}</a>){% endif %}
-    </p>
-  {% endif %}
-
-  {% if q.your_move or bulk_count %}
-    <nav class="plan-bar" aria-label="Clear your moves">
-      {% if q.your_move %}
-        <span class="plan-bar-label">I have</span>
-        <a class="btn btn--secondary btn--sm" href="/round?minutes=2">2 min</a>
-        <a class="btn btn--secondary btn--sm" href="/round?minutes=5" data-hotkey="t" title="t">5 min</a>
-        <a class="btn btn--secondary btn--sm" href="/round?minutes=15">15 min</a>
-        <a class="btn btn--ghost btn--sm" href="/round">All of it</a>
-      {% endif %}
-      {% if bulk_count %}
-        <a class="btn btn--ghost btn--sm plan-bar-bulk" href="/accept" data-hotkey="b" title="b">{{ icon("bulb") }}{{ bulk_count }} sure, reversible recommendation{{ "s" if bulk_count != 1 }} — accept in bulk</a>
-      {% endif %}
-    </nav>
-  {% endif %}
 
   {% macro away_counts(c) -%}
     {%- set parts = [] -%}
@@ -68,20 +53,18 @@
   {% if away %}
     {% set c = away.counts %}
     <section class="away surface" aria-labelledby="away-heading">
-      <div class="away-head">
-        <h2 id="away-heading">Since you were away{% if away.since_at %} <span class="muted">({{ away.since_at | ago }})</span>{% endif %}</h2>
-        <form method="post" action="/seen" class="inline-form">
-          <button type="submit" class="btn btn--secondary btn--sm">{{ icon("check") }}Mark seen</button>
-        </form>
-      </div>
-      <p class="away-counts">{{ away_counts(c) or "Nothing notable happened." }}</p>
-      {% if away.due and (away.due.overdue or away.due.due_soon or away.due.stuck) %}
-        <p class="away-due">{% set dp = [] %}
-          {%- if away.due.overdue %}{% set _ = dp.append(away.due.overdue ~ " overdue") %}{% endif -%}
-          {%- if away.due.due_soon %}{% set _ = dp.append(away.due.due_soon ~ " due soon") %}{% endif -%}
-          {%- if away.due.stuck %}{% set _ = dp.append(away.due.stuck ~ " stuck") %}{% endif -%}
-          <a href="/projects/work?sort=due">{{ dp | join(" · ") }}</a></p>
-      {% endif %}
+      <details class="away-fold">
+        <summary>
+          {{ icon("chevron-right", cls="chev") }}
+          <strong id="away-heading">Since you were away</strong>{% if away.since_at %} <span class="muted">{{ away.since_at | ago }}</span>{% endif %}
+          <span class="away-counts">{{ away_counts(c) or "Nothing notable happened" }}
+          {%- if away.due and (away.due.overdue or away.due.due_soon or away.due.stuck) %}{% set dp = [] %}
+            {%- if away.due.overdue %}{% set _ = dp.append(away.due.overdue ~ " overdue") %}{% endif -%}
+            {%- if away.due.due_soon %}{% set _ = dp.append(away.due.due_soon ~ " due soon") %}{% endif -%}
+            {%- if away.due.stuck %}{% set _ = dp.append(away.due.stuck ~ " stuck") %}{% endif %}
+            · <a href="/projects/work?sort=due">{{ dp | join(" · ") }}</a>
+          {%- endif %}</span>
+        </summary>
       {% if away.projects %}
       <div class="away-projects">
         {% for p in away.projects %}
@@ -108,6 +91,10 @@
         {% endfor %}
       </div>
       {% endif %}
+      </details>
+      <form method="post" action="/seen" class="inline-form away-seen">
+        <button type="submit" class="btn btn--secondary btn--sm">{{ icon("check") }}Mark seen</button>
+      </form>
     </section>
   {% endif %}
 

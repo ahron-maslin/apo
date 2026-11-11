@@ -96,8 +96,8 @@ def test_now_shows_the_recommendation_before_you_accept_it(client, acme):
 
     text = client.get("/").text
 
-    assert 'class="now-suggestion"' in text
-    assert "80% sure" in text
+    assert "Accept: Postgres — it&#39;s already running" in text or "Accept: Postgres — it's already running" in text
+    assert "· 80%" in text
 
 
 def test_the_round_card_has_one_accept_button(client, acme):
