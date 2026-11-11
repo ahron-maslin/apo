@@ -324,6 +324,15 @@ def _asset(name: str) -> str:
     return f"/static/{name}?v={cached[1]}"
 
 
+def _waiting_by_project(conn) -> dict[str, int]:
+    """Decisions and actions waiting on you in each project: what its Decisions tab counts."""
+    counts: dict[str, int] = {}
+    for i in db.project_work(conn, None)["needs_you"]:
+        if i["kind"] in ("decision", "action"):
+            counts[i["project_name"]] = counts.get(i["project_name"], 0) + 1
+    return counts
+
+
 def _visible_sessions(conn, **kwargs) -> list[dict]:
     return [s for s in db.list_sessions(conn, **kwargs) if not s["ghost"]]
 
@@ -584,14 +593,18 @@ def _all_context(conn, tab: str, **extra) -> dict:
     work = db.project_work(conn, None)
     if extra.get("sort") == "due":
         work = db.sort_work_by_due(work)
-    running = sum(1 for s in _visible_sessions(conn) if s["status"] != "ended")
+    live = [s for s in _visible_sessions(conn) if s["status"] != "ended"]
+    running = len(live)
+    busy = sum(1 for s in live if s["display_status"] == "running")
+    agents = [f"{busy} running"] if busy else []
+    if running - busy:
+        agents.append(f"{running - busy} idle or waiting")
     rail = _rail_context(conn, tab)
     count = len(rail["rail"])
     waiting = len(work["needs_you"])
     return {
         "active_nav": "projects", "tab": tab, "p": None, "work": work, "running": running,
-        "all_summary": f"{count} project{'s' if count != 1 else ''} · {waiting} waiting on you · "
-                       f"{running} agent{'s' if running != 1 else ''} running",
+        "all_summary": " · ".join([f"{count} project{'s' if count != 1 else ''}", f"{waiting} waiting on you", *agents]),
         "tab_counts": {"work": waiting + len(work["ready"]) + len(work["in_progress"]),
                        "decisions": sum(1 for i in work["needs_you"] if i["kind"] in ("decision", "action")), "agents": running},
         **rail, **extra,
@@ -1957,7 +1970,7 @@ def _fleet_context(conn) -> dict:
     }
 
     return {
-        "open_counts": {name: c["open"] for name, c in db.project_counts(conn).items()},
+        "open_counts": _waiting_by_project(conn),
         "project_ids": {r["name"]: r["id"] for r in conn.execute("SELECT id, name FROM projects")},
         "sessions_by_project": sessions_by_project,
         "unregistered_sessions": unregistered_sessions,

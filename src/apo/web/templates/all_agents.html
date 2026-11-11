@@ -10,7 +10,7 @@
         {% if note %}<span class="section-note">{{ note }}</span>{% endif %}
       </h2>
       {% if project_link and open_count %}
-        <a class="section-link" data-tone="warning" href="{{ project_link }}">{{ open_count }} open decision{{ "s" if open_count != 1 }} {{ icon("arrow-right") }}</a>
+        <a class="section-link" data-tone="warning" href="{{ project_link }}">{{ open_count }} waiting on you {{ icon("arrow-right") }}</a>
       {% elif project_link %}
         <a class="section-link" href="{{ project_link }}">Decisions {{ icon("arrow-right") }}</a>
       {% endif %}

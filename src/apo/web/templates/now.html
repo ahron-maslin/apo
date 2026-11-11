@@ -21,7 +21,7 @@
       {%- if court.median_answer_minutes is not none %}{% set _ = court_parts.append("median answer " ~ (court.median_answer_minutes | duration) ~ " this week") %}{% endif -%}
       {%- if court.oldest %}{% set _ = court_parts.append("oldest move you hold: " ~ court.oldest.hours ~ "h") %}{% endif %}
       <p class="page-desc now-summary"{% if court_parts %} title="{{ court_parts | join(' · ') }}"{% endif %}>
-        {%- if q.your_move %}{{ q.your_move | length }} waiting on you{% if q.your_move_minutes %} · ~{{ q.your_move_minutes }} min{% endif %}{% else %}Nothing is waiting on you{% endif %}
+        {%- if count %}{{ count }} waiting on you{% if q.your_move_minutes %} · ~{{ q.your_move_minutes }} min{% endif %}{% else %}Nothing is waiting on you{% endif %}
         {%- if q.quiet.usage_limit %} · {{ q.quiet.usage_limit }} waiting for the usage limit to reset{% endif %}
       </p>
     </div>
@@ -58,11 +58,10 @@
           {{ icon("chevron-right", cls="chev") }}
           <strong id="away-heading">Since you were away</strong>{% if away.since_at %} <span class="muted">{{ away.since_at | ago }}</span>{% endif %}
           <span class="away-counts">{{ away_counts(c) or "Nothing notable happened" }}
-          {%- if away.due and (away.due.overdue or away.due.due_soon or away.due.stuck) %}{% set dp = [] %}
-            {%- if away.due.overdue %}{% set _ = dp.append(away.due.overdue ~ " overdue") %}{% endif -%}
-            {%- if away.due.due_soon %}{% set _ = dp.append(away.due.due_soon ~ " due soon") %}{% endif -%}
-            {%- if away.due.stuck %}{% set _ = dp.append(away.due.stuck ~ " stuck") %}{% endif %}
-            · <a href="/projects/work?sort=due">{{ dp | join(" · ") }}</a>
+          {%- if away.due %}
+            {%- if away.due.overdue %} · <a href="/projects/work?due=overdue">{{ away.due.overdue }} overdue</a>{% endif %}
+            {%- if away.due.due_soon %} · <a href="/projects/work?due=soon">{{ away.due.due_soon }} due soon</a>{% endif %}
+            {%- if away.due.stuck %} · <a href="/projects/work?due=stuck">{{ away.due.stuck }} stuck</a>{% endif %}
           {%- endif %}</span>
         </summary>
       {% if away.projects %}

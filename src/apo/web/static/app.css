@@ -1529,6 +1529,11 @@ form.settings-body { padding: 0; margin: 0; }
 .merge-result { margin-top: var(--s-3); }
 @media (max-width: 640px) { .merge-item { flex-direction: column; } }
 
+/* On a phone the project tabs scroll sideways; the fade says there's more. */
+@media (max-width: 600px) {
+  .project-tabs { overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); }
+}
+
 /* Work rows on a phone: the state sits above the title instead of taking a column. */
 @media (max-width: 600px) {
   .history-item.has-check { grid-template-columns: auto minmax(0, 1fr) auto; }

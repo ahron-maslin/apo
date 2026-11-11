@@ -9,10 +9,11 @@
 {% set is_wait = decision.kind == 'wait' %}
 <main id="main-content" class="page">
   <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="/projects/decisions">Decisions</a>
+    {% set list_tab = "decisions" if decision.kind == "decision" else "work" %}
+    <a href="/projects/{{ list_tab }}">{{ list_tab | capitalize }}</a>
     {{ icon("chevron-right") }}
     {% if project_name %}
-      <a class="back-link" href="/projects/{{ decision.project_id }}/decisions">{{ project_name }}</a>
+      <a class="back-link" href="/projects/{{ decision.project_id }}/{{ list_tab }}">{{ project_name }}</a>
       {{ icon("chevron-right") }}
     {% endif %}
     <span aria-current="page">{{ ref(decision.id) }}</span>

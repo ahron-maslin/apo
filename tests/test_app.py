@@ -1199,7 +1199,7 @@ def test_decision_detail_links_back_to_its_project(db_path):
     assert f"/projects/{project['id']}/decisions" in resp.text
 
 
-def test_fleet_project_section_links_to_its_open_decisions(db_path, tmp_path):
+def test_fleet_project_section_links_to_what_waits_on_you(db_path, tmp_path):
     from apo import db
 
     client = make_client(db_path)
@@ -1212,7 +1212,7 @@ def test_fleet_project_section_links_to_its_open_decisions(db_path, tmp_path):
     resp = client.get("/sessions")
 
     assert f'/projects/{project["id"]}/decisions' in resp.text
-    assert "1 open decision" in resp.text
+    assert "1 waiting on you" in resp.text
 
 
 def test_header_has_a_single_search_entry_and_search_page_still_works(db_path):
