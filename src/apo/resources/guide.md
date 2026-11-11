@@ -310,7 +310,7 @@ The header shows the project's purpose under its name, and the gear next to it o
 - **Waiting:** blocked on another item, or on someone outside.
 - **Done this week.**
 
-Tick a row's box and a bar appears at the bottom of the list for every ticked row at once: snooze, reassign, set a due date, mark done or cancel. The Decisions tabs have it too.
+Tick a row's box and a bar appears at the bottom of the list for every ticked row at once: snooze, reassign, set a due date, mark done or cancel.
 
 A **Do it** row (an action of yours) has its own **Done**, so something you've already done closes without opening it, and you stay on Work. `e` does the same for the row you've picked with `j`/`k`. If the action has a check, it runs first; if it fails, the item opens with why, and **Mark done anyway**.
 
@@ -324,7 +324,7 @@ Any of them can go under one of the project's goals and have a due date. For an 
 
 When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** on its page, or `apo move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `apo pending --all`.
 
-**Decisions** has what's waiting on you, then the **decision log**: every answered decision with its question, the answer, when, and who answered. Filter it with `/`. It's how you avoid deciding something twice.
+**Decisions** has what's waiting on you, each row with its own **Accept** (saying what you'd accept and how sure the agent is) or **Done** for an action, so you can answer without opening it; then the **decision log**: every answered decision with its question, the answer, when, and who answered. Filter it with `/`. It's how you avoid deciding something twice.
 
 **Agents** has the project's session cards with their checklists, and sessions that ended recently. To start a session, use New work on the Work tab.
 

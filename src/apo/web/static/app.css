@@ -1455,6 +1455,7 @@ form.settings-body { padding: 0; margin: 0; }
 
 /* Bulk actions, saved views, search filters */
 .history-item.has-check { grid-template-columns: auto 96px minmax(0, 1fr) auto; }
+.decision-row .work-row-end { flex-wrap: wrap; justify-content: flex-end; }
 .history-item > .state-badge { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .due-summary { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0 0 var(--s-4); }
 .section-head .due-summary { margin: 0 auto 0 var(--s-2); }

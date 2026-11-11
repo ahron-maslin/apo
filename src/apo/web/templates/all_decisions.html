@@ -1,6 +1,5 @@
 {% extends "projects_shell.html" %}
 {% from "_macros.html" import icon, ref %}
-{% from "_bulk.html" import bulk_bar, bulk_flash, bulk_check %}
 
 {% set sources = {"dashboard": "you", "cli": "you (CLI)", "mcp": "you, in chat", "linear": "Linear", "archive": "closed on archive",
                   "human": "you", "agent": "an agent"} %}
@@ -10,20 +9,32 @@
   <div class="section-head"><h2 class="section-title" id="open-decisions">Waiting on you <span class="count-chip">{{ open_decisions | length }}</span></h2></div>
   <div data-live-region="open-decisions">
   {% if open_decisions %}
-    {{ bulk_flash(request) }}
     <ul class="history-list surface project-queue">
       {% for d in open_decisions %}
-        <li class="history-item has-check">
-          {{ bulk_check(d.id) }}
-          <span class="badge tone-warning">{{ d.state }}</span>
+        <li class="history-item decision-row">
+          <span class="badge tone-warning state-badge" title="{{ d.state }}">{{ d.state }}</span>
           <div><a href="{{ d.href }}">{{ ref(d.id) }}{{ d.title }}</a>
             <a class="badge badge--square tone-neutral" href="/projects/{{ d.project_id }}/decisions">{{ d.project_name }}</a>
             {% if d.summary and d.summary != d.title %}<div class="now-reason">{{ d.summary }}</div>{% endif %}</div>
-          <span class="muted">{{ d.since | ago }}</span>
+          <div class="work-row-end">
+            {% if d.kind == "decision" and d.recommendation %}
+              <form method="post" action="/decisions/{{ d.id }}/answer" class="inline-form">
+                <input type="hidden" name="choice" value="recommendation"><input type="hidden" name="next" value="{{ request.url.path }}">
+                <button type="submit" class="btn btn--primary btn--sm now-accept" title="Accept: {{ d.recommendation }}">{{ icon("bulb") }}<span class="now-accept-text">Accept: {{ d.recommendation }}</span>{% if d.confidence %}<span class="now-accept-sure">· {{ d.confidence }}%</span>{% endif %}</button>
+              </form>
+            {% elif d.kind == "action" %}
+              <form method="post" action="/decisions/{{ d.id }}/answer" class="inline-form">
+                <input type="hidden" name="choice" value="done"><input type="hidden" name="next" value="{{ request.url.path }}">
+                <button type="submit" class="btn btn--secondary btn--sm" aria-label="Done: {{ d.title }}">{{ icon("check") }}Done</button>
+              </form>
+            {% else %}
+              <a class="btn btn--secondary btn--sm" href="{{ d.href }}">Answer</a>
+            {% endif %}
+            <span class="muted">{{ d.since | ago }}</span>
+          </div>
         </li>
       {% endfor %}
     </ul>
-    {{ bulk_bar(request) }}
   {% else %}
     <p class="hint">Nothing to decide in any project right now.</p>
   {% endif %}

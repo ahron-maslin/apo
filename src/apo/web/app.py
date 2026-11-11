@@ -593,7 +593,7 @@ def _all_context(conn, tab: str, **extra) -> dict:
         "all_summary": f"{count} project{'s' if count != 1 else ''} · {waiting} waiting on you · "
                        f"{running} agent{'s' if running != 1 else ''} running",
         "tab_counts": {"work": waiting + len(work["ready"]) + len(work["in_progress"]),
-                       "decisions": sum(1 for i in work["needs_you"] if i["kind"] == "decision"), "agents": running},
+                       "decisions": sum(1 for i in work["needs_you"] if i["kind"] in ("decision", "action")), "agents": running},
         **rail, **extra,
     }
 
@@ -828,6 +828,17 @@ async def all_item_route(project: str = Form(...), title: str = Form(""), detail
     return response
 
 
+def _waiting_decisions(conn, work: dict) -> list[dict]:
+    """Decisions and actions waiting on you, with what a one-click answer needs."""
+    rows = []
+    for i in work["needs_you"]:
+        if i["kind"] not in ("decision", "action"):
+            continue
+        d = db.get_decision_request(conn, i["id"]) or {}
+        rows.append({**i, "recommendation": d.get("recommendation"), "confidence": d.get("confidence")})
+    return rows
+
+
 @app.get("/projects/decisions")
 def all_decisions_page(request: Request):
     _mark_viewed()
@@ -835,7 +846,7 @@ def all_decisions_page(request: Request):
     ctx = _all_context(conn, "decisions")
     return templates.TemplateResponse(request, "all_decisions.html", {
         **ctx,
-        "open_decisions": [i for i in ctx["work"]["needs_you"] if i["kind"] in ("decision", "action")],
+        "open_decisions": _waiting_decisions(conn, ctx["work"]),
         "log": db.decision_log(conn, None),
     })
 
@@ -886,7 +897,7 @@ def _project_context(conn, project_id: int, tab: str, **extra) -> dict:
         "repositories": db.project_repositories(conn, project_id),
         "folder_default": (db.default_repository(conn, project_id) or {}).get("id"),
         "tab_counts": {"work": len(work["needs_you"]) + len(work["ready"]) + len(work["in_progress"]),
-                       "decisions": sum(1 for i in work["needs_you"] if i["kind"] == "decision"),
+                       "decisions": sum(1 for i in work["needs_you"] if i["kind"] in ("decision", "action")),
                        "agents": running},
         "others": [r["name"] for r in conn.execute(
             "SELECT name FROM projects WHERE id != ? AND archived_at IS NULL ORDER BY name COLLATE NOCASE", (row["id"],))],
@@ -1099,7 +1110,7 @@ def project_decisions_page(request: Request, project_id: int):
     ctx = _project_context(conn, project_id, "decisions")
     return templates.TemplateResponse(request, "project_decisions.html", {
         **ctx,
-        "open_decisions": [i for i in ctx["work"]["needs_you"] if i["kind"] in ("decision", "action")],
+        "open_decisions": _waiting_decisions(conn, ctx["work"]),
         "log": db.decision_log(conn, project_id),
     })
 
