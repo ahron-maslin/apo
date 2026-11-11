@@ -214,14 +214,14 @@ def test_overview_tab(client, acme):
     text = client.get(f"/projects/{acme['id']}").text
 
     assert "Sell the app on Etsy" in text
-    assert f'action="/projects/{acme["id"]}/brief"' in text and f'action="/projects/{acme["id"]}/status"' in text
+    assert f'href="/projects/{acme["id"]}/settings"' in text
     assert "Launch the listing" in text and "Pick a queue" in text
     for tab in ("work", "decisions", "agents", "activity"):
         assert f'href="/projects/{acme["id"]}/{tab}"' in text
 
 
-def test_overview_asks_for_a_goal_when_there_is_none(client, acme):
-    assert "What's this project for?" in client.get(f"/projects/{acme['id']}").text
+def test_overview_asks_for_a_purpose_when_there_is_none(client, acme):
+    assert "No purpose yet" in client.get(f"/projects/{acme['id']}").text
 
 
 def test_work_tab(client, acme):

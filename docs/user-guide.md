@@ -22,7 +22,7 @@ Each keeps the other: choose a project in the sidebar and you land on the same t
 
 | Tab | All projects | One project |
 |---|---|---|
-| Overview | Every project's health and counts, and every goal | Brief, status, goals, what needs you |
+| Overview | Every project's health and counts, and every goal | Goals, what needs you, what changed |
 | Work | Everything open across projects, by where it stands | The project's backlog |
 | Decisions | What's waiting on you, and the log of everything decided | The same, for the project |
 | Agents | Every session, live | The project's sessions |
@@ -46,11 +46,11 @@ cd ~/projects/acme && claude
 
 **Start a fresh session now and then.** A resumed session keeps the tools it was created with, so one started before an apo upgrade won't have newer tools such as `claim_task`. The `/decisions` skill falls back to the CLI (`apo claim` / `apo complete`) when they're missing. A fresh `claude` gets everything.
 
-The first session in a folder registers the project; there's nothing to set up. If an agent named it something you don't recognise (`~/projects/acme-web` showing as "Storefront"), **Rename** it on its project page. The Projects list shows the folder name whenever it differs from the project name.
+The first session in a folder registers the project; there's nothing to set up. If an agent named it something you don't recognise (`~/projects/acme-web` showing as "Storefront"), **Rename** it in the project's settings (the gear in its header). The Projects list shows the folder name whenever it differs from the project name.
 
 ### 2. Say what the project is for
 
-On the project's **Overview**, write the **brief**: its **purpose** (why it exists, in a line or two) and its links (repo, site, Linear). How you'll know you're done belongs to each goal. The brief rarely changes, and agents read it before planning.
+In the project's **settings** (the gear next to its name), write the **brief**: its **purpose** (why it exists, in a line or two) and its links (repo, site, Linear). How you'll know you're done belongs to each goal. The brief rarely changes, and agents read it before planning. The purpose shows under the project's name on every tab.
 
 Then start **goals**: the concrete results you're working toward, each with a checklist of steps, every step owned by you, an agent, or someone else. A project usually has several over time ("Launch the listing", then "First 10 customers"). Agents can start goals and add steps too. That's what turns a pile of sessions into progress you can see.
 
@@ -267,7 +267,7 @@ Unknown reversibility counts as a one-way door and never shows up here. Uncheck 
 
 A project's page is where you work on it. Its header shows the health dot and the **status**; its tabs (`1`–`5`) hold the rest.
 
-**Status** is suggested from what's going on, and you can override it on the Overview (**Status and priority**) with a note:
+**Status** is suggested from what's going on, and you can override it in the project's settings (**Status and priority**, or click the status in the header) with a note:
 
 | Status | Suggested when |
 |---|---|
@@ -277,20 +277,19 @@ A project's page is where you work on it. Its header shows the health dot and th
 | Quiet | Nothing is open |
 | Paused / Done | Only when you set it |
 
+The header shows the project's purpose under its name, and the gear next to it opens the project's **settings**: its purpose and links, **Status and priority** (saved together), **How agents work here** (what background sessions may do without asking, and the standing rules; both below), its folders, [Goals from Linear](#goals-from-linear), and renaming, merging and archiving.
+
 **Overview** has:
 
-- **what it's for**: the project's purpose and links;
-- **goals**: concrete results, each with its done-when, a checklist of steps and its progress, and the switch for [Goals from Linear](#goals-from-linear);
+- **goals**: concrete results, each with its done-when, a checklist of steps and its progress;
 - what needs you here;
-- **How agents work here**: what background sessions may do without asking, and the standing rules (both below);
 - **What changed**: the last 7 days of commits and pull requests, by day (see below);
 - what happened recently;
-- **Status and priority**, saved together;
 - an at-a-glance count of the work.
 
 **What changed** reads `git log` in each of the project's folders (commits on any branch, so work an agent hasn't merged yet counts) and, where the folder has a GitHub remote and `gh` is signed in, its pull requests: merged, open and drafts. It's local and read-only. Pull requests are fetched in the background every 15 minutes, so the first visit to a project may show commits only. What's new since you last looked has a dot; a "look" lasts until you've been away for 30 minutes, so refreshing doesn't clear it. The Activity tab lists the commits among each day's events.
 
-**Priority** (on the Overview, with the status) is hot, normal or background:
+**Priority** (in the project's settings, with the status) is hot, normal or background:
 
 | Priority | Now | Notifications |
 |---|---|---|
@@ -298,9 +297,9 @@ A project's page is where you work on it. Its header shows the health dot and th
 | Normal | As is | As usual |
 | Background | Its moves rank half as high | Never interrupt; they wait in Now |
 
-**Weekly report** (a button on the Overview; **Weekly report** on All projects for every project at once) covers the 7 days ending today, and **Previous week** steps back. For each project: what got done (tasks, bugs, actions, goals achieved), what was decided and the answer, what's blocked on you or overdue at the end of the week, how many hours agents waited on you and your median answer time, how much was filed, done per week over the last 4 weeks, and commits and merged pull requests. The same week always reads the same, so the link (`?end=YYYY-MM-DD`) is a permanent record. **Copy as Markdown** puts it on the clipboard; **Print** gives a clean page.
+**Weekly report** (in each project's header; **Weekly report** on All projects for every project at once) covers the 7 days ending today, and **Previous week** steps back. For each project: what got done (tasks, bugs, actions, goals achieved), what was decided and the answer, what's blocked on you or overdue at the end of the week, how many hours agents waited on you and your median answer time, how much was filed, done per week over the last 4 weeks, and commits and merged pull requests. The same week always reads the same, so the link (`?end=YYYY-MM-DD`) is a permanent record. **Copy as Markdown** puts it on the clipboard; **Print** gives a clean page.
 
-**Standing rules** (on the Overview, under How agents work here) are answers you'd give every time, written down once: "Pick the cheapest reversible option without asking", "Use Postgres for anything new". Agents get them in the project brief and in `.claude/decisions/POLICY.md` in each of the project's folders, and follow a rule instead of filing a decision. Add one by hand, or with **Make this a standing rule** on an answered decision (it starts from your answer; edit it before saving). When you've accepted the agent's recommendation, or told it to use its judgment, on at least 80% of a project's recent decisions (5 or more in 60 days), the Overview suggests a rule that lets agents go ahead when they're confident and the choice is easy to undo. **Retire** a rule and agents ask again. It's the one thing here that makes fewer questions reach you, rather than helping you answer them faster.
+**Standing rules** (in the project's settings, under How agents work here) are answers you'd give every time, written down once: "Pick the cheapest reversible option without asking", "Use Postgres for anything new". Agents get them in the project brief and in `.claude/decisions/POLICY.md` in each of the project's folders, and follow a rule instead of filing a decision. Add one by hand, or with **Make this a standing rule** on an answered decision (it starts from your answer; edit it before saving). When you've accepted the agent's recommendation, or told it to use its judgment, on at least 80% of a project's recent decisions (5 or more in 60 days), the Overview points you to a suggested rule that lets agents go ahead when they're confident and the choice is easy to undo. **Retire** a rule and agents ask again. It's the one thing here that makes fewer questions reach you, rather than helping you answer them faster.
 
 **Due dates** go on goals (when you start one, or on its page) and on any item: a task, a bug or your own action (on its page, or when you add it under New work). They show as a badge: **Due Fri**, **Due tomorrow**, **Overdue 2d**. Anything open and past due makes the project's suggested status **At risk**.
 
@@ -332,7 +331,7 @@ When a project has more than one folder (say a root folder and a `dashboard` sub
 
 **Activity** is the project's event history, with repeats collapsed, and its commits among each day's events.
 
-Also on the Overview: **Rename**, **Merge into another project** (everything moves; this project's name becomes an alias of the other) and, in the header, **Archive** (closes what's still open and hides the project; nothing is deleted).
+Also in the project's settings: **Rename**, **Merge into** another project (everything moves; this project's name becomes an alias of the other) and **Archive** (closes what's still open and hides the project; nothing is deleted).
 
 ## Agents
 
@@ -374,7 +373,7 @@ Agents can create outcomes and steps too.
 
 You can plan a goal in Linear instead: create an issue and break it into sub-issues. apo turns the issue into a goal and its sub-issues into the goal's steps, and a step you add here becomes a sub-issue there.
 
-Turn it on per project, on the project's Overview: **Goals from Linear → Turn on** (it shows there once Linear is connected). It's off by default, because a step from Linear can be work for an agent. It needs Linear connected in Settings, with sync on.
+Turn it on per project, in the project's settings: **Goals from Linear → Turn on**. It's off by default, because a step from Linear can be work for an agent. It needs Linear connected in Settings, with sync on.
 
 - **Which Linear project:** the one with the same name as the apo project, which is where its agents' decisions already go (if it doesn't exist yet, create it in Linear). To use another one, choose **Choose another Linear project** in the same panel and pick from your team's projects. The import then starts again from that moment. Once found, the project is remembered, so renaming the project here doesn't lose it. apo remembers which Linear workspace you connected. Reconnecting to the same workspace, even after a disconnect, keeps everything. Connecting to a different workspace changes four things, since the old workspace's projects and issues don't exist there: every project forgets its Linear project and falls back to the one with its name in the new workspace; the import restarts from that moment, as turning the switch on does, so nothing older in the new workspace comes in; goals imported from the old workspace, and agents' requests already pushed there, are unlinked, so they stay here with their steps and answers but stop syncing (an unlinked request isn't pushed again); and each affected project's Activity says how many goals and requests were unlinked. The switch stays on or off as it was. Decisions still go to the Linear project with the project's current name.
 - **Which issues:** only ones you created, with the Linear account apo connects as. Issues and sub-issues a teammate or an integration creates never come in, because an imported step can be work for an agent. apo also skips:
@@ -482,7 +481,7 @@ Without MCP, or in a session too old to have a tool, there's the `apo` CLI:
 
 ## Settings
 
-- **Linear:** paste a personal API key and team key to mirror agents' requests as Linear issues. A comment on the issue counts as an answer (and needs your click before it can start a background agent). Linear can also be where you plan: with **Goals from Linear** on for a project, an issue you create in its Linear project becomes a goal here, its sub-issues become the goal's steps, and closing either side's goal or steps closes the other's (see [Goals from Linear](#goals-from-linear)). Settings lists the projects that have it on; the switch, and the choice of Linear project, are on each project's Overview.
+- **Linear:** paste a personal API key and team key to mirror agents' requests as Linear issues. A comment on the issue counts as an answer (and needs your click before it can start a background agent). Linear can also be where you plan: with **Goals from Linear** on for a project, an issue you create in its Linear project becomes a goal here, its sub-issues become the goal's steps, and closing either side's goal or steps closes the other's (see [Goals from Linear](#goals-from-linear)). Settings lists the projects that have it on; the switch, and the choice of Linear project, are in each project's settings.
 - **Notifications:** turn on or off for this browser, and set active hours.
 
 ## When something looks wrong
@@ -491,7 +490,7 @@ Without MCP, or in a session too old to have a tool, there's the `apo` CLI:
 - **`/decisions` says there's nothing to do:** check you're in the project's folder, not `~`. `apo pending --all` shows where answers are waiting.
 - **An agent says `claim_task` / `complete_task` don't exist:** its session predates them (it was resumed from an older session). It can use `apo claim` / `apo complete` instead; a fresh session has the tools.
 - **A session shows the wrong status:** status refreshes from `claude agents` while the dashboard is open. A session started before the hooks were installed shows up once it's been seen alive.
-- **Two projects for one folder:** Now lists it under Problems. Open one of them and use **Merge into another project**.
+- **Two projects for one folder:** Now lists it under Problems. Open one of them, then its settings, and use **Merge into**.
 - **A session hit the usage limit:** an open one continues by itself when the limit resets, and Now counts it as waiting, not a problem. If auto-continue is off (`/config`), it shows as a problem: press Enter in its terminal after the reset. If you closed it meanwhile, it's in Your move with **Resume at** (the reset time) and **Resume now**.
 - **Something errored with "Claude Code didn't say which":** the API gave no reason. Open the session (`claude --resume`, or the copy button) and retry.
 - **A running session doesn't have the newest tools** (like `create_outcome`): sessions keep the MCP server they started with. Restart the session.

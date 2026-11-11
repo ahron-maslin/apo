@@ -89,11 +89,11 @@ def test_a_project_on_ask_starts_without_a_mode(client, acme, launches):
     assert "permission_mode" not in launches[0]
 
 
-def test_setting_autonomy_from_the_overview(client, acme):
+def test_setting_autonomy_from_project_settings(client, acme):
     project, _ = acme
 
     client.post(f"/projects/{project['id']}/autonomy", data={"autonomy": "plan"})
-    html = client.get(f"/projects/{project['id']}").text
+    html = client.get(f"/projects/{project['id']}/settings").text
 
     assert db.project_autonomy(db.get_connection(), project["id"]) == "plan"
     assert re.search(r'<option value="plan" selected', html)
@@ -178,8 +178,10 @@ def test_accepting_most_recommendations_suggests_a_rule(client, acme):
     assert suggestion["accepted"] == 5 and suggestion["answered"] == 6
     import html as html_lib
 
-    html = html_lib.unescape(client.get(f"/projects/{project['id']}").text)
+    html = html_lib.unescape(client.get(f"/projects/{project['id']}/settings").text)
     assert "5 of 6" in html and suggestion["text"] in html
+    overview = client.get(f"/projects/{project['id']}").text
+    assert "5 of 6" in overview and f'/projects/{project["id"]}/settings#rules' in overview
 
 
 def test_no_suggestion_without_a_clear_pattern_or_once_its_a_rule(acme):

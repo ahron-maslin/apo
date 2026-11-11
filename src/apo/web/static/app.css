@@ -1377,6 +1377,25 @@ a.now-title:hover { text-decoration: underline; }
 .make-rule { margin-top: var(--s-3); font-size: var(--fs-sm); }
 
 .linear-goals { margin-top: var(--s-3); padding: var(--s-3) var(--s-4); font-size: var(--fs-sm); }
+.settings-row .linear-goals { margin-top: 0; padding: 0; }
+.project-purpose { margin: var(--s-1) 0 0; color: var(--text-2); display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.project-purpose a.badge { text-decoration: none; }
+.status-link { text-decoration: none; }
+.settings-gear[aria-current="page"] { background: var(--surface-2); color: var(--text); }
+.settings-page { display: flex; flex-direction: column; gap: 0; max-width: 960px; }
+.settings-title { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-md); margin: 0 0 var(--s-4); }
+.settings-row { display: grid; grid-template-columns: minmax(0, 240px) minmax(0, 1fr); gap: var(--s-3) var(--s-6); padding: var(--s-5) 0; border-top: 1px solid var(--border); scroll-margin-top: var(--s-6); }
+.settings-label h3 { font-size: var(--fs-base); margin: 0 0 var(--s-1); }
+.settings-label .hint { margin: 0; font-size: var(--fs-sm); }
+.settings-body { min-width: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+form.settings-body { padding: 0; margin: 0; }
+.project-purpose.muted a { color: var(--text-3); font-size: var(--fs-sm); }
+.settings-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.settings-inline .input { width: auto; min-width: 14rem; }
+.folder-list { list-style: none; margin: 0; padding: var(--s-2) var(--s-4); display: flex; flex-direction: column; gap: var(--s-1); }
+.folder-name { font-weight: 500; }
+.rule-nudge { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-4); margin: 0 0 var(--s-5); font-size: var(--fs-sm); border-color: var(--accent-border); }
+@media (max-width: 720px) { .settings-row { grid-template-columns: minmax(0, 1fr); } }
 .linear-goals h3, .subsection-title { font-size: var(--fs-sm); font-weight: 600; margin: 0 0 var(--s-2); }
 .linear-goals p { margin: 0 0 var(--s-2); }
 .subsection-title { margin-top: var(--s-5); }

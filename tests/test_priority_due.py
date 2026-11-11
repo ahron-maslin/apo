@@ -76,11 +76,11 @@ def test_hot_projects_interrupt_at_once_and_background_ones_never(db_path, tmp_p
     assert not any(t.startswith("Background question") for t in titles)
 
 
-def test_setting_priority_from_the_overview(client, db_path, tmp_path):
+def test_setting_priority_from_project_settings(client, db_path, tmp_path):
     project = _project(db.get_connection(), tmp_path, "acme")
 
     resp = client.post(f"/projects/{project['id']}/status", data={"status": "", "priority": "hot"}, follow_redirects=False)
-    html = client.get(f"/projects/{project['id']}").text
+    html = client.get(f"/projects/{project['id']}/settings").text
 
     assert resp.status_code == 303
     assert re.search(r'<option value="hot" selected', html)

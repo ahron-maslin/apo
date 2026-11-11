@@ -2,36 +2,11 @@
 {% from "_macros.html" import icon, ref, linear_badge, due_badge, due_buckets, burnup, stall_warning, goal_achieve %}
 {% from "_project_macros.html" import status_labels %}
 
-{% set autonomy_labels = {"ask": "Ask first", "edits": "Accept file edits", "plan": "Plan only"} %}
-{% set autonomy_hints = {"ask": "Agents stop and ask before every edit and command, as a claude you open yourself would.", "edits": "File edits go through; commands still ask.", "plan": "Agents read and plan, and change nothing."} %}
 {% set lane_labels = {"problems": "Problem", "your_move": "Your move", "asks": "Ask pending", "in_transit": "In transit", "review": "Review"} %}
 
 {% block tab %}
 <div class="detail-layout">
   <div class="project-main">
-    <section class="surface brief{% if not brief.goal %} brief--empty{% endif %}" aria-label="What this project is for">
-      {% if brief.goal %}
-        <p class="brief-goal">{{ brief.goal }}</p>
-        {% if brief.links %}
-          <p class="brief-links">{% for link in brief.links %}<a class="badge badge--square tone-neutral" href="{{ link.url }}" target="_blank" rel="noopener">{{ icon("external") }}{{ link.label }}</a>{% endfor %}</p>
-        {% endif %}
-      {% else %}
-        <p class="brief-goal">What's this project for?</p>
-        <p class="hint">Why it exists, in a line or two. Agents read it before planning. What you're working toward, and how you'll know it's done, go under Goals.</p>
-      {% endif %}
-      <details class="brief-edit disclosure"{% if not brief.goal %} open{% endif %}>
-        <summary>{{ icon("chevron-right", cls="chev") }}{{ "Edit" if brief.goal else "Write it" }}</summary>
-        <form method="post" action="/projects/{{ p.id }}/brief" class="form-stack">
-          <label class="field-label" for="brief-goal">Purpose</label>
-          <textarea id="brief-goal" class="textarea" name="goal" rows="2" placeholder="Why this project exists, in a line or two">{{ brief.goal or "" }}</textarea>
-          <label class="field-label" for="brief-links">Links, one per line</label>
-          <textarea id="brief-links" class="textarea" name="links" rows="2" data-submit-shortcut placeholder="Repo https://github.com/…&#10;Site https://…">{% for link in brief.links %}{{ link.label }} {{ link.url }}
-{% endfor %}</textarea>
-          <div><button type="submit" class="btn btn--primary btn--sm">Save</button></div>
-        </form>
-      </details>
-    </section>
-
     <section class="section" aria-labelledby="goals-heading">
       <div class="section-head"><h2 class="section-title" id="goals-heading">Goals</h2></div>
       {% if not outcomes %}<p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else. A project can have several, one after another.</p>{% endif %}
@@ -72,31 +47,6 @@
             <div><button type="submit" class="btn btn--primary btn--sm">Start goal</button></div>
           </form>
         </details>
-      {% endif %}
-      {% if linear_goals.on or linear_goals.connected %}
-      <div class="surface linear-goals" id="linear-goals">
-        <h3>Goals from Linear</h3>
-          <p>{% if linear_goals.on %}On.{% else %}Off.{% endif %} A new issue you create in the Linear project “{{ linear_goals.project_name }}” becomes a goal here, and its sub-issues become its steps. Steps you add here become sub-issues.</p>
-          {% if linear_goals.on and not linear_goals.connected %}<p class="muted">Linear isn't connected or its sync is off in <a href="/settings">Settings</a>, so nothing comes in until it's back.</p>{% endif %}
-          <form method="post" action="/projects/{{ p.id }}/linear-goals">
-            <input type="hidden" name="enabled" value="{{ '0' if linear_goals.on else '1' }}">
-            <button type="submit" class="btn btn--{{ 'ghost' if linear_goals.on else 'secondary' }} btn--sm">{{ "Turn off" if linear_goals.on else "Turn on" }}</button>
-          </form>
-          {% if linear_goals.choices is not none %}
-            <form method="post" action="/projects/{{ p.id }}/linear-project" class="linear-project-form">
-              <label class="field-label" for="linear-project">Linear project</label>
-              <select id="linear-project" class="input" name="linear_project">
-                {% for lp in linear_goals.choices %}<option value="{{ lp.id }}"{% if lp.id == linear_goals.selected %} selected{% endif %}>{{ lp.name }}</option>{% endfor %}
-              </select>
-              <p class="field-hint">Issues created there from now on come in; the import starts again from this moment.</p>
-              <div><button type="submit" class="btn btn--secondary btn--sm">Use this project</button></div>
-            </form>
-          {% elif linear_goals.error %}
-            <p class="muted">Couldn't load your Linear projects: {{ linear_goals.error }}</p>
-          {% elif linear_goals.connected %}
-            <p><a href="/projects/{{ p.id }}?choose_linear=1#linear-goals">Choose another Linear project</a></p>
-          {% endif %}
-      </div>
       {% endif %}
     </section>
 
@@ -169,56 +119,9 @@
     </section>
     {% endif %}
 
-    <section class="section" id="rules" aria-labelledby="agents-here-heading">
-      <div class="section-head"><h2 class="section-title" id="agents-here-heading">How agents work here</h2></div>
-      <p class="hint">What agents may do without asking, and the answers they should give themselves instead of asking you.</p>
-      <form method="post" action="/projects/{{ p.id }}/autonomy" class="surface form-stack agents-here-mode">
-        <label class="field-label" for="autonomy-select">Background sessions started from the dashboard</label>
-        <div class="agents-here-row">
-          <select id="autonomy-select" class="input" name="autonomy">
-            {% for value in autonomies %}<option value="{{ value }}"{% if autonomy == value %} selected{% endif %}>{{ autonomy_labels[value] }}</option>{% endfor %}
-          </select>
-          <button type="submit" class="btn btn--secondary btn--sm">Save</button>
-        </div>
-        <p class="field-hint">{{ autonomy_hints[autonomy] }} Applies to New work's start-now, Apply in background, and resumes. A <code>claude</code> you open yourself keeps your own settings.</p>
-      </form>
-      <h3 class="subsection-title">Standing rules</h3>
-      <p class="hint">Answers you'd give every time. Agents read them before filing, and follow them instead of asking.</p>
-      {% if rule_suggestion %}
-        <div class="surface rule-suggestion">
-          <p>You accepted the agent's recommendation, or told it to use its judgment, on <strong>{{ rule_suggestion.accepted }} of {{ rule_suggestion.answered }}</strong> decisions here in the last {{ rule_suggestion.days }} days. Make it a rule?</p>
-          <blockquote>{{ rule_suggestion.text }}</blockquote>
-          <form method="post" action="/projects/{{ p.id }}/rules" class="inline-form">
-            <input type="hidden" name="text" value="{{ rule_suggestion.text }}">
-            <button type="submit" class="btn btn--primary btn--sm">Make it a rule</button>
-          </form>
-        </div>
-      {% endif %}
-      {% if rules %}
-        <ol class="surface rule-list">
-          {% for r in rules %}
-            <li>
-              <span>{{ r.text }}{% if r.source_decision_id %} <a class="muted" href="/decisions/{{ r.source_decision_id }}">from {{ ref(r.source_decision_id) }}</a>{% endif %}</span>
-              <form method="post" action="/projects/{{ p.id }}/rules/{{ r.id }}/retire" class="inline-form"
-                    data-confirm="Retire this rule? Agents will ask about it again.">
-                <button type="submit" class="btn btn--ghost btn--sm">Retire</button>
-              </form>
-            </li>
-          {% endfor %}
-        </ol>
-      {% endif %}
-      {% if not p.archived %}
-        <details class="surface report-bug disclosure">
-          <summary>{{ icon("plus") }}Add a rule</summary>
-          <form method="post" action="/projects/{{ p.id }}/rules" class="form-stack">
-            <label class="field-label" for="rule-text">The rule</label>
-            <textarea id="rule-text" class="textarea" name="text" rows="2" required data-submit-shortcut
-                      placeholder="Pick the cheapest reversible option without asking."></textarea>
-            <div><button type="submit" class="btn btn--primary btn--sm">Add rule</button></div>
-          </form>
-        </details>
-      {% endif %}
-    </section>
+    {% if rule_suggestion %}
+      <p class="surface rule-nudge">{{ icon("bulb") }}<span>You accepted the agent's suggestion on {{ rule_suggestion.accepted }} of {{ rule_suggestion.answered }} decisions here lately. <a href="/projects/{{ p.id }}/settings#rules">Make it a standing rule</a></span></p>
+    {% endif %}
 
     <section class="section" id="what-changed" aria-labelledby="changes-heading">
       <div class="section-head">
@@ -279,27 +182,6 @@
   </div>
 
   <aside class="detail-aside project-aside">
-    <section class="surface aside-panel" aria-label="Status and priority">
-      <h2>Status and priority</h2>
-      <p class="status-line">{{ status_labels[status.value] }} — {% if status.overridden %}set by you{% if status.note %}: {{ status.note }}{% endif %}{% else %}{{ status.reason }}{% endif %}</p>
-      {% if status.overridden %}<p class="muted status-suggested">Suggested: {{ status_labels[status.suggested] }} ({{ status.reason }})</p>{% endif %}
-      <form method="post" action="/projects/{{ p.id }}/status" class="form-stack status-form">
-        <label class="field-label" for="status-select">Status</label>
-        <select id="status-select" class="input" name="status">
-          <option value="">Automatic ({{ status_labels[status.suggested] }})</option>
-          {% for value in statuses %}<option value="{{ value }}"{% if status.overridden and status.value == value %} selected{% endif %}>{{ status_labels[value] }}</option>{% endfor %}
-        </select>
-        <input class="input" name="note" value="{{ status.note or '' }}" placeholder="Why (optional)" aria-label="Why">
-        <label class="field-label" for="priority-select">Priority</label>
-        <select id="priority-select" class="input" name="priority">
-          {% for value in priorities %}<option value="{{ value }}"{% if priority == value %} selected{% endif %}>{{ value | capitalize }}</option>{% endfor %}
-        </select>
-        <p class="field-hint">{{ {"hot": "Ranks first in Now and notifies at once.", "normal": "Ranks and notifies as usual.", "background": "Ranks last in Now and never notifies."}[priority] }}</p>
-        <div><button type="submit" class="btn btn--secondary btn--sm">Save</button></div>
-      </form>
-      <p class="report-link"><a href="/projects/{{ p.id }}/report">Weekly report {{ icon("arrow-right") }}</a></p>
-    </section>
-
     <section class="surface aside-panel" aria-label="At a glance" data-live-region="glance">
       <h2>At a glance</h2>
       <dl class="glance">
@@ -313,29 +195,6 @@
     </section>
 
 
-    <details class="surface aside-panel disclosure">
-      <summary>{{ icon("chevron-right", cls="chev") }}Rename</summary>
-      <form method="post" action="/projects/{{ p.id }}/rename" class="form-stack">
-        <label class="field-label" for="rename-to">New name</label>
-        <input id="rename-to" class="input" name="name" value="{{ p.name }}" required autocomplete="off">
-        <p class="field-hint">The old name keeps working for agents that still use it.</p>
-        <div><button type="submit" class="btn btn--secondary btn--sm">Rename</button></div>
-      </form>
-    </details>
-
-    {% if others %}
-      <details class="surface aside-panel disclosure">
-        <summary>{{ icon("chevron-right", cls="chev") }}Merge into another project</summary>
-        <form method="post" action="/projects/{{ p.id }}/merge" class="form-stack"
-              data-confirm="Move everything in {{ p.name }} into the chosen project? {{ p.name }} becomes an alias of it.">
-          <label class="field-label" for="merge-into">Merge {{ p.name }} into</label>
-          <select id="merge-into" class="input" name="into" required>
-            {% for name in others %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
-          </select>
-          <div><button type="submit" class="btn btn--secondary btn--sm">Merge</button></div>
-        </form>
-      </details>
-    {% endif %}
   </aside>
 </div>
 {% endblock %}

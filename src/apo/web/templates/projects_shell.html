@@ -11,14 +11,15 @@
 
 {% set tabs = [("overview", "Overview", ""), ("work", "Work", "/work"), ("decisions", "Decisions", "/decisions"),
                ("agents", "Agents", "/agents"), ("activity", "Activity", "/activity")] %}
-{% set tab_suffix = {"overview": "", "work": "/work", "decisions": "/decisions", "agents": "/agents", "activity": "/activity"}[tab] %}
+{% set tab_suffix = {"overview": "", "work": "/work", "decisions": "/decisions", "agents": "/agents", "activity": "/activity", "settings": "/settings"}[tab] %}
+{% set all_suffix = "" if tab == "settings" else tab_suffix %}
 {% set scope_base = "/projects/" ~ p.id if p else "/projects" %}
 
 {% block content %}
 <div class="project-shell">
 <nav class="project-rail" aria-label="Projects">
   <ul>
-    <li><a href="/projects{{ tab_suffix }}"{% if not p %} aria-current="page"{% endif %}>{{ icon("folder") }}<span>All projects</span></a></li>
+    <li><a href="/projects{{ all_suffix }}"{% if not p %} aria-current="page"{% endif %}>{{ icon("folder") }}<span>All projects</span></a></li>
     {% for r in rail %}
       <li><a href="/projects/{{ r.id }}{{ tab_suffix }}"{% if p and r.id == p.id %} aria-current="page"{% endif %} title="{{ r.counts_line or health_labels[r.health] }}">
         {{ health_dot(r.health) }}<span>{{ r.name }}</span>{% if r.pinned %}<span class="project-rail-pin" aria-label="Pinned">★</span>{% endif %}</a></li>
@@ -34,7 +35,7 @@
   <label class="scope-picker">
     <span class="sr-only">Project</span>
     <select class="input" data-navigate>
-      <option value="/projects{{ tab_suffix }}"{% if not p %} selected{% endif %}>All projects</option>
+      <option value="/projects{{ all_suffix }}"{% if not p %} selected{% endif %}>All projects</option>
       {% for r in rail %}<option value="/projects/{{ r.id }}{{ tab_suffix }}"{% if p and r.id == p.id %} selected{% endif %}>{{ r.name }}</option>{% endfor %}
     </select>
   </label>
@@ -43,7 +44,7 @@
     <header class="page-header project-header">
       <div>
         <h1 class="project-title">{{ health_dot(p.health) }}{{ p.name }}
-          {{ status_chip(status) }}
+          <a class="status-link" href="/projects/{{ p.id }}/settings#status">{{ status_chip(status) }}</a>
           {% if priority == "hot" %}<span class="badge tone-danger">Hot</span>{% elif priority == "background" %}<span class="badge tone-neutral">Background</span>{% endif %}
           {% if p.archived %}<span class="badge tone-neutral">Archived</span>{% endif %}</h1>
         <p class="page-desc">
@@ -51,19 +52,16 @@
           {% if repositories %} · <code class="project-folder" title="{{ repositories[0].local_path | home }}">{{ repositories[0].local_path | home }}</code>{% if repositories | length > 1 %}
             <span class="muted" title="{% for r in repositories[1:] %}{{ r.local_path | home }}&#10;{% endfor %}">+{{ repositories | length - 1 }} more folder{{ "s" if repositories | length > 2 }}</span>{% endif %}{% endif %}
         </p>
+        {% if brief.goal %}
+          <p class="project-purpose">{{ brief.goal }}{% for link in brief.links %} <a class="badge badge--square tone-neutral" href="{{ link.url }}" target="_blank" rel="noopener">{{ icon("external") }}{{ link.label }}</a>{% endfor %}</p>
+        {% else %}
+          <p class="project-purpose muted"><a href="/projects/{{ p.id }}/settings#purpose">No purpose yet: add one</a></p>
+        {% endif %}
       </div>
       <div class="project-header-actions">
         {{ pin_form(p, request.url.path, hotkey="p") }}
-        {% if p.archived %}
-          <form method="post" action="/projects/{{ p.id }}/unarchive" class="inline-form">
-            <button type="submit" class="btn btn--secondary btn--sm">Unarchive</button>
-          </form>
-        {% else %}
-          <form method="post" action="/projects/{{ p.id }}/archive" class="inline-form"
-                data-confirm="Archive {{ p.name }}? Anything still open in it is closed; nothing is deleted.">
-            <button type="submit" class="btn btn--ghost btn--sm">{{ icon("archive") }}Archive</button>
-          </form>
-        {% endif %}
+        <a class="btn btn--ghost btn--sm" href="/projects/{{ p.id }}/report">Weekly report</a>
+        <a class="btn btn--ghost btn--sm btn--icon settings-gear" href="/projects/{{ p.id }}/settings" aria-label="Settings for {{ p.name }}" title="Settings"{% if tab == "settings" %} aria-current="page"{% endif %}>{{ icon("settings") }}</a>
       </div>
     </header>
   {% else %}

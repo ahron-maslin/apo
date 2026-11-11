@@ -457,10 +457,10 @@ def test_choosing_another_linear_project_imports_from_it_from_then_on(linear, ac
 
 def test_the_picker_offers_the_teams_linear_projects_with_the_current_one_chosen(client, linear, acme, config_module, monkeypatch):
     monkeypatch.setenv("APO_LINEAR_API_KEY", "fake-key")
-    page = client.get(f"/projects/{acme['id']}").text
-    assert "Linear project" in page and f"/projects/{acme['id']}?choose_linear=1" in page
+    page = client.get(f"/projects/{acme['id']}/settings").text
+    assert "Linear project" in page and f"/projects/{acme['id']}/settings?choose_linear=1" in page
 
-    page = client.get(f"/projects/{acme['id']}?choose_linear=1").text
+    page = client.get(f"/projects/{acme['id']}/settings?choose_linear=1").text
 
     picker = re.search(r'<select[^>]*name="linear_project".*?</select>', page, re.S).group(0)
     assert re.search(r'<option value="lp-acme" selected>acme</option>', picker)
@@ -475,7 +475,7 @@ def test_picking_a_linear_project_saves_it(client, linear, acme, config_module, 
     row = db.get_connection().execute(
         "SELECT linear_project_id, linear_project_name FROM projects WHERE id = ?", (acme["id"],)).fetchone()
     assert tuple(row) == ("lp-shop", "Shop")
-    assert "Shop" in client.get(f"/projects/{acme['id']}").text
+    assert "Shop" in client.get(f"/projects/{acme['id']}/settings").text
 
 
 def test_only_one_of_the_teams_linear_projects_can_be_picked(client, linear, acme, config_module, monkeypatch):
@@ -498,7 +498,7 @@ def test_the_picker_says_so_when_linear_cannot_be_reached(client, linear, acme, 
 
     monkeypatch.setattr(linear_client, "list_projects", down)
 
-    page = client.get(f"/projects/{acme['id']}?choose_linear=1")
+    page = client.get(f"/projects/{acme['id']}/settings?choose_linear=1")
 
     assert page.status_code == 200 and "Couldn't load your Linear projects" in page.text
 
@@ -1057,14 +1057,14 @@ async def test_the_poll_loop_brings_goals_in_only_while_linear_sync_is_on(linear
 
 def test_the_project_page_turns_goals_from_linear_on_and_off(client, acme, config_module, monkeypatch):
     monkeypatch.setenv("APO_LINEAR_API_KEY", "fake-key")
-    page = client.get(f"/projects/{acme['id']}").text
+    page = client.get(f"/projects/{acme['id']}/settings").text
     assert "Goals from Linear" in page and "Turn off" in page
 
     client.post(f"/projects/{acme['id']}/linear-goals", data={"enabled": "0"})
 
     row = db.get_connection().execute("SELECT linear_goals_since FROM projects WHERE id = ?", (acme["id"],)).fetchone()
     assert row[0] is None
-    assert "Turn on" in client.get(f"/projects/{acme['id']}").text
+    assert "Turn on" in client.get(f"/projects/{acme['id']}/settings").text
 
 
 def test_without_linear_the_project_page_leaves_goals_from_linear_out(client, acme):
@@ -1076,7 +1076,7 @@ def test_without_linear_the_project_page_leaves_goals_from_linear_out(client, ac
 
 
 def test_a_project_left_on_while_linear_is_disconnected_can_still_be_turned_off(client, acme):
-    page = client.get(f"/projects/{acme['id']}").text
+    page = client.get(f"/projects/{acme['id']}/settings").text
 
     assert "Turn off" in page and "nothing comes in until" in page
 

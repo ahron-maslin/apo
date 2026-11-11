@@ -563,7 +563,8 @@ def api_now(project: str | None = None):
     }
 
 
-TAB_SUFFIX = {"overview": "", "work": "/work", "decisions": "/decisions", "agents": "/agents", "activity": "/activity"}
+TAB_SUFFIX = {"overview": "", "work": "/work", "decisions": "/decisions", "agents": "/agents", "activity": "/activity",
+              "settings": "/settings"}
 
 
 def _rail_context(conn, tab: str, current: dict | None = None) -> dict:
@@ -573,7 +574,7 @@ def _rail_context(conn, tab: str, current: dict | None = None) -> dict:
     rail = db.project_overview(conn)
     if current is not None and not any(r["id"] == current["id"] for r in rail):
         rail.append(current)
-    stops = [f"/projects{suffix}"] + [f"/projects/{r['id']}{suffix}" for r in rail]
+    stops = [f"/projects{'' if tab == 'settings' else suffix}"] + [f"/projects/{r['id']}{suffix}" for r in rail]
     here = 0 if current is None else 1 + next(i for i, r in enumerate(rail) if r["id"] == current["id"])
     return {"rail": rail, "scope_prev": stops[here - 1], "scope_next": stops[(here + 1) % len(stops)]}
 
@@ -879,7 +880,7 @@ def _project_context(conn, project_id: int, tab: str, **extra) -> dict:
     return {
         **_rail_context(conn, tab, overview),
         "active_nav": "projects", "tab": tab, "p": overview, "queue": queue, "work": work, "running": running,
-        "status": db.project_status(conn, project_id),
+        "status": db.project_status(conn, project_id), "brief": db.get_project_brief(conn, project_id),
         "priority": db.project_priority(conn, project_id), "priorities": db.PROJECT_PRIORITIES,
         "autonomy": db.project_autonomy(conn, project_id), "autonomies": list(db.AUTONOMY_MODES),
         "repositories": db.project_repositories(conn, project_id),
@@ -893,9 +894,20 @@ def _project_context(conn, project_id: int, tab: str, **extra) -> dict:
     }
 
 
+@app.get("/projects/{project_id}/settings")
+def project_settings_page(request: Request, project_id: int, choose_linear: int = 0):
+    conn = db.get_connection()
+    return templates.TemplateResponse(request, "project_settings.html", {
+        **_project_context(conn, project_id, "settings"),
+        "statuses": db.PROJECT_STATUSES,
+        "linear_goals": _linear_goals_panel(conn, _project_row(conn, project_id), choose_linear),
+        "rules": db.list_standing_rules(conn, project_id),
+        "rule_suggestion": db.rule_suggestion(conn, project_id),
+    })
+
+
 @app.get("/projects/{project_id}")
-def project_page(request: Request, project_id: int, choose_linear: int = 0, merged: str = "", into: str = "",
-                 merge_error: str = ""):
+def project_page(request: Request, project_id: int, merged: str = "", into: str = "", merge_error: str = ""):
     _mark_viewed()
     conn = db.get_connection()
     ctx = _project_context(conn, project_id, "overview")
@@ -904,14 +916,10 @@ def project_page(request: Request, project_id: int, choose_linear: int = 0, merg
         **ctx,
         "ready_to_merge": _ready_to_merge(conn, project_id, ctx["repositories"]),
         "merged": merged, "merged_into": into, "merge_error": merge_error,
-        "brief": db.get_project_brief(conn, project_id),
-        "statuses": db.PROJECT_STATUSES,
         "items": [(lane, item) for lane in ("problems", "your_move", "asks", "in_transit", "review") for item in queue[lane]],
         "outcomes": db.list_outcomes(conn, project_id=project_id),
         "events": db.collapse_repeats(db.list_events(conn, project_id=project_id, limit=40))[:8],
-        "linear_goals": _linear_goals_panel(conn, _project_row(conn, project_id), choose_linear),
         "changes": _project_changes(conn, project_id, ctx["repositories"]),
-        "rules": db.list_standing_rules(conn, project_id),
         "rule_suggestion": db.rule_suggestion(conn, project_id),
     })
 
@@ -1039,7 +1047,7 @@ def project_linear_goals_route(project_id: int, enabled: str = Form(...)):
     conn = db.get_connection()
     _project_row(conn, project_id)
     db.set_linear_goals(conn, project_id, enabled == "1")
-    return RedirectResponse(f"/projects/{project_id}#linear-goals", status_code=303)
+    return RedirectResponse(f"/projects/{project_id}/settings#linear-goals", status_code=303)
 
 
 @app.post("/projects/{project_id}/linear-project")
@@ -1055,7 +1063,7 @@ def project_linear_project_route(project_id: int, linear_project: str = Form(...
     if chosen is None:
         raise HTTPException(status_code=400, detail="That isn't one of your Linear team's projects.")
     db.set_linear_project(conn, project_id, chosen["id"], chosen["name"])
-    return RedirectResponse(f"/projects/{project_id}#linear-goals", status_code=303)
+    return RedirectResponse(f"/projects/{project_id}/settings#linear-goals", status_code=303)
 
 
 @app.get("/projects/{project_id}/work")
@@ -1126,7 +1134,7 @@ def project_brief_route(project_id: int, goal: str = Form(""), links: str = Form
     conn = db.get_connection()
     _project_row(conn, project_id)
     db.set_project_brief(conn, project_id, goal=goal, links=links)
-    return RedirectResponse(f"/projects/{project_id}", status_code=303)
+    return RedirectResponse(f"/projects/{project_id}/settings", status_code=303)
 
 
 @app.post("/projects/{project_id}/status")
@@ -1138,8 +1146,8 @@ def project_status_route(project_id: int, status: str = Form(""), note: str = Fo
         if priority:
             db.set_project_priority(conn, project_id, priority)
     except ValueError as exc:
-        return _with_param(f"/projects/{project_id}", "error", str(exc))
-    return RedirectResponse(f"/projects/{project_id}", status_code=303)
+        return _with_param(f"/projects/{project_id}/settings", "error", str(exc))
+    return RedirectResponse(f"/projects/{project_id}/settings", status_code=303)
 
 
 def _picked(raw: str | None) -> int | None:
@@ -1215,8 +1223,8 @@ def rename_project_route(project_id: int, name: str = Form("")):
     try:
         db.rename_project(conn, project_id, name)
     except ValueError as exc:
-        return _with_param(f"/projects/{project_id}", "error", str(exc))
-    return RedirectResponse(f"/projects/{project_id}", status_code=303)
+        return _with_param(f"/projects/{project_id}/settings", "error", str(exc))
+    return RedirectResponse(f"/projects/{project_id}/settings", status_code=303)
 
 
 @app.post("/projects/{project_id}/merge")
@@ -1518,8 +1526,8 @@ def project_autonomy_route(project_id: int, autonomy: str = Form("ask")):
     try:
         db.set_project_autonomy(conn, project_id, autonomy)
     except ValueError as exc:
-        return _with_param(f"/projects/{project_id}", "error", str(exc))
-    return RedirectResponse(f"/projects/{project_id}", status_code=303)
+        return _with_param(f"/projects/{project_id}/settings", "error", str(exc))
+    return RedirectResponse(f"/projects/{project_id}/settings", status_code=303)
 
 
 @app.post("/projects/{project_id}/rules")
@@ -1527,7 +1535,7 @@ def add_rule_route(project_id: int, text: str = Form(""), source_decision_id: st
                    next: str | None = Form(None)):
     conn = db.get_connection()
     _project_row(conn, project_id)
-    back = _safe_next(next, f"/projects/{project_id}")
+    back = _safe_next(next, f"/projects/{project_id}/settings")
     try:
         db.add_standing_rule(conn, project_id, text, source_decision_id=_picked(source_decision_id))
     except ValueError as exc:
@@ -1540,7 +1548,7 @@ def retire_rule_route(project_id: int, rule_id: int):
     conn = db.get_connection()
     _project_row(conn, project_id)
     db.retire_standing_rule(conn, rule_id)
-    return RedirectResponse(f"/projects/{project_id}", status_code=303)
+    return RedirectResponse(f"/projects/{project_id}/settings", status_code=303)
 
 
 @app.post("/outcomes/{outcome_id}/status")

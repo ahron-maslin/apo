@@ -111,7 +111,7 @@
         {% if c.name == 'linear' %}
           <p class="connector-meta linear-goals-note">
             <strong>Goals from Linear:</strong>
-            {% if linear_goal_projects %}on for {% for lp in linear_goal_projects %}<a href="/projects/{{ lp.id }}#linear-goals">{{ lp.name }}</a>{{ ", " if not loop.last }}{% endfor %}.
+            {% if linear_goal_projects %}on for {% for lp in linear_goal_projects %}<a href="/projects/{{ lp.id }}/settings#linear-goals">{{ lp.name }}</a>{{ ", " if not loop.last }}{% endfor %}.
             {% else %}off for every project.{% endif %}
             Turn it on for a project on its Overview: a new issue you create in its Linear project (the one with its name, unless you pick another there) becomes a goal, and its sub-issues its steps.
           </p>

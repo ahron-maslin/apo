@@ -90,7 +90,7 @@
           {% if repositories %}
             <label class="inline-check not-me"><input type="checkbox" name="run_now" value="1"> Start a background session on it now</label>
           {% endif %}
-          <p class="field-hint not-me">It becomes READY in the repo's <code>INDEX.md</code> for the next session or <code>/decisions</code>{% if repositories %}, or starts now with {{ {"ask": "your normal permissions", "edits": "Accept file edits", "plan": "Plan only"}[autonomy] }} (set on the Overview){% endif %}.</p>
+          <p class="field-hint not-me">It becomes READY in the repo's <code>INDEX.md</code> for the next session or <code>/decisions</code>{% if repositories %}, or starts now with {{ {"ask": "your normal permissions", "edits": "Accept file edits", "plan": "Plan only"}[autonomy] }} (set in the project's <a href="/projects/{{ p.id }}/settings#rules">settings</a>){% endif %}.</p>
           <p class="field-hint me-only">It goes on your Now.</p>
           <div><button type="submit" class="btn btn--primary btn--sm">Add</button></div>
         </form>

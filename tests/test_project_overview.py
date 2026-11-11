@@ -33,7 +33,7 @@ def _forms(html, action):
 
 
 def test_the_brief_is_purpose_and_links_and_goals_own_done_when(client, acme):
-    html = client.get(f"/projects/{acme['id']}").text
+    html = client.get(f"/projects/{acme['id']}/settings").text
 
     [brief] = _forms(html, f"/projects/{acme['id']}/brief")
     assert 'name="goal"' in brief and 'name="links"' in brief and 'name="done_when"' not in brief
@@ -42,7 +42,7 @@ def test_the_brief_is_purpose_and_links_and_goals_own_done_when(client, acme):
 def test_how_agents_work_here_holds_the_permission_level_and_the_rules(client, acme):
     db.add_standing_rule(db.get_connection(), acme["id"], "Use Postgres for anything new.")
 
-    section = _section(client.get(f"/projects/{acme['id']}").text, "agents-here-heading")
+    section = _section(client.get(f"/projects/{acme['id']}/settings").text, "agents-here-heading")
 
     assert "How agents work here" in section
     assert f'action="/projects/{acme["id"]}/autonomy"' in section
@@ -50,7 +50,7 @@ def test_how_agents_work_here_holds_the_permission_level_and_the_rules(client, a
 
 
 def test_status_and_priority_are_one_form(client, acme):
-    html = client.get(f"/projects/{acme['id']}").text
+    html = client.get(f"/projects/{acme['id']}/settings").text
 
     [form] = _forms(html, f"/projects/{acme['id']}/status")
     assert 'name="status"' in form and 'name="note"' in form and 'name="priority"' in form
@@ -67,8 +67,8 @@ def test_saving_status_and_priority_together(client, acme):
     assert db.project_priority(conn, acme["id"]) == "hot"
 
 
-def test_goals_from_linear_sit_with_the_goals(client, acme):
+def test_goals_from_linear_are_a_project_setting(client, acme):
     db.set_linear_goals(db.get_connection(), acme["id"], True)
-    section = _section(client.get(f"/projects/{acme['id']}").text, "goals-heading")
 
-    assert 'id="linear-goals"' in section
+    assert 'id="linear-goals"' not in client.get(f"/projects/{acme['id']}").text
+    assert f'action="/projects/{acme["id"]}/linear-goals"' in client.get(f"/projects/{acme['id']}/settings").text
