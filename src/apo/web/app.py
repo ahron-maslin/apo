@@ -413,16 +413,24 @@ def _preview_folders() -> list[tuple[str, str]]:
     return pairs + [(str(work / "elsewhere"), "")]
 
 
+def _unpreview(text: str) -> str:
+    """Every stand-in folder in text, back to the real one (commands to copy included)."""
+    for scratch, real in sorted(_preview_folders(), key=lambda pair: len(pair[0]), reverse=True):
+        if scratch in text:
+            text = text.replace(scratch, real)
+    return text
+
+
 def _shown_path(path) -> str:
-    text = str(path)
-    for scratch, real in _preview_folders():
-        if text == scratch or text.startswith(scratch + "/"):
-            text = (real + text[len(scratch):]) or "/"
-            break
-    return text.replace(str(Path.home()), "~", 1)
+    return (_unpreview(str(path)) or "/").replace(str(Path.home()), "~", 1)
+
+
+def _finalize(value):
+    return _unpreview(value) if isinstance(value, str) and config.is_preview() else value
 
 
 templates.env.filters["home"] = _shown_path
+templates.env.finalize = _finalize
 
 
 def _when(iso_ts: str) -> str:
