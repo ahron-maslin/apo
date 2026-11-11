@@ -903,7 +903,6 @@ a.now-title:hover { text-decoration: underline; }
 .option-btn:hover { border-color: var(--accent-border); background: var(--accent-soft); }
 .option-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .option-btn.is-recommended { border-color: var(--accent-border); }
-.option-btn.is-recommended .option-btn-label::after { content: " ★ recommended"; color: var(--accent-text); font-size: var(--fs-xs); font-weight: 600; }
 .option-btn kbd { width: 24px; height: 24px; display: grid; place-items: center; font-size: var(--fs-xs); }
 .option-btn-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .option-btn-label { font-weight: 500; line-height: 24px; overflow-wrap: anywhere; }
