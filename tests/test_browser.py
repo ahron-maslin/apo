@@ -337,13 +337,17 @@ def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
             const badge = row.querySelector(':scope > .badge'), body = row.querySelector(':scope > div');
             return badge.getBoundingClientRect().right > body.getBoundingClientRect().left;
           }).length;
+          const offCentre = [...document.querySelectorAll('.work-list .state-badge')].filter(b => {
+            const outer = b.getBoundingClientRect(), text = b.firstElementChild.getBoundingClientRect();
+            return Math.abs((outer.top + outer.bottom) / 2 - (text.top + text.bottom) / 2) > 2;
+          }).length;
           return {covered: buttons.filter(b => !topmost(b)).map(b => b.textContent.trim()),
-                  filterRows: new Set(tops).size, overlaps};
+                  filterRows: new Set(tops).size, overlaps, offCentre};
         })()""")
 
     result = _in_browser(f"{server}/projects/{project['id']}/work", ".filter-menu", act, window_size=(1440, 900))
 
-    assert result == {"covered": [], "filterRows": 1, "overlaps": 0}
+    assert result == {"covered": [], "filterRows": 1, "overlaps": 0, "offCentre": 0}
 
 
 def test_the_bulk_bar_shows_while_rows_are_ticked(server, tmp_path):
@@ -410,6 +414,42 @@ def test_a_goal_cards_menu_opens_over_the_card_link(server, tmp_path):
         return on_top, drop, await js("location.pathname")
 
     assert _in_browser(f"{server}/projects/{project['id']}", ".outcome-card", act) == (True, True, f"/projects/{project['id']}")
+
+
+def test_a_pop_up_menu_closes_when_you_click_elsewhere_open_another_or_press_escape(server, tmp_path):
+    conn = db.get_connection()
+    project = _project(conn, tmp_path)
+    db.add_work(conn, project["id"], "me", "Renew the domain")
+    db.add_work(conn, project["id"], "me", "Call the bank")
+
+    async def act(js):
+        is_open = "(sel, i) => document.querySelectorAll(sel)[i || 0].open"
+        seen = []
+        await js("document.querySelector('.filter-menu > summary').click()")
+        seen.append(await js(f"({is_open})('.filter-menu')"))
+        await js("document.querySelector('h2').click()")
+        seen.append(await js(f"({is_open})('.filter-menu')"))
+        await js("document.querySelectorAll('.work-list .row-more > summary')[0].click()")
+        await js("document.querySelectorAll('.work-list .row-more > summary')[1].click()")
+        seen.append([await js(f"({is_open})('.work-list .row-more', 0)"), await js(f"({is_open})('.work-list .row-more', 1)")])
+        await js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+        seen.append(await js(f"({is_open})('.work-list .row-more', 1)"))
+        return seen
+
+    assert _in_browser(f"{server}/projects/{project['id']}/work", ".filter-menu", act) == [True, False, [False, True], False]
+
+
+def test_send_note_waits_for_a_note(server, tmp_path):
+    conn = db.get_connection()
+    item = db.add_work(conn, _project(conn, tmp_path)["id"], "me", "Renew the domain")
+
+    async def act(js):
+        await js("document.querySelector('button[formaction$=\"/notes\"]').click()")
+        await asyncio.sleep(1)
+        return await js("location.pathname + location.search")
+
+    assert _in_browser(f"{server}/decisions/{item}", "button[formaction]", act) == f"/decisions/{item}"
+    assert db.list_notes(db.get_connection(), item) == []
 
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 

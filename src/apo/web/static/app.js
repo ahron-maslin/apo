@@ -463,7 +463,7 @@
     if (note && !note.value.trim()) {
       event.preventDefault();
       note.focus();
-      toast("Write what you need to know first — it goes back to the agent.", "error");
+      toast(button.dataset.needsNote || "Write what you need to know first — it goes back to the agent.", "error");
     }
   });
 
@@ -718,6 +718,23 @@
     syncBulk();
   });
   document.addEventListener("app:enhance", syncBulk);
+
+  // Pop-up menus (a row's …, Filter, Snooze) close when you click elsewhere, open another
+  // one, or press Escape, like a menu rather than a section that stays unfolded.
+  function openPopups() {
+    return document.querySelectorAll("details[open]:has(> .menu-pop), details[open].now-snooze");
+  }
+  document.addEventListener("click", function (event) {
+    openPopups().forEach(function (menu) { if (!menu.contains(event.target)) menu.open = false; });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    openPopups().forEach(function (menu) {
+      var hadFocus = menu.contains(document.activeElement);
+      menu.open = false;
+      if (hadFocus) menu.querySelector("summary").focus();
+    });
+  });
 
   // Picking A bug in New work opens its folded fields: what happened goes there.
   document.addEventListener("change", function (event) {

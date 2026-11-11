@@ -1486,7 +1486,8 @@ form.settings-body { padding: 0; margin: 0; }
 .manage > summary { cursor: pointer; font-weight: 500; }
 .manage-body { display: flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-3); }
 .decision-row .work-row-end { flex-wrap: wrap; justify-content: flex-end; }
-.history-item > .state-badge { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-item > .state-badge { max-width: 100%; }
+.state-badge-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .due-summary { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0 0 var(--s-4); }
 .section-head .due-summary { margin: 0 auto 0 var(--s-2); }
 .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); margin-bottom: var(--s-4); }

@@ -86,7 +86,7 @@
 {% macro work_row(i, tone, next, show_project=False, ranking=False) -%}
   <li class="history-item has-check"{% if ranking %} id="item-{{ i.id }}"{% endif %} data-keyitem>
     {{ bulk_check(i.id) }}
-    <span class="badge tone-{{ tone }} state-badge" title="{{ i.state }}">{{ i.state }}</span>
+    <span class="badge tone-{{ tone }} state-badge" title="{{ i.state }}"><span class="state-badge-text">{{ i.state }}</span></span>
     <div>
       <a href="{{ i.href }}">{{ ref(i.id) }}{{ i.title }}</a>
       {% if show_project %}<a class="badge badge--square tone-neutral" href="/projects/{{ i.project_id }}/work">{{ i.project_name }}</a>{% endif %}

@@ -12,7 +12,7 @@
     <ul class="history-list surface project-queue">
       {% for d in open_decisions %}
         <li class="history-item decision-row">
-          <span class="badge tone-warning state-badge" title="{{ d.state }}">{{ d.state }}</span>
+          <span class="badge tone-warning state-badge" title="{{ d.state }}"><span class="state-badge-text">{{ d.state }}</span></span>
           <div><a href="{{ d.href }}">{{ ref(d.id) }}{{ d.title }}</a>
             {% if d.summary and d.summary != d.title %}<div class="now-reason">{{ d.summary }}</div>{% endif %}</div>
           <div class="work-row-end">

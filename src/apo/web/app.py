@@ -400,7 +400,29 @@ def _code_spans(text: str | None) -> Markup:
 templates.env.filters["code_spans"] = _code_spans
 templates.env.filters["work_location"] = db.work_location_phrase
 templates.env.filters["clock"] = lambda iso_ts: datetime.fromisoformat(iso_ts).astimezone().strftime("%H:%M")
-templates.env.filters["home"] = lambda path: str(path).replace(str(Path.home()), "~", 1)
+def _preview_folders() -> list[tuple[str, str]]:
+    """In a preview (scripts/preview.sh), each stand-in folder in its scratch directory
+    and the real folder it stands for, so pages show the folders they're previewing."""
+    if not config.is_preview():
+        return []
+    work = Path(config.get_db_path()).parent
+    try:
+        pairs = [(scratch, real) for real, scratch in json.loads((work / "folders.json").read_text())]
+    except (OSError, ValueError):
+        pairs = []
+    return pairs + [(str(work / "elsewhere"), "")]
+
+
+def _shown_path(path) -> str:
+    text = str(path)
+    for scratch, real in _preview_folders():
+        if text == scratch or text.startswith(scratch + "/"):
+            text = (real + text[len(scratch):]) or "/"
+            break
+    return text.replace(str(Path.home()), "~", 1)
+
+
+templates.env.filters["home"] = _shown_path
 
 
 def _when(iso_ts: str) -> str:
