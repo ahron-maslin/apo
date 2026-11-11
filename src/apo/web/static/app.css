@@ -1455,6 +1455,17 @@ form.settings-body { padding: 0; margin: 0; }
 
 /* Bulk actions, saved views, search filters */
 .history-item.has-check { grid-template-columns: auto 96px minmax(0, 1fr) auto; }
+.suggestion-line { display: flex; align-items: flex-start; gap: var(--s-2); margin: 0 0 var(--s-4); color: var(--text-2); }
+.option-btn-suggested { margin-left: var(--s-1); vertical-align: 1px; }
+.notes-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--s-2); }
+.notes-fold > summary::-webkit-details-marker { display: none; }
+.notes-fold > summary h2 { margin: 0; font-size: var(--fs-base); font-weight: 600; display: flex; align-items: center; gap: var(--s-2); }
+.notes-fold > summary .chev { color: var(--text-3); transition: transform .15s; }
+.notes-fold[open] > summary .chev { transform: rotate(90deg); }
+.notes-fold[open] > summary { margin-bottom: var(--s-3); }
+.manage { margin-top: var(--s-3); border-top: 1px solid var(--border); padding-top: var(--s-2); }
+.manage > summary { cursor: pointer; font-weight: 500; }
+.manage-body { display: flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-3); }
 .decision-row .work-row-end { flex-wrap: wrap; justify-content: flex-end; }
 .history-item > .state-badge { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .due-summary { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0 0 var(--s-4); }

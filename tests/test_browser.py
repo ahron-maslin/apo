@@ -381,6 +381,17 @@ def test_the_palette_saves_the_page_as_a_view(server, tmp_path):
     assert [(v["name"], v["path"], v["query"]) for v in db.list_saved_views(db.get_connection())] == [
         ("Mine first", "/projects/work", "owner=me")]
 
+
+def test_a_link_to_an_items_notes_opens_them(server, tmp_path):
+    conn = db.get_connection()
+    item = db.create_decision_request(conn, project_id=_project(conn, tmp_path)["id"], title="Pick a queue", question="?")
+    db.add_note(conn, item, "Tried SQS last year")
+
+    async def act(js):
+        return await js("document.getElementById('notes').open")
+
+    assert _in_browser(f"{server}/decisions/{item}#notes", "#notes", act) is True
+
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 
 

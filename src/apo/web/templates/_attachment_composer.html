@@ -97,7 +97,7 @@
                           class="option-btn{{ ' is-recommended' if d.recommended_option == loop.index0 else '' }}">
                     <kbd aria-hidden="true">{{ loop.index }}</kbd>
                     <span class="option-btn-body">
-                      <span class="option-btn-label">{{ o.label }}</span>
+                      <span class="option-btn-label">{{ o.label }}{% if d.recommended_option == loop.index0 %} <span class="badge tone-info option-btn-suggested">Suggested{% if d.confidence %} · {{ d.confidence }}%{% endif %}</span>{% endif %}</span>
                       {% if o.consequence %}<span class="option-btn-meta">Agent will: {{ o.consequence }}</span>{% endif %}
                       {% if o.detail %}<span class="option-btn-meta">{{ o.detail }}</span>{% endif %}
                     </span>
@@ -138,8 +138,12 @@
           </div>
           <div class="composer-submit">
             <span class="kbd-hint" aria-hidden="true"><kbd data-mod-key>Ctrl</kbd><kbd>&crarr;</kbd></span>
+            {% if composer_note_submit %}
+            <button type="submit" data-default-submit class="btn btn--secondary" formnovalidate formaction="/decisions/{{ composer_decision_id }}/notes">{{ composer_submit_label }}</button>
+            {% else %}
             <button type="submit" data-default-submit class="btn {{ 'btn--secondary' if d else 'btn--primary' }}"
                     {% if is_action_composer %}name="choice" value="done"{% endif %}>{{ composer_submit_label }}</button>
+            {% endif %}
           </div>
         </div>
       </div>

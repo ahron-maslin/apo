@@ -164,7 +164,7 @@ Add `?project=name` to the URL (or use **Open in Now** on a project's page) to s
 
 ### Answering
 
-A decision shows the agent's **Suggested** answer and how sure it is. Then:
+A decision's page opens on the answer: its summary, then the options, with the agent's **Suggested** one marked with how sure it is. The question in the agent's own words, its context and the handoff for whoever applies the answer are folded below, and so are the item's **Notes**. **Manage** in the side column has the rest: edit, due date, labels, what it waits on, folder, cancel and **Make this a standing rule**. Then:
 
 - **Accept recommendation** (`y`): go with what the agent suggested.
 - **An option** (`1`–`9`): each option says what the agent will do and whether it's easy to reverse (⇄) or not (⟶).
@@ -179,7 +179,7 @@ If what you type looks like a password or API key, you're asked to confirm first
 
 ### Actions
 
-An action has **Done** (`e`), **I'm stuck…** (write what's unclear first), and **Can't do this**.
+An action has **Done** (`e`), **I'm stuck…** (write what's unclear first), and **Can't do this**. On its page, the box below them is for notes: **Send note** adds one without closing the action, and **Done** takes whatever is in the box along as its note.
 
 An agent can make an action precise:
 
@@ -224,7 +224,7 @@ When an agent closes an item or a task from the repo, the item says where the wo
 
 Only answers you gave here, from the CLI, or in chat start a session with one click. An answer that came in from a Linear comment needs **Approve and apply**, because that text came from outside this machine.
 
-**What a background agent may do:** by default, exactly what a `claude` you open in that folder may do: apo passes no permission flags. A project's permission level (on its Overview, under **How agents work here**) can loosen or tighten that for the sessions apo starts there: **Accept file edits** passes `--permission-mode acceptEdits` (edits go through; commands still ask), **Plan only** passes `--permission-mode plan` (it reads and plans, changes nothing). Modes that skip permission checks altogether aren't offered. With default settings it reads and searches freely, and stops to ask before every file edit, shell command and tool call that your settings (user-level or the repo's `.claude/settings*.json`) don't already allow. A background session that stops to ask waits for you on the dashboard: its card asks **Allow** / **Deny** for a permission, and links to its page for a question (pick the options, or answer in your own words) or a plan (**Approve the plan**, or **Keep planning** with what to change). Your answer goes back to Claude Code as if you'd given it in its own dialog. **In the terminal** hands the prompt back to Claude Code's dialog instead, for `claude attach <id>`; so does an hour without an answer. Sessions running in a terminal or an editor are never held: their own dialog shows straight away.
+**What a background agent may do:** by default, exactly what a `claude` you open in that folder may do: apo passes no permission flags. A project's permission level (in its settings, under **How agents work here**) can loosen or tighten that for the sessions apo starts there: **Accept file edits** passes `--permission-mode acceptEdits` (edits go through; commands still ask), **Plan only** passes `--permission-mode plan` (it reads and plans, changes nothing). Modes that skip permission checks altogether aren't offered. With default settings it reads and searches freely, and stops to ask before every file edit, shell command and tool call that your settings (user-level or the repo's `.claude/settings*.json`) don't already allow. A background session that stops to ask waits for you on the dashboard: its card asks **Allow** / **Deny** for a permission, and links to its page for a question (pick the options, or answer in your own words) or a plan (**Approve the plan**, or **Keep planning** with what to change). Your answer goes back to Claude Code as if you'd given it in its own dialog. **In the terminal** hands the prompt back to Claude Code's dialog instead, for `claude attach <id>`; so does an hour without an answer. Sessions running in a terminal or an editor are never held: their own dialog shows straight away.
 
 ## Lightning round
 
@@ -322,7 +322,7 @@ A **Do it** row (an action of yours) has its own **Done**, so something you've a
 
 Any of them can go under one of the project's goals and have a due date. For an agent's task or a bug, tick **Start a background session on it now** to have one start straight away, with the project's permission level.
 
-When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** on its page, or `apo move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `apo pending --all`.
+When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** under **Manage** on its page, or `apo move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `apo pending --all`.
 
 **Decisions** has what's waiting on you, each row with its own **Accept** (saying what you'd accept and how sure the agent is) or **Done** for an action, so you can answer without opening it; then the **decision log**: every answered decision with its question, the answer, when, and who answered. Filter it with `/`. It's how you avoid deciding something twice.
 

@@ -1509,11 +1509,12 @@ def _known_item(conn, item_id: int) -> None:
 
 
 @app.post("/decisions/{decision_id}/notes")
-def item_note_route(decision_id: int, body: str = Form("")):
+def item_note_route(decision_id: int, body: str = Form(""), answer_text: str = Form("")):
+    """answer_text: an action's own box, whose Send note posts here instead of answering."""
     conn = db.get_connection()
     _known_item(conn, decision_id)
     try:
-        db.add_note(conn, decision_id, body, author="human")
+        db.add_note(conn, decision_id, body or answer_text, author="human")
     except ValueError as exc:
         return _with_param(f"/decisions/{decision_id}#notes", "note_error", str(exc))
     return RedirectResponse(f"/decisions/{decision_id}#notes", status_code=303)

@@ -1125,12 +1125,22 @@
     root.querySelectorAll("[data-screenshot-picker]").forEach(initScreenshotPicker);
   }
 
+  // A link to a folded section (#notes on an item) opens it.
+  function openHashTarget() {
+    var id = location.hash.slice(1);
+    var target = id && document.getElementById(id);
+    var fold = target && (target.tagName === "DETAILS" ? target : target.closest("details"));
+    if (fold) fold.open = true;
+  }
+  window.addEventListener("hashchange", openHashTarget);
+
   document.addEventListener("DOMContentLoaded", function () {
     ensureLiveRegions();
     initThemeToggle();
     autoEnhance(document);
     consumeFlash();
     consumeUndo();
+    openHashTarget();
   });
 
   window.App = {

@@ -29,12 +29,9 @@
         <h1 class="detail-title">{{ decision.title }}</h1>
       </header>
 
-      {% if decision.summary and decision.summary != decision.question %}
+      {% set has_question_block = decision.summary and decision.summary != decision.question %}
+      {% if has_question_block %}
         <p class="lead summary">{{ decision.summary }}</p>
-        <div class="question-block">
-          <span class="eyebrow">{{ "The ask" if is_action else ("The brief" if is_task else "The question") }}</span>
-          <p class="question">{{ decision.question }}</p>
-        </div>
       {% elif decision.question != decision.title %}
         <p class="lead">{{ decision.question }}</p>
       {% endif %}
@@ -47,82 +44,30 @@
         {% include "_attachment_composer.html" %}
       {% endif %}
 
-      {% if decision.options and decision.answer_text %}
-        <section class="detail-section" aria-labelledby="options-heading">
-          <h2 id="options-heading">Options</h2>
-          <ol class="option-list">
-            {% for o in decision.options %}
-              <li class="option{{ ' is-chosen' if decision.answer_option == loop.index0 else '' }}">
-                <div>
-                  <span class="option-label">{{ o.label }}{% if decision.answer_option == loop.index0 %} <span class="badge tone-success">Chosen</span>{% endif %}</span>
-                  {% if o.consequence %}<span class="option-detail">Agent will: {{ o.consequence }}</span>{% endif %}
-                  {% if o.detail %}<span class="option-detail">{{ o.detail }}</span>{% endif %}
-                </div>
-              </li>
-            {% endfor %}
-          </ol>
-        </section>
-      {% endif %}
-
-      {% if decision.recommendation %}
-        <section class="detail-section" aria-labelledby="reco-heading">
-          <div class="reco-card">
-            <h2 class="reco-card-head" id="reco-heading">{{ icon("bulb") }}Suggested recommendation</h2>
-            <p class="recommendation">{{ decision.recommendation }}</p>
-            {% if decision.confidence %}
-              <div class="confidence">
-                <span>Confidence</span>
-                <span class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ decision.confidence }}"
-                      aria-label="Confidence"><span style="width: {{ [decision.confidence, 100] | min }}%"></span></span>
-                <strong>{{ decision.confidence }}%</strong>
-              </div>
-            {% endif %}
-          </div>
-        </section>
-      {% endif %}
-
-      {% set plan = decision.resume_plan %}
-      {% if decision.context or decision.why_it_matters or decision.blocked_work or decision.safe_work or plan %}
-        <details class="context-panel disclosure full-context" {{ "open" if not decision.summary }}>
-          <summary>
-            {{ icon("chevron-right", cls="chev") }}
-            <span class="summary-text">
-              <strong>Full context</strong>
-              <span class="muted">The resuming agent's handoff — already written into the repo</span>
-            </span>
-          </summary>
-          <div class="context-body prose">
-            {% if decision.context %}
-              <div><h3>Context</h3><p>{{ decision.context }}</p></div>
-            {% endif %}
-            {% if decision.why_it_matters %}
-              <div><h3>Why it matters</h3><p>{{ decision.why_it_matters }}</p></div>
-            {% endif %}
-            {% if decision.blocked_work %}
-              <div><h3>Blocked work</h3><ul>{% for f in decision.blocked_work %}<li>{{ f }}</li>{% endfor %}</ul></div>
-            {% endif %}
-            {% if decision.safe_work %}
-              <div><h3>Safe remaining work</h3><ul>{% for f in decision.safe_work %}<li>{{ f }}</li>{% endfor %}</ul></div>
-            {% endif %}
-            {% if plan %}
-              <div>
-                <h3>Resume plan</h3>
-                {% if plan.objective %}<p><strong>Objective:</strong> {{ plan.objective }}</p>{% endif %}
-                {% if plan.remaining_steps %}
-                  <ol>{% for s in plan.remaining_steps %}<li>{{ s }}</li>{% endfor %}</ol>
-                {% endif %}
-                {% if plan.expected_outcome %}
-                  <p><strong>Expected outcome:</strong> {{ plan.expected_outcome }}</p>
-                {% endif %}
-              </div>
-            {% endif %}
-          </div>
-        </details>
+      {% if decision.recommendation and (not decision.options or decision.recommended_option is none) %}
+        <p class="suggestion-line">{{ icon("bulb") }}<span><strong>Suggested:</strong> {{ decision.recommendation }}{% if decision.confidence %} <span class="muted">· {{ decision.confidence }}% sure</span>{% endif %}</span></p>
       {% endif %}
 
       {% if is_task or is_wait %}
         {% include "_work_status.html" %}
       {% elif decision.answer_text %}
+      {% if decision.options and decision.answer_text %}
+          <section class="detail-section" aria-labelledby="options-heading">
+            <h2 id="options-heading">Options</h2>
+            <ol class="option-list">
+              {% for o in decision.options %}
+                <li class="option{{ ' is-chosen' if decision.answer_option == loop.index0 else '' }}">
+                  <div>
+                    <span class="option-label">{{ o.label }}{% if decision.answer_option == loop.index0 %} <span class="badge tone-success">Chosen</span>{% endif %}{% if decision.recommended_option == loop.index0 %} <span class="badge tone-info">Suggested{% if decision.confidence %} · {{ decision.confidence }}%{% endif %}</span>{% endif %}</span>
+                    {% if o.consequence %}<span class="option-detail">Agent will: {{ o.consequence }}</span>{% endif %}
+                    {% if o.detail %}<span class="option-detail">{{ o.detail }}</span>{% endif %}
+                  </div>
+                </li>
+              {% endfor %}
+            </ol>
+          </section>
+        {% endif %}
+  
         <section class="detail-section" aria-labelledby="answer-heading">
           <h2 id="answer-heading">{{ icon("check-circle") }}Answer</h2>
           <div class="answer-block answer">{{ decision.answer_text }}</div>
@@ -218,15 +163,60 @@
           {% set composer_thumb_compact = false %}
           {% set composer_id_suffix = '' %}
           {% set composer_placeholder = "Add a note for the session (optional context, what you changed)…" if is_action else "Pick a quick answer above (anything typed here goes with it as a note), or write your own answer." %}
-          {% set composer_submit_label = "Confirm done" if is_action else "Send answer" %}
+          {% set composer_submit_label = "Send note" if is_action else "Send answer" %}
+          {% set composer_note_submit = is_action %}
           {% set composer_decision = decision %}
           {% set composer_show_keys = true %}
           {% include "_attachment_composer.html" %}
         </section>
       {% endif %}
 
-      <section class="detail-section" id="notes" aria-labelledby="notes-heading">
-        <h2 id="notes-heading">Notes{% if notes %} <span class="count-chip">{{ notes | length }}</span>{% endif %}</h2>
+      {% set plan = decision.resume_plan %}
+      {% if has_question_block or decision.context or decision.why_it_matters or decision.blocked_work or decision.safe_work or plan %}
+        <details class="context-panel disclosure full-context question-fold">
+          <summary>
+            {{ icon("chevron-right", cls="chev") }}
+            <span class="summary-text">
+              <strong>{{ "The ask" if is_action else ("The brief" if is_task else "The question") }}{{ " and its context" if decision.context or decision.why_it_matters or plan else "" }}</strong>
+              <span class="muted">The agent's own words and its handoff, also in the repo</span>
+            </span>
+          </summary>
+          <div class="context-body prose">
+            {% if has_question_block %}
+              <div class="question-block"><p class="question">{{ decision.question }}</p></div>
+            {% endif %}
+            {% if decision.context %}
+              <div><h3>Context</h3><p>{{ decision.context }}</p></div>
+            {% endif %}
+            {% if decision.why_it_matters %}
+              <div><h3>Why it matters</h3><p>{{ decision.why_it_matters }}</p></div>
+            {% endif %}
+            {% if decision.blocked_work %}
+              <div><h3>Blocked work</h3><ul>{% for f in decision.blocked_work %}<li>{{ f }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if decision.safe_work %}
+              <div><h3>Safe remaining work</h3><ul>{% for f in decision.safe_work %}<li>{{ f }}</li>{% endfor %}</ul></div>
+            {% endif %}
+            {% if plan %}
+              <div>
+                <h3>Resume plan</h3>
+                {% if plan.objective %}<p><strong>Objective:</strong> {{ plan.objective }}</p>{% endif %}
+                {% if plan.remaining_steps %}
+                  <ol>{% for s in plan.remaining_steps %}<li>{{ s }}</li>{% endfor %}</ol>
+                {% endif %}
+                {% if plan.expected_outcome %}
+                  <p><strong>Expected outcome:</strong> {{ plan.expected_outcome }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </details>
+      {% endif %}
+
+
+      {% set composer_shown = not (is_task or is_wait) and not decision.answer_text %}
+      <details class="detail-section notes-fold disclosure" id="notes"{% if note_error %} open{% endif %}>
+        <summary>{{ icon("chevron-right", cls="chev") }}<h2 id="notes-heading">Notes{% if notes %} <span class="count-chip">{{ notes | length }}</span>{% endif %}</h2></summary>
         {% if note_error %}<p class="is-error" role="alert">{{ note_error }}</p>{% endif %}
         {% if notes %}
           <ul class="history-list surface notes-list">
@@ -243,12 +233,14 @@
         {% else %}
           <p class="hint">No notes yet. Whatever you add here goes into this item's file, so the next session working it reads it.</p>
         {% endif %}
+        {% if not (is_action and composer_shown) %}
         <form method="post" action="/decisions/{{ decision.id }}/notes" class="form-stack">
           <label class="field-label" for="note-body">Add a note</label>
           <textarea id="note-body" class="textarea" name="body" rows="3" required></textarea>
           <div><button type="submit" class="btn btn--secondary btn--sm">Add note</button></div>
         </form>
-      </section>
+        {% endif %}
+      </details>
     </article>
 
     <aside class="detail-aside" aria-label="Decision details">
@@ -346,7 +338,16 @@
           {% if decision.due_on %}
             <dt>Due</dt><dd>{{ due_badge(decision.due_on) }}</dd>
           {% endif %}
+          {% if decision.labels %}
+            <dt>Labels</dt><dd>{% for label in decision.labels %}<a class="badge badge--square label-chip tone-{{ 'danger' if label in ('bug', 'urgent') else 'neutral' }}" href="/projects/{{ decision.project_id }}/work?label={{ label | urlencode }}">{{ label }}</a> {% endfor %}</dd>
+          {% endif %}
         </dl>
+        {% if decision.previous_answer %}
+          <p class="field-hint">Earlier answer, set aside when this was reopened: {{ decision.previous_answer }}</p>
+        {% endif %}
+        <details class="disclosure manage">
+          <summary>{{ icon("chevron-right", cls="chev") }}Manage</summary>
+          <div class="manage-body">
         {% if rule_draft %}
           <details class="disclosure make-rule">
             <summary>{{ icon("chevron-right", cls="chev") }}Make this a standing rule</summary>
@@ -379,9 +380,6 @@
               <div><button type="submit" class="btn btn--secondary btn--sm">Cancel it</button></div>
             </form>
           </details>
-        {% endif %}
-        {% if decision.previous_answer %}
-          <p class="field-hint">Earlier answer, set aside when this was reopened: {{ decision.previous_answer }}</p>
         {% endif %}
         <details class="disclosure edit-item">
           <summary>{{ icon("chevron-right", cls="chev") }}Edit title and description</summary>
@@ -458,6 +456,8 @@
             <div><button type="submit" class="btn btn--secondary btn--sm">{{ "Move" if repository else "Save" }}</button></div>
           </form>
         {% endif %}
+          </div>
+        </details>
       </section>
     </aside>
   </div>
