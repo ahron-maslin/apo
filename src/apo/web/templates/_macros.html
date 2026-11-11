@@ -84,3 +84,24 @@
     <button type="submit" class="btn btn--{{ 'primary' if pr.ready_to_close else 'ghost' }} btn--sm" data-goal-achieved aria-label="Mark achieved: {{ o.title }}">{{ icon("check") }}Achieved</button>
   </form>
 {%- endmacro %}
+
+{# A goal as one row: progress, the next step and whose it is, and Achieved. #}
+{% macro goal_card(o, next, show_project=False) -%}
+  {%- set pr = o.progress -%}
+  {%- set owner_labels = {"me": "You", "agent": "Agent", "external": "Waiting"} -%}
+  <div class="outcome-card outcome-row surface">
+    <div class="outcome-card-head">
+      {% if show_project %}<span class="badge badge--square tone-neutral">{{ o.project_name }}</span>{% endif %}
+      <a class="outcome-title outcome-card-link" href="/outcomes/{{ o.id }}">{{ o.title }}</a>
+      {{ linear_badge(o) }}{{ due_badge(o.due_on) }}
+      {% if o.status == "paused" %}<span class="badge tone-neutral">Paused</span>{% endif %}
+      {% if pr.ready_to_close %}<span class="badge tone-info">Ready to close</span>{% endif %}
+      {{ stall_warning(o.trend) }}
+      <span class="outcome-progress"><span class="progress" aria-hidden="true"><span style="width: {{ (100 * pr.done / pr.total) | round | int if pr.total else 0 }}%"></span></span><span class="outcome-count">{{ pr.done }}/{{ pr.total }}</span></span>
+      {% if pr.next %}<span class="outcome-next">Next: <span class="owner-pill owner-{{ pr.next_owner }}">{{ owner_labels[pr.next_owner] }}</span> {{ pr.next.title }}</span>
+      {% elif not pr.total %}<span class="outcome-next muted">No steps yet</span>
+      {% else %}<span class="outcome-next"></span>{% endif %}
+      {{ goal_achieve(o, pr, next) }}
+    </div>
+  </div>
+{%- endmacro %}

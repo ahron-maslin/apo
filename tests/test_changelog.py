@@ -153,12 +153,11 @@ def test_the_overview_says_what_changed_by_day(client, acme, fake_gh):
     changelog.refresh_pull_requests(str(repo))
 
     html = client.get(f"/projects/{project['id']}").text
-    card = re.search(r'<section[^>]*id="what-changed".*?</section>', html, re.S).group(0)
+    card = re.search(r'<section[^>]*id="recent".*?</section>', html, re.S).group(0)
 
     assert "2 commits" in card and "1 PR merged" in card
     assert "Fix the export button" in card and "Add the ELK layout" in card and "Initial import" not in card
     assert "ELK layout for large diagrams" in card and 'href="https://github.com/me/acme/pull/12"' in card
-    assert "Today" in card or "Yesterday" in card
 
 
 def test_a_project_with_no_code_changes_says_so(client, db_path, tmp_path):
@@ -166,7 +165,7 @@ def test_a_project_with_no_code_changes_says_so(client, db_path, tmp_path):
     project = db.get_or_create_project(conn, "quiet")
     db.ensure_repository_for_project(conn, project["id"], str(_repo(tmp_path / "quiet", [("Old", _ago(days=60))])))
 
-    card = re.search(r'<section[^>]*id="what-changed".*?</section>', client.get(f"/projects/{project['id']}").text, re.S)
+    card = re.search(r'<section[^>]*id="recent".*?</section>', client.get(f"/projects/{project['id']}").text, re.S)
 
     assert card and "No commits in the last 7 days" in card.group(0)
 
@@ -176,7 +175,7 @@ def test_whats_new_since_your_last_look_is_marked(client, acme):
     conn = db.get_connection()
     db.set_ui_state(conn, f"project_seen:{project['id']}", _ago(hours=5))
 
-    card = re.search(r'<section[^>]*id="what-changed".*?</section>', client.get(f"/projects/{project['id']}").text,
+    card = re.search(r'<section[^>]*id="recent".*?</section>', client.get(f"/projects/{project['id']}").text,
                      re.S).group(0)
 
     fresh = re.search(r'<li[^>]*class="[^"]*is-new[^"]*".*?</li>', card, re.S).group(0)

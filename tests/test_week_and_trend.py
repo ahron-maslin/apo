@@ -143,7 +143,7 @@ def test_outcome_page_and_goals_list_show_trend_and_warning(db_path, conn):
     conn.execute("UPDATE outcomes SET created_at = ? WHERE id = ?", (_days_ago_at_noon(15), o))
     conn.commit()
     client = TestClient(app_module.app)
+    text = client.get(f"/outcomes/{o}").text
+    assert "<svg" in text and "burnup" in text
     for path in (f"/outcomes/{o}", "/projects", f"/projects/{p}"):
-        text = client.get(path).text
-        assert "<svg" in text and "burnup" in text, path
-        assert "No progress for 15 days" in text, path
+        assert "No progress for 15 days" in client.get(path).text, path

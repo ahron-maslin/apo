@@ -279,15 +279,14 @@ A project's page is where you work on it. Its header shows the health dot and th
 
 The header shows the project's purpose under its name, and the gear next to it opens the project's **settings**: its purpose and links, **Status and priority** (saved together), **How agents work here** (what background sessions may do without asking, and the standing rules; both below), its folders, [Goals from Linear](#goals-from-linear), and renaming, merging and archiving.
 
-**Overview** has:
+**Overview** has, top to bottom:
 
-- **goals**: concrete results, each with its done-when, a checklist of steps and its progress;
-- what needs you here;
-- **What changed**: the last 7 days of commits and pull requests, by day (see below);
-- what happened recently;
-- an at-a-glance count of the work.
+- **goals**: one row each, with its progress, the next step and whose it is, and **Achieved**; the goal's page has its checklist and chart;
+- what needs you here, with any overdue, due-soon or stuck counts beside the heading;
+- **Ready to merge**, when a branch is waiting (see below);
+- **Recently**: what happened in the project and its commits and pull requests, newest first (see below).
 
-**What changed** reads `git log` in each of the project's folders (commits on any branch, so work an agent hasn't merged yet counts) and, where the folder has a GitHub remote and `gh` is signed in, its pull requests: merged, open and drafts. It's local and read-only. Pull requests are fetched in the background every 15 minutes, so the first visit to a project may show commits only. What's new since you last looked has a dot; a "look" lasts until you've been away for 30 minutes, so refreshing doesn't clear it. The Activity tab lists the commits among each day's events.
+**Recently** mixes the project's own events with what `git log` finds in each of its folders over the last 7 days (commits on any branch, so work an agent hasn't merged yet counts) and, where the folder has a GitHub remote and `gh` is signed in, its pull requests: merged, open and drafts. It's local and read-only. Pull requests are fetched in the background every 15 minutes, so the first visit to a project may show commits only. Its heading counts the commits and pull requests, and how many are new since you last looked; new commits are marked. A "look" lasts until you've been away for 30 minutes, so refreshing doesn't clear it. The Activity tab lists the commits among each day's events.
 
 **Priority** (in the project's settings, with the status) is hot, normal or background:
 

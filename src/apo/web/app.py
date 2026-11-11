@@ -912,16 +912,28 @@ def project_page(request: Request, project_id: int, merged: str = "", into: str 
     conn = db.get_connection()
     ctx = _project_context(conn, project_id, "overview")
     queue = ctx["queue"]
+    changes = _project_changes(conn, project_id, ctx["repositories"])
     return templates.TemplateResponse(request, "project_overview.html", {
         **ctx,
         "ready_to_merge": _ready_to_merge(conn, project_id, ctx["repositories"]),
         "merged": merged, "merged_into": into, "merge_error": merge_error,
         "items": [(lane, item) for lane in ("problems", "your_move", "asks", "in_transit", "review") for item in queue[lane]],
         "outcomes": db.list_outcomes(conn, project_id=project_id),
-        "events": db.collapse_repeats(db.list_events(conn, project_id=project_id, limit=40))[:8],
-        "changes": _project_changes(conn, project_id, ctx["repositories"]),
+        "changes": changes,
+        "recent": _recent(db.collapse_repeats(db.list_events(conn, project_id=project_id, limit=40))[:8], changes),
         "rule_suggestion": db.rule_suggestion(conn, project_id),
     })
+
+
+RECENT_ROWS = 10
+
+
+def _recent(events: list[dict], changes: dict) -> list[dict]:
+    """What happened lately, the project's own events and its commits and pull requests
+    together, newest first."""
+    rows = [{**e, "kind": "event", "at": e["occurred_at"]} for e in events]
+    rows += [c for day in changes["days"].values() for c in day]
+    return sorted(rows, key=lambda r: changelog.epoch(r["at"]), reverse=True)[:RECENT_ROWS]
 
 
 def _project_changes(conn, project_id: int, folders: list[dict]) -> dict:

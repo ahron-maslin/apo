@@ -1,5 +1,5 @@
 {% extends "projects_shell.html" %}
-{% from "_macros.html" import icon, empty_state, linear_badge, due_badge, burnup, stall_warning, goal_achieve %}
+{% from "_macros.html" import icon, empty_state, goal_card %}
 {% from "_project_macros.html" import project_row with context %}
 
 {% set owner_labels = {"me": "You", "agent": "Agent", "external": "Waiting"} %}
@@ -59,29 +59,7 @@
   {% if not outcomes %}<p class="hint goals-hint">Concrete results you're working toward, each with a checklist of steps owned by you, an agent or someone else.</p>{% endif %}
   {% if outcomes %}
     <div class="outcome-list">
-      {% for o in outcomes %}
-        {% set pr = o.progress %}
-        <div class="outcome-card surface">
-          <div class="outcome-card-head">
-            <span class="badge badge--square tone-neutral">{{ o.project_name }}</span>
-            <a class="outcome-title outcome-card-link" href="/outcomes/{{ o.id }}">{{ o.title }}</a>
-            {{ linear_badge(o) }}
-            {% if o.status == "paused" %}<span class="badge tone-neutral">Paused</span>{% endif %}
-            {% if pr.ready_to_close %}<span class="badge tone-info">Ready to close</span>{% endif %}
-            {{ stall_warning(o.trend) }}
-            {{ due_badge(o.due_on) }}
-            <span class="outcome-count">{{ pr.done }}/{{ pr.total }}</span>
-            {{ goal_achieve(o, pr, "/projects") }}
-          </div>
-          <span class="progress" aria-hidden="true"><span style="width: {{ (100 * pr.done / pr.total) | round | int if pr.total else 0 }}%"></span></span>
-          {{ burnup(o.trend, 120, 24) }}
-          {% if pr.next %}
-            <p class="outcome-next">Next: <span class="owner-pill owner-{{ pr.next_owner }}">{{ owner_labels[pr.next_owner] }}</span> {{ pr.next.title }}</p>
-          {% elif not pr.total %}
-            <p class="outcome-next muted">No steps yet.</p>
-          {% endif %}
-        </div>
-      {% endfor %}
+      {% for o in outcomes %}{{ goal_card(o, "/projects", show_project=True) }}{% endfor %}
     </div>
   {% else %}
     <p class="hint">No goals yet. A goal is a result you want, with steps split between you, your agents and other people.</p>
