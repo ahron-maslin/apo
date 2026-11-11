@@ -48,8 +48,8 @@
           {% if p.archived %}<span class="badge tone-neutral">Archived</span>{% endif %}</h1>
         <p class="page-desc">
           {{ p.counts_line or health_labels[p.health] }} · active {{ p.last_activity | ago }}
-          {% if repositories %} · <code>{{ repositories[0].local_path }}</code>{% if repositories | length > 1 %}
-            <span class="muted" title="{% for r in repositories[1:] %}{{ r.local_path }}&#10;{% endfor %}">+{{ repositories | length - 1 }} more folder{{ "s" if repositories | length > 2 }}</span>{% endif %}{% endif %}
+          {% if repositories %} · <code class="project-folder" title="{{ repositories[0].local_path | home }}">{{ repositories[0].local_path | home }}</code>{% if repositories | length > 1 %}
+            <span class="muted" title="{% for r in repositories[1:] %}{{ r.local_path | home }}&#10;{% endfor %}">+{{ repositories | length - 1 }} more folder{{ "s" if repositories | length > 2 }}</span>{% endif %}{% endif %}
         </p>
       </div>
       <div class="project-header-actions">

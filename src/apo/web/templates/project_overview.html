@@ -9,7 +9,6 @@
 {% block tab %}
 <div class="detail-layout">
   <div class="project-main">
-    {{ due_buckets(work, "/projects/" ~ p.id ~ "/work?sort=due") }}
     <section class="surface brief{% if not brief.goal %} brief--empty{% endif %}" aria-label="What this project is for">
       {% if brief.goal %}
         <p class="brief-goal">{{ brief.goal }}</p>
@@ -108,6 +107,7 @@
     <section class="section" aria-labelledby="needs-heading">
       <div class="section-head">
         <h2 class="section-title" id="needs-heading">Needs you</h2>
+        {{ due_buckets(work, "/projects/" ~ p.id ~ "/work?sort=due") }}
         <a class="section-link" href="/?project={{ p.name | urlencode }}" data-hotkey="o">Open in Now <kbd aria-hidden="true">o</kbd></a>
       </div>
       <div data-live-region="queue">

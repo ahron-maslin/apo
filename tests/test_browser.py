@@ -315,6 +315,34 @@ def test_an_expanded_run_of_tool_calls_stays_open_when_the_session_adds_one(serv
 
     assert _in_browser(f"{server}/sessions/{session_id}", group, act) == [False, True]
 
+
+def test_work_controls_fit_side_by_side_at_desktop_width(server, tmp_path):
+    """Each bulk button can be clicked, the filters share one row, and a long state
+    badge stops before the title."""
+    conn = db.get_connection()
+    project = _project(conn, tmp_path)
+    db.add_work(conn, project["id"], "me", "Renew the domain")
+    outcome_id = db.create_outcome(conn, project["id"], "Ship the app")
+    db.add_step(conn, outcome_id, "Store review", owner="external", waiting_on="App store review for version 2")
+
+    async def act(js):
+        return await js("""(() => {
+          const topmost = el => { const r = el.getBoundingClientRect();
+            return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); };
+          const buttons = [...document.querySelectorAll('#bulk-form button')];
+          const tops = [...document.querySelectorAll('.filter-bar select')].map(s => Math.round(s.getBoundingClientRect().top));
+          const overlaps = [...document.querySelectorAll('.work-list .history-item')].filter(row => {
+            const badge = row.querySelector(':scope > .badge'), body = row.querySelector(':scope > div');
+            return badge.getBoundingClientRect().right > body.getBoundingClientRect().left;
+          }).length;
+          return {covered: buttons.filter(b => !topmost(b)).map(b => b.textContent.trim()),
+                  filterRows: new Set(tops).size, overlaps};
+        })()""")
+
+    result = _in_browser(f"{server}/projects/{project['id']}/work", ".filter-bar", act, window_size=(1440, 900))
+
+    assert result == {"covered": [], "filterRows": 1, "overlaps": 0}
+
 PRESS = "(key) => document.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}))"
 
 
