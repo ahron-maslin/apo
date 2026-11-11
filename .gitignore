@@ -10,3 +10,5 @@ dist/
 *.db-wal
 *.db-shm
 secret.key
+.wrangler/
+.claude/
