@@ -157,3 +157,29 @@ def test_the_queue_says_how_long_your_moves_take_and_what_is_quiet(db_path, tmp_
 
     assert now["your_move_minutes"] == 1
     assert now["quiet"]["working"] == 1
+
+
+def test_a_folder_missing_on_disk_is_a_problem_that_points_at_its_new_path(db_path, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from apo.web import app
+
+    conn = db.get_connection()
+    (tmp_path / "acme").mkdir()
+    project, repo_id = _project(conn, "acme", tmp_path / "acme")
+    (tmp_path / "old").mkdir()
+    archived, _ = _project(conn, "old", tmp_path / "old")
+    conn.execute("UPDATE projects SET archived_at = ? WHERE id = ?", (db._now(), archived["id"]))
+    conn.commit()
+    assert not [p for p in db.now_queue(conn)["problems"] if p["kind"] == "missing_folder"]
+
+    (tmp_path / "acme").rename(tmp_path / "acme-shop")
+    (tmp_path / "old").rmdir()
+
+    problems = [p for p in db.now_queue(conn)["problems"] if p["kind"] == "missing_folder"]
+    assert [p["key"] for p in problems] == [f"missing:{repo_id}"]
+    assert problems[0]["project_name"] == "acme" and str(tmp_path / "acme") in problems[0]["reason"]
+    assert [p["key"] for p in db.now_queue(conn, project_id=project["id"])["problems"]] == [f"missing:{repo_id}"]
+
+    html = TestClient(app.app).get("/").text
+    assert f'href="/projects/{project["id"]}/settings#folders"' in html

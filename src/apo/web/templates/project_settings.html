@@ -113,7 +113,19 @@
       {% if repositories %}
         <ul class="surface folder-list">
           {% for r in repositories %}
-            <li><span class="folder-name">{{ r.label or r.name }}</span> <code>{{ r.local_path | home }}</code>{% if r.id == folder_default %} <span class="badge tone-neutral">default</span>{% endif %}</li>
+            {% set missing = r.id in missing_folder_ids %}
+            <li>
+              <div><span class="folder-name">{{ r.label or r.name }}</span> <code>{{ r.local_path | home }}</code>{% if r.id == folder_default %} <span class="badge tone-neutral">default</span>{% endif %}{% if missing %} <span class="badge tone-warning">Not found on disk</span>{% endif %}</div>
+              <details class="disclosure folder-move"{% if missing %} open{% endif %}>
+                <summary>{{ icon("chevron-right", cls="chev") }}{{ "Where is it now?" if missing else "Moved or renamed it?" }}</summary>
+                <form method="post" action="/projects/{{ p.id }}/folders/{{ r.id }}/path" class="settings-inline">
+                  <label class="sr-only" for="folder-path-{{ r.id }}">New path for {{ r.label or r.name }}</label>
+                  <input id="folder-path-{{ r.id }}" class="input" name="path" required autocomplete="off" placeholder="~/projects/…">
+                  <button type="submit" class="btn btn--secondary btn--sm">Use this path</button>
+                </form>
+                <p class="field-hint">Its decisions, tasks and sessions follow it, and its <code>.claude/decisions/</code> is written there. A copy already registered at that path is folded in.</p>
+              </details>
+            </li>
           {% endfor %}
         </ul>
       {% else %}

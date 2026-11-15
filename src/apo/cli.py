@@ -112,7 +112,10 @@ def _cmd_answer(args: argparse.Namespace) -> None:
         if decision["repository_id"]
         else db.get_repository_for_project(conn, decision["project_id"])
     )
-    if repository:
+    if repository and not os.path.isdir(repository["local_path"]):
+        print(f"{repository['local_path']} isn't there any more, so nothing was written to disk. "
+              f"If the folder moved: apo repo-move \"{repository['local_path']}\" <new path>")
+    elif repository:
         from apo import repo_writer
         print(f"Written to {repo_writer.decisions_dir(repository['local_path'])} — it'll be "
               "picked up next time a session starts there.")
@@ -347,6 +350,48 @@ def _cmd_move(args: argparse.Namespace) -> None:
     print(f"Moved #{args.item_id} to {target['local_path']}.")
 
 
+def _cmd_repo_move(args: argparse.Namespace) -> None:
+    conn = db.get_connection()
+    folders = [dict(r) for r in conn.execute(
+        "SELECT repositories.*, projects.name AS project_name FROM repositories "
+        "JOIN projects ON projects.id = repositories.project_id ORDER BY repositories.id"
+    )]
+    if args.project:
+        project = db.find_project(conn, args.project)
+        if project is None:
+            print(f"No project named '{args.project}'.", file=sys.stderr)
+            sys.exit(1)
+        folders = [f for f in folders if f["project_id"] == project["id"]]
+    path = os.path.abspath(os.path.expanduser(args.folder)).rstrip("/") or "/"
+    matches = ([f for f in folders if f["local_path"].rstrip("/") == path]
+               or [f for f in folders if f["name"] == args.folder]
+               or [f for f in folders if f["name"].lower() == args.folder.lower()])
+    if not matches:
+        print(f"No registered folder at {path} or named '{args.folder}'. `apo projects` lists them.", file=sys.stderr)
+        sys.exit(1)
+    if len(matches) > 1:
+        print(f"'{args.folder}' matches more than one folder; give its path, or add --project:", file=sys.stderr)
+        for f in matches:
+            print(f"  {f['project_name']}: {f['name']} — {f['local_path']}", file=sys.stderr)
+        sys.exit(1)
+    folder = matches[0]
+    try:
+        result = db.relocate_repository(conn, folder["id"], os.path.abspath(os.path.expanduser(args.new_path)),
+                                        by="agent" if os.environ.get("CLAUDE_CODE_SESSION_ID") else "human")
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    moved = result["repository"]
+    print(f"{folder['project_name']}'s folder {result['old_path']} is now {moved['local_path']} (named '{moved['name']}').")
+    if result["folded"]:
+        print(f"Folded in the copy already registered there: {result['decisions']} decision(s) and "
+              f"{result['sessions']} session(s) moved over.")
+    if result["written"]:
+        print(f"Rewrote {result['written']}.")
+    else:
+        print(f"Couldn't write {moved['local_path']}/.claude/decisions/ — see `apo sync-errors`.")
+
+
 def _cmd_pending(args: argparse.Namespace) -> None:
     conn = db.get_connection()
     if args.all:
@@ -410,6 +455,8 @@ def _cmd_archive_project(args: argparse.Namespace) -> None:
 def _cmd_projects(args: argparse.Namespace) -> None:
     conn = db.get_connection()
     counts = db.project_counts(conn)
+    missing = db.missing_folders(conn)
+    missing_paths = {f["local_path"] for f in missing}
     for project in conn.execute("SELECT * FROM projects ORDER BY name COLLATE NOCASE").fetchall():
         repos = [r["local_path"] for r in conn.execute(
             "SELECT local_path FROM repositories WHERE project_id = ? ORDER BY id", (project["id"],)
@@ -421,7 +468,7 @@ def _cmd_projects(args: argparse.Namespace) -> None:
         archived = " [archived]" if project["archived_at"] else ""
         print(f"{project['name']}{archived} — {c['total']} decision(s), {c['open']} open")
         for path in repos:
-            print(f"    {path}")
+            print(f"    {path}{'  (missing on disk)' if path in missing_paths else ''}")
         if aliases:
             print(f"    also known as: {', '.join(aliases)}")
     shared = db.projects_sharing_a_folder(conn)
@@ -432,6 +479,11 @@ def _cmd_projects(args: argparse.Namespace) -> None:
             print(f"  {entry['path']}: {', '.join(entry['projects'])}")
             for retire in (n for n in entry["projects"] if n != keep):
                 print(f"    suggested (keeps the newest name): apo project-merge --from \"{retire}\" --into \"{keep}\"")
+    if missing:
+        print("\nFolders missing on disk (renamed, moved or deleted; nothing is written to them until fixed):")
+        for folder in missing:
+            print(f"  {folder['local_path']}: {folder['project_name']}")
+            print(f"    if it moved: apo repo-move \"{folder['local_path']}\" <new path>")
 
 
 def _cmd_project_merge(args: argparse.Namespace) -> None:
@@ -1039,7 +1091,8 @@ def main(argv: list[str] | None = None) -> None:
     archive.set_defaults(func=_cmd_archive_project)
 
     projects_p = sub.add_parser(
-        "projects", help="List projects with their folders and aliases, and flag folders shared by two projects",
+        "projects",
+        help="List projects with their folders and aliases, and flag folders shared by two projects or missing on disk",
     )
     projects_p.set_defaults(func=_cmd_projects)
 
@@ -1117,6 +1170,14 @@ def main(argv: list[str] | None = None) -> None:
     move_p.add_argument("item_id", type=int)
     move_p.add_argument("folder", help="A folder path, or its name as `apo projects` shows it")
     move_p.set_defaults(func=_cmd_move)
+
+    repo_move = sub.add_parser(
+        "repo-move", help="A folder was renamed or moved on disk: point it at its new path (decisions and sessions follow)",
+    )
+    repo_move.add_argument("folder", help="Its old path, or its name as `apo projects` shows it")
+    repo_move.add_argument("new_path", help="Where the folder is now")
+    repo_move.add_argument("--project", default=None, help="Only look at this project's folders (when a name is ambiguous)")
+    repo_move.set_defaults(func=_cmd_repo_move)
 
     resolve = sub.add_parser(
         "resolve", help="Mark an answered decision resolved once its work is done",

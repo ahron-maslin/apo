@@ -4,6 +4,11 @@ Live incident: a session started in the home directory auto-registered a project
 named after the user's home folder at ~ itself. Registered folders match their
 subfolders, so every unregistered project under ~ silently became part of it.
 """
+import sqlite3
+from pathlib import Path
+
+import pytest
+
 from apo import db
 
 
@@ -141,3 +146,154 @@ def test_upgrading_drops_a_home_directory_registration_with_no_decisions(db_path
     assert "kept" in names  # has a decision on record: left for a human to sort out
     session = conn.execute("SELECT project_id, repository_id FROM sessions WHERE claude_session_id = 's'").fetchone()
     assert session["project_id"] is None and session["repository_id"] is None
+
+
+# --- A folder that was renamed or moved ---
+#
+# Live incident: ~/projects/passiveIncome2 was renamed to ~/projects/basari. Its row
+# kept the old path, a session in the new folder registered it a second time, and
+# answering a decision recreated the old folder to write into.
+
+
+def _renamed(tmp_path, project_name="basari"):
+    """A project whose folder held a decision and was then renamed on disk."""
+    old = tmp_path / "x" / "passiveIncome2"
+    old.mkdir(parents=True)
+    conn = db.get_connection()
+    project = db.get_or_create_project(conn, project_name)
+    repo = db.create_repository(conn, project["id"], "passiveIncome2", str(old))
+    decision_id = db.create_decision_request(
+        conn, project_id=project["id"], repository_id=repo["id"], title="Pick a host", question="Q?",
+    )
+    new = tmp_path / "x" / "basari"
+    old.rename(new)
+    return conn, project, repo, decision_id, old, new
+
+
+def _index(folder):
+    path = folder / ".claude" / "decisions" / "INDEX.md"
+    return path.read_text() if path.exists() else ""
+
+
+def test_relocating_a_folder_updates_its_path_and_name_in_place(db_path, tmp_path):
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+
+    result = db.relocate_repository(conn, repo["id"], str(new))
+
+    moved = db.get_repository(conn, repo["id"])
+    assert moved["local_path"] == str(new) and moved["name"] == "basari"
+    assert result["repository"]["id"] == repo["id"] and result["old_path"] == str(old)
+    assert db.get_decision_request(conn, decision_id)["repository_id"] == repo["id"]
+    assert f"| OPEN | {decision_id:04d} |" in _index(new)
+    assert not old.exists()
+
+
+def test_relocating_folds_in_the_copy_a_session_registered_at_the_new_path(db_path, tmp_path):
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+    db.register_session(conn, "in-new-folder", str(new))
+    twin = db.find_repository_by_path(conn, str(new))
+    assert twin["id"] != repo["id"] and twin["project_id"] == project["id"]
+    later = db.create_task(conn, project_id=project["id"], title="Filed from the new folder", repository_id=twin["id"])
+
+    result = db.relocate_repository(conn, repo["id"], str(new))
+
+    assert db.get_repository(conn, twin["id"]) is None
+    rows = conn.execute("SELECT id, name, local_path FROM repositories WHERE project_id = ?", (project["id"],)).fetchall()
+    assert [(r["id"], r["name"], r["local_path"]) for r in rows] == [(repo["id"], "basari", str(new))]
+    assert db.get_decision_request(conn, later)["repository_id"] == repo["id"]
+    session = conn.execute("SELECT repository_id FROM sessions WHERE claude_session_id = 'in-new-folder'").fetchone()
+    assert session["repository_id"] == repo["id"]
+    assert result["folded"] == 1 and result["decisions"] == 1 and result["sessions"] == 1
+    index = _index(new)
+    assert f"{decision_id:04d}" in index and f"{later:04d}" in index
+    assert not old.exists()
+
+
+def test_after_relocating_answers_and_moves_land_in_the_new_folder(db_path, tmp_path):
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+    db.register_session(conn, "in-new-folder", str(new))
+    db.relocate_repository(conn, repo["id"], str(new))
+
+    db.answer_decision_request(conn, decision_id, "Use Fly.")
+
+    assert f"| ANSWERED | {decision_id:04d} |" in _index(new)
+    assert "Use Fly." in (new / ".claude" / "decisions" / f"{decision_id:04d}-pick-a-host.md").read_text()
+    assert not old.exists()
+
+
+def test_the_renamed_folder_repro_writes_nothing_into_the_old_path(db_path, tmp_path):
+    """The task's steps: register a, file there, mv a b, start a session in b (which
+    registers b a second time), answer. Before relocating, nothing recreates a; after
+    it, the answer is written under b."""
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+    second = db.create_decision_request(
+        conn, project_id=project["id"], repository_id=repo["id"], title="Pick a region", question="Q?",
+    )
+    db.register_session(conn, "in-new-folder", str(new))
+    twin = db.find_repository_by_path(conn, str(new))
+
+    db.answer_decision_request(conn, decision_id, "Use Fly.")
+    db.move_item(conn, second, twin["id"])
+    assert not old.exists()
+    assert any(str(old) in e["message"] for e in db.recent_sync_errors(conn, limit=50))
+
+    db.relocate_repository(conn, repo["id"], str(new))
+
+    assert not old.exists()
+    assert f"| ANSWERED | {decision_id:04d} |" in _index(new)
+    assert f"| OPEN | {second:04d} |" in _index(new)
+    assert "Use Fly." in (new / ".claude" / "decisions" / f"{decision_id:04d}-pick-a-host.md").read_text()
+    assert db.recent_sync_errors(conn, unresolved_only=True) == []
+
+
+def test_relocating_refuses_an_unknown_folder_a_missing_path_and_another_projects_folder(db_path, tmp_path):
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+    other = db.get_or_create_project(conn, "globex")
+    theirs = tmp_path / "x" / "globex"
+    theirs.mkdir()
+    db.create_repository(conn, other["id"], "globex", str(theirs))
+
+    for repository_id, path, says in ((9999, str(new), "No folder"),
+                                      (repo["id"], str(tmp_path / "x" / "nowhere"), "isn't a folder"),
+                                      (repo["id"], str(theirs), "globex"),
+                                      (repo["id"], str(Path.home()), "home folder"),
+                                      (repo["id"], "", "full new path"),
+                                      (repo["id"], "x/basari", "full new path")):
+        try:
+            db.relocate_repository(conn, repository_id, path)
+        except ValueError as exc:
+            assert says in str(exc)
+        else:
+            raise AssertionError(f"expected ValueError for {path}")
+
+    assert db.get_repository(conn, repo["id"])["local_path"] == str(old)
+    assert not old.exists()
+
+
+def test_a_failed_relocate_changes_nothing(db_path, tmp_path):
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+    db.register_session(conn, "in-new-folder", str(new))
+    twin = db.find_repository_by_path(conn, str(new))
+    conn.execute("CREATE TEMP TRIGGER fail BEFORE UPDATE OF local_path ON repositories "
+                 "BEGIN SELECT RAISE(ABORT, 'disk on fire'); END")
+
+    with pytest.raises(sqlite3.Error):
+        db.relocate_repository(conn, repo["id"], str(new))
+    conn.commit()
+
+    assert db.get_repository(conn, twin["id"]) is not None
+    assert db.get_repository(conn, repo["id"])["local_path"] == str(old)
+    session = conn.execute("SELECT repository_id FROM sessions WHERE claude_session_id = 'in-new-folder'").fetchone()
+    assert session["repository_id"] == twin["id"]
+
+
+def test_missing_folders_are_listed(db_path, tmp_path):
+    conn, project, repo, decision_id, old, new = _renamed(tmp_path)
+    here = tmp_path / "x" / "here"
+    here.mkdir()
+    other = db.get_or_create_project(conn, "globex")
+    db.create_repository(conn, other["id"], "here", str(here))
+
+    missing = db.missing_folders(conn)
+
+    assert [(m["id"], m["local_path"], m["project_name"]) for m in missing] == [(repo["id"], str(old), "basari")]

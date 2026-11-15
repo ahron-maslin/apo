@@ -328,6 +328,8 @@ Any of them can go under one of the project's goals and have a due date. On All 
 
 When a project has more than one folder (say a root folder and a `dashboard` subfolder), New work and the goal page's **Add a step** ask which **Folder** the work belongs in. It starts on the folder a session last worked in. Agents only see work through a folder's `.claude/decisions/INDEX.md`, so this decides which sessions find it. To move an item later, use **Move to folder** under **Manage** on its page, or `apo move <id> <folder>` (a path, or the folder's name). An item with no folder shows **No folder** on its page and "no folder chosen" in `apo pending --all`.
 
+If a folder is renamed or moved on disk, give apo its new path: **Moved or renamed it?** under **Folders** in the project's settings, or `apo repo-move <old path or name> <new path>`. Its items and sessions follow it, and a copy a session already registered at the new path is folded in. Until then nothing is written to the missing folder: Now lists it as a problem, and `apo projects` flags it.
+
 **Decisions** has what's waiting on you, each row with its own **Accept** (saying what you'd accept and how sure the agent is) or **Done** for an action, so you can answer without opening it; then the **decision log**: every answered decision with its question, the answer, when, and who answered. Filter it with `/`. It's how you avoid deciding something twice.
 
 **Agents** has the project's session cards with their checklists, and sessions that ended recently. To start a session, use New work on the Work tab.

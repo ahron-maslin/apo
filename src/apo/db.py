@@ -3580,6 +3580,103 @@ def projects_sharing_a_folder(conn: sqlite3.Connection) -> list[dict]:
     ]
 
 
+def missing_folders(conn: sqlite3.Connection) -> list[dict]:
+    """Registered folders that aren't on disk: renamed, moved or deleted. Each one a
+    candidate for `apo repo-move`."""
+    rows = conn.execute(
+        "SELECT repositories.*, projects.name AS project_name, projects.archived_at FROM repositories "
+        "JOIN projects ON projects.id = repositories.project_id ORDER BY repositories.id"
+    ).fetchall()
+    return [dict(r) for r in rows if not os.path.isdir(r["local_path"])]
+
+
+def relocate_repository(conn: sqlite3.Connection, repository_id: int, new_path: str, *,
+                        project_id: int | None = None, by: str = "human", source: str = "cli") -> dict:
+    """Point a registered folder at where it lives now, after it was renamed or moved on
+    disk. The row keeps its id, so its decisions and sessions stay with it. A folder a
+    session already registered at the new path, in the same project, is folded in:
+    its decisions and sessions move over and its row is deleted (first, so
+    UNIQUE(project_id, name) can't block taking its name). .claude/decisions/ is then
+    rewritten once, at the new path only. project_id, when given, is the project the
+    folder must belong to."""
+    from apo import repo_writer
+
+    if project_id is not None:
+        repo = _project_repository(conn, project_id, repository_id)
+    else:
+        repo = get_repository(conn, repository_id)
+    if repo is None:
+        raise ValueError(f"No folder #{repository_id} is registered.")
+    new_path = os.path.expanduser((new_path or "").strip())
+    if not os.path.isabs(new_path):
+        raise ValueError("Give the folder's full new path, like ~/projects/acme.")
+    new_path = _normalized_path(os.path.normpath(new_path))
+    old_path = repo["local_path"]
+    if new_path == _normalized_path(old_path):
+        raise ValueError(f"{repo['name']} is already registered at {new_path}.")
+    if not os.path.isdir(new_path):
+        raise ValueError(f"{new_path} isn't a folder on this computer.")
+    if _is_home_or_above(new_path):
+        raise ValueError(f"{new_path} is your home folder or above it, which can't be a project's folder.")
+
+    project_id = repo["project_id"]
+    name = os.path.basename(new_path) or new_path
+    moved = {"decision_requests": 0, "sessions": 0}
+    if conn.in_transaction:
+        conn.commit()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        twins = [r for r in conn.execute("SELECT * FROM repositories WHERE id != ?", (repository_id,))
+                 if _normalized_path(r["local_path"]) == new_path]
+        for twin in twins:
+            if twin["project_id"] != project_id:
+                raise ValueError(
+                    f"{new_path} already belongs to {get_project_name(conn, twin['project_id'])}. Merge the two "
+                    "projects first (apo project-merge), or pick another folder."
+                )
+        for twin in twins:
+            for table in moved:
+                moved[table] += conn.execute(
+                    f"UPDATE {table} SET repository_id = ? WHERE repository_id = ?", (repository_id, twin["id"]),
+                ).rowcount
+            conn.execute("DELETE FROM repositories WHERE id = ?", (twin["id"],))
+        clash = conn.execute(
+            "SELECT 1 FROM repositories WHERE project_id = ? AND name = ? AND id != ?", (project_id, name, repository_id),
+        ).fetchone()
+        conn.execute("UPDATE repositories SET local_path = ?, name = ? WHERE id = ?",
+                     (new_path, new_path if clash else name, repository_id))
+        _insert_event(conn, verb="folder.moved", actor=by, source=source, project_id=project_id,
+                      summary=f"Folder {old_path} is now {new_path}")
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+
+    relocated = dict(get_repository(conn, repository_id))
+    started = _now()
+    written = None
+    try:
+        written = repo_writer.sync_repository(conn, relocated)
+    except Exception as exc:  # noqa: BLE001
+        record_sync_error(conn, "repo_writer", None, str(exc))
+    else:
+        # What failed while the folder was missing has landed now.
+        conn.execute(
+            "UPDATE sync_errors SET resolved_at = ? WHERE resolved_at IS NULL AND source = 'repo_writer' "
+            "AND occurred_at < ? AND (instr(message, ?) > 0 OR decision_request_id IN "
+            "(SELECT id FROM decision_requests WHERE project_id = ?))",
+            (_now(), started, old_path, project_id),
+        )
+        conn.commit()
+    try:
+        repo_writer.write_policy(new_path, get_project_name(conn, project_id), list_standing_rules(conn, project_id))
+    except OSError as exc:
+        record_sync_error(conn, "repo_writer", None, f"POLICY.md in {new_path}: {exc}")
+    return {"repository": relocated, "old_path": old_path, "folded": len(twins),
+            "decisions": moved["decision_requests"], "sessions": moved["sessions"],
+            "written": str(written.parent) if written else None}
+
+
 def merge_projects(conn: sqlite3.Connection, from_project_id: int, into_project_id: int) -> dict:
     """Fold one project into another: decisions, sessions, repositories and aliases
     move; the same folder registered under both collapses to one repository; the
@@ -4146,6 +4243,13 @@ def now_queue(conn: sqlite3.Connection, project_id: int | None = None) -> dict:
         problems.append({"key": f"folder:{shared['path']}", "kind": "folder", "project_name": None,
                          "title": "Two projects share one folder",
                          "reason": f"{', '.join(shared['projects'])} at {shared['path']}", "since": None})
+    for folder in missing_folders(conn):
+        if folder["archived_at"] or not mine(folder["project_id"]):
+            continue
+        problems.append({"key": f"missing:{folder['id']}", "kind": "missing_folder", "project_name": folder["project_name"],
+                         "project_id": folder["project_id"], "title": "A project folder is missing",
+                         "reason": f"{folder['local_path']} isn't there any more, so nothing is written to it. "
+                                   "If it was renamed or moved, give its new path.", "since": None})
 
     for outcome in list_outcomes(conn, project_id=project_id, statuses=("active",)):
         if outcome["progress"]["ready_to_close"]:
