@@ -3705,7 +3705,8 @@ def take_answers_for_session(conn: sqlite3.Connection, claude_session_id: str) -
 def list_in_transit(conn: sqlite3.Connection) -> list[dict]:
     """Answered but not applied yet. stuck: answered over STUCK_AFTER_HOURS ago with no
     live session in its repo — nothing will pick it up until the human starts one,
-    which is what resume_command is for."""
+    which is what resume_command is for. A decline is never stuck: it asks nothing
+    more of anyone, so it can wait for whichever session next opens there."""
     import shlex
 
     from apo import repo_writer
@@ -3729,7 +3730,8 @@ def list_in_transit(conn: sqlite3.Connection) -> list[dict]:
             live = live_row["claude_session_id"] if live_row else None
         decision["live_session"] = live
         decision["dispatched"] = (decision["dispatched_at"] or "") > cutoff
-        decision["stuck"] = live is None and not decision["dispatched"] and (decision["answered_at"] or "") < cutoff
+        decision["stuck"] = (live is None and not decision["dispatched"] and decision["answer_kind"] != "decline"
+                             and (decision["answered_at"] or "") < cutoff)
         decision["needs_approval"] = (decision["answer_source"] or "") not in LOCAL_ANSWER_SOURCES
         decision["resume_command"] = None
         if repository is not None:
@@ -4134,6 +4136,8 @@ def now_queue(conn: sqlite3.Connection, project_id: int | None = None) -> dict:
         else:
             reason = ("Applying in background" if t["dispatched"]
                       else "Delivered to the session that asked" if t["delivery"] == "delivered"
+                      else "Declined — the agent sees it when a session next opens in that repo"
+                      if t["answer_kind"] == "decline"
                       else "Waiting for a session in that repo to pick it up")
             in_transit.append({**item, "reason": reason})
 

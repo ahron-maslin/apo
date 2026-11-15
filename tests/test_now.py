@@ -96,6 +96,43 @@ def test_answers_nothing_will_pick_up_are_your_move_the_rest_are_in_transit(db_p
     assert _keys(now["in_transit"]) == [f"t:{moving}"]
 
 
+def test_a_declined_answer_nothing_will_pick_up_is_in_transit_not_your_move(db_path, tmp_path):
+    conn = db.get_connection()
+    project, repo_id = _project(conn, "acme", tmp_path / "acme")
+    decision = db.create_decision_request(conn, project_id=project["id"], repository_id=repo_id, title="Sell?", question="Q?")
+    action = db.create_action_request(conn, project_id=project["id"], repository_id=repo_id, title="Rotate key", question="Q?")
+    for item_id in (decision, action):
+        text, kind, _ = db.compose_answer(db.get_decision_request(conn, item_id), "decline")
+        db.answer_decision_request(conn, item_id, text, answer_kind=kind)
+        conn.execute("UPDATE decision_requests SET answered_at = ? WHERE id = ?", (_ago(hours=5), item_id))
+    conn.commit()
+
+    now = db.now_queue(conn)
+
+    assert now["your_move"] == []
+    assert set(_keys(now["in_transit"])) == {f"t:{decision}", f"t:{action}"}
+    assert all(i["reason"].startswith("Declined") for i in now["in_transit"])
+    assert next(p for p in db.project_overview(conn, queue=now) if p["name"] == "acme")["health"] == "in_transit"
+
+
+def test_cancelled_requests_and_tasks_are_never_your_move(db_path, tmp_path):
+    conn = db.get_connection()
+    project, repo_id = _project(conn, "acme", tmp_path / "acme")
+    decision = db.create_decision_request(conn, project_id=project["id"], repository_id=repo_id, title="Sell?", question="Q?")
+    task = db.create_decision_request(conn, project_id=project["id"], repository_id=repo_id, title="Fix", question="Q?",
+                                      kind="task")
+    for item_id in (decision, task):
+        assert db.cancel_request(conn, item_id, "Not needed")
+        conn.execute("UPDATE decision_requests SET created_at = ?, resolved_at = ? WHERE id = ?",
+                     (_ago(days=5), _ago(hours=5), item_id))
+    conn.commit()
+
+    now = db.now_queue(conn)
+
+    assert now["your_move"] == [] and now["asks"] == [] and now["in_transit"] == []
+    assert db.project_work(conn, project["id"])["needs_you"] == []
+
+
 def test_a_finished_turn_is_up_for_review_until_you_engage(db_path, tmp_path):
     conn = db.get_connection()
     _project(conn, "acme", tmp_path / "acme")

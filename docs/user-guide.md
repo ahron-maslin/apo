@@ -203,7 +203,7 @@ Your answer is written into the repository at `.claude/decisions/` (an `INDEX.md
 
 1. **The session that asked hears it** on your next prompt there. You'll see "Answered #31: …" in its context. Say "go" there and it applies it.
 2. **Any other session in that repo** is told at start-up that answers are waiting. Run `/decisions` in it to apply them.
-3. **If nothing is running in that repo**, the item says so. After an hour it comes back to Your move as *answered, but nothing will pick it up*. Then:
+3. **If nothing is running in that repo**, the item says so. After an hour it comes back to Your move as *answered, but nothing will pick it up* — unless you declined it, which asks nothing more of you: that stays in transit until a session next opens there. Then:
    - **Apply in background** starts a session for you (below).
    - Or copy the **resume command** and run it yourself.
 
