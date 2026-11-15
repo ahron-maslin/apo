@@ -38,6 +38,16 @@ def decisions_dir(local_path: str) -> Path:
     return Path(local_path) / DECISIONS_SUBDIR
 
 
+def _require_folder(local_path: str) -> None:
+    """A registered folder that isn't there was renamed, moved or deleted. Writing
+    into it would recreate it, and the answer would land where no session looks."""
+    if not Path(local_path).is_dir():
+        raise FileNotFoundError(
+            f"{local_path} isn't there any more, so nothing was written to it. "
+            f"If it moved: apo repo-move \"{local_path}\" <new path>"
+        )
+
+
 def sync_decision(conn: sqlite3.Connection, decision_id: int) -> Path | None:
     """Rewrite the projection for whichever repository owns this decision. Only this
     decision's own file is re-rendered — every other decision in the project keeps
@@ -97,6 +107,7 @@ def sync_repository(
             summary["blocked_by"] = db.open_blockers(conn, summary["id"])
     project_name = ", ".join(sorted(set(project_names.values())))
 
+    _require_folder(repository["local_path"])
     target = decisions_dir(repository["local_path"])
     target.mkdir(parents=True, exist_ok=True)
 
@@ -152,6 +163,7 @@ def _copy_attachments(conn: sqlite3.Connection, decision_id: int, local_path: st
     for attachment in attachments:
         source = config.get_attachments_dir() / str(decision_id) / attachment["stored_name"]
         try:
+            _require_folder(local_path)
             target_dir.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target_dir / attachment["stored_name"])
         except OSError as exc:
@@ -355,6 +367,7 @@ def write_policy(local_path: str, project_name: str, rules: list[dict]) -> None:
         if path.exists() and path.read_text().startswith(_POLICY_MARKS):
             path.unlink()
         return
+    _require_folder(local_path)
     lines = [f"{_POLICY_MARK}; edit the rules on the project's Overview. -->",
              f"# Standing rules for {project_name}", "",
              "Read these before filing a decision. If a rule answers the question, follow it instead of "

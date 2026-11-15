@@ -457,6 +457,7 @@ def test_home_is_now_and_shows_what_needs_you_across_projects(db_path, tmp_path)
         conn, project_id=acme["id"], title="Pick a queue", question="Postgres or SQLite?",
         options=["Postgres", "SQLite"], recommendation="Postgres.", confidence=85,
     )
+    (tmp_path / "globex").mkdir()
     db.register_session(conn, "waiting", str(tmp_path / "globex"))
     db.session_waiting(conn, "waiting", "permission", "Bash: stripe listen")
 
@@ -475,6 +476,7 @@ def test_now_says_when_nothing_needs_you(db_path, tmp_path):
 
     client = make_client(db_path)
     conn = db.get_connection()
+    (tmp_path / "acme").mkdir()
     db.register_session(conn, "worker", str(tmp_path / "acme"))
     db.session_heartbeat(conn, "worker")
 

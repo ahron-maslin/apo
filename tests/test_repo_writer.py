@@ -7,6 +7,7 @@ were wired up.
 """
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -508,3 +509,66 @@ def test_policy_is_written_by_apo_and_an_older_file_is_still_recognised(repo_pro
     policy.write_text("# My own notes\n")
     repo_writer.write_policy(str(tmp_path), "acme", [])
     assert policy.exists()
+
+
+def test_a_folder_that_no_longer_exists_is_never_recreated(db_path, tmp_path):
+    """Live incident: a project folder was renamed, and answering one of its decisions
+    recreated the old folder just to hold .claude/decisions/. The write is skipped and
+    the failure is recorded instead."""
+    from apo import db
+
+    gone = tmp_path / "passiveIncome2"
+    gone.mkdir()
+    conn = db.get_connection()
+    project = db.get_or_create_project(conn, "basari")
+    repo = db.create_repository(conn, project["id"], "passiveIncome2", str(gone))
+    decision_id = db.create_decision_request(
+        conn, project_id=project["id"], repository_id=repo["id"], title="Q", question="Q?",
+    )
+    shutil.rmtree(gone)
+
+    assert db.answer_decision_request(conn, decision_id, "An answer") is True
+
+    assert not gone.exists()
+    errors = [e for e in db.recent_sync_errors(conn) if e["source"] == "repo_writer"]
+    assert any(e["decision_request_id"] == decision_id and str(gone) in e["message"] for e in errors)
+
+
+def test_syncing_a_missing_folder_directly_writes_nothing(repo_project, tmp_path):
+    conn, db, repo_writer, project, _ = repo_project
+    gone = tmp_path / "gone"
+    repo = db.create_repository(conn, project["id"], "gone", str(gone))
+
+    with pytest.raises(FileNotFoundError):
+        repo_writer.sync_repository(conn, dict(repo))
+
+    assert not gone.exists()
+
+
+def test_attachments_are_never_copied_under_a_missing_folder(repo_project, tmp_path):
+    conn, db, repo_writer, project, repo = repo_project
+    decision_id = db.create_decision_request(
+        conn, project_id=project["id"], repository_id=repo["id"], title="Q", question="Q?",
+    )
+    db.save_attachment(conn, decision_id, "screenshot.png", "image/png", PNG_MAGIC + b"data")
+    gone = tmp_path / "gone"
+
+    assert repo_writer._copy_attachments(conn, decision_id, str(gone)) == []
+
+    assert not gone.exists()
+    errors = db.recent_sync_errors(conn)
+    assert any(e["source"] == "repo_writer" and e["decision_request_id"] == decision_id for e in errors)
+
+
+def test_a_standing_rule_is_never_written_into_a_missing_folder(db_path, tmp_path):
+    from apo import db
+
+    gone = tmp_path / "gone"
+    conn = db.get_connection()
+    project = db.get_or_create_project(conn, "acme")
+    db.create_repository(conn, project["id"], "gone", str(gone))
+
+    db.add_standing_rule(conn, project["id"], "Use Postgres.")
+
+    assert not gone.exists()
+    assert any(str(gone) in e["message"] for e in db.recent_sync_errors(conn))
