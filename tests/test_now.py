@@ -98,6 +98,7 @@ def test_answers_nothing_will_pick_up_are_your_move_the_rest_are_in_transit(db_p
 
 def test_a_declined_answer_nothing_will_pick_up_is_in_transit_not_your_move(db_path, tmp_path):
     conn = db.get_connection()
+    (tmp_path / "acme").mkdir()
     project, repo_id = _project(conn, "acme", tmp_path / "acme")
     decision = db.create_decision_request(conn, project_id=project["id"], repository_id=repo_id, title="Sell?", question="Q?")
     action = db.create_action_request(conn, project_id=project["id"], repository_id=repo_id, title="Rotate key", question="Q?")
