@@ -94,3 +94,52 @@ def test_moving_between_projects_from_settings_stays_on_settings(client, acme):
 
     assert f'href="/projects/{globex["id"]}/settings"' in html
     assert 'href="/projects"' in html
+
+
+def _acme_folder(acme):
+    return db.project_repositories(db.get_connection(), acme["id"])[0]
+
+
+def test_a_folder_that_moved_can_be_pointed_at_its_new_path(client, acme):
+    folder = _acme_folder(acme)
+    old = Path(folder["local_path"])
+    new = old.parent / "acme-shop"
+    old.rename(new)
+
+    html = client.get(f"/projects/{acme['id']}/settings").text
+    action = f'action="/projects/{acme["id"]}/folders/{folder["id"]}/path"'
+    form = re.search(rf'<form[^>]*{re.escape(action)}.*?</form>', html, re.S)
+    assert form and 'name="path"' in form.group(0)
+    assert "Not found on disk" in html
+
+    resp = client.post(f"/projects/{acme['id']}/folders/{folder['id']}/path", data={"path": str(new)},
+                       follow_redirects=False)
+
+    assert resp.status_code == 303 and resp.headers["location"] == f"/projects/{acme['id']}/settings#folders"
+    moved = db.get_repository(db.get_connection(), folder["id"])
+    assert moved["local_path"] == str(new) and moved["name"] == "acme-shop"
+    assert (new / ".claude" / "decisions" / "INDEX.md").exists()
+    assert not old.exists()
+    assert "Not found on disk" not in client.get(f"/projects/{acme['id']}/settings").text
+
+
+def test_a_bad_new_path_comes_back_with_the_reason(client, acme):
+    folder = _acme_folder(acme)
+
+    resp = client.post(f"/projects/{acme['id']}/folders/{folder['id']}/path",
+                       data={"path": str(Path.home() / "nowhere")}, follow_redirects=False)
+
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith(f"/projects/{acme['id']}/settings?error=")
+    assert db.get_repository(db.get_connection(), folder["id"])["local_path"] == folder["local_path"]
+
+
+def test_another_projects_folder_cant_be_moved_from_here(client, acme):
+    globex = db.find_project(db.get_connection(), "globex")
+    folder = _acme_folder(acme)
+
+    resp = client.post(f"/projects/{globex['id']}/folders/{folder['id']}/path",
+                       data={"path": str(Path.home())}, follow_redirects=False)
+
+    assert resp.status_code == 303 and "error=" in resp.headers["location"]
+    assert db.get_repository(db.get_connection(), folder["id"])["local_path"] == folder["local_path"]

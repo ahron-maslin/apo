@@ -544,3 +544,106 @@ def test_bug_outside_a_project_folder_needs_a_project_name(db_path, tmp_path):
     assert filed.returncode == 1 and "--project" in filed.stderr
     conn = db.get_connection()
     assert conn.execute("SELECT COUNT(*) FROM decision_requests").fetchone()[0] == 0
+
+
+def _renamed_folder(tmp_path, db, project_name="basari"):
+    old = tmp_path / "x" / "passiveIncome2"
+    old.mkdir(parents=True)
+    conn = db.get_connection()
+    project = db.get_or_create_project(conn, project_name)
+    repo = db.create_repository(conn, project["id"], "passiveIncome2", str(old))
+    decision_id = db.create_decision_request(
+        conn, project_id=project["id"], repository_id=repo["id"], title="Pick a host", question="Q?",
+    )
+    new = tmp_path / "x" / "basari"
+    old.rename(new)
+    return conn, project, repo, decision_id, old, new
+
+
+def test_repo_move_points_a_renamed_folder_at_its_new_path(db_path, tmp_path):
+    import os
+
+    from apo import db
+
+    conn, project, repo, decision_id, old, new = _renamed_folder(tmp_path, db)
+    env = dict(os.environ, APO_DB=str(db_path))
+
+    result = run_cli("repo-move", str(old), str(new), env=env)
+
+    assert result.returncode == 0, result.stderr
+    assert str(old) in result.stdout and str(new) in result.stdout
+    moved = db.get_repository(db.get_connection(), repo["id"])
+    assert moved["local_path"] == str(new) and moved["name"] == "basari"
+    assert f"| OPEN | {decision_id:04d} |" in (new / ".claude" / "decisions" / "INDEX.md").read_text()
+    assert not old.exists()
+
+
+def test_repo_move_by_name_folds_in_the_folder_a_session_registered(db_path, tmp_path):
+    import os
+
+    from apo import db
+
+    conn, project, repo, decision_id, old, new = _renamed_folder(tmp_path, db)
+    db.register_session(conn, "in-new-folder", str(new))
+    env = dict(os.environ, APO_DB=str(db_path))
+
+    result = run_cli("repo-move", "passiveIncome2", str(new), env=env)
+
+    assert result.returncode == 0, result.stderr
+    assert "1 session" in result.stdout
+    conn = db.get_connection()
+    assert [r["id"] for r in conn.execute("SELECT id FROM repositories")] == [repo["id"]]
+
+
+def test_repo_move_refuses_an_ambiguous_name_an_unknown_one_and_a_missing_path(db_path, tmp_path):
+    import os
+
+    from apo import db
+
+    conn, project, repo, decision_id, old, new = _renamed_folder(tmp_path, db)
+    other = db.get_or_create_project(conn, "globex")
+    db.create_repository(conn, other["id"], "passiveIncome2", str(tmp_path / "elsewhere"))
+    env = dict(os.environ, APO_DB=str(db_path))
+
+    ambiguous = run_cli("repo-move", "passiveIncome2", str(new), env=env)
+    assert ambiguous.returncode == 1
+    assert "basari" in ambiguous.stderr and "globex" in ambiguous.stderr and str(old) in ambiguous.stderr
+
+    narrowed = run_cli("repo-move", "passiveIncome2", str(new), "--project", "basari", env=env)
+    assert narrowed.returncode == 0, narrowed.stderr
+
+    unknown = run_cli("repo-move", "nothing-by-that-name", str(new), env=env)
+    assert unknown.returncode == 1 and "nothing-by-that-name" in unknown.stderr
+
+    missing = run_cli("repo-move", str(new), str(tmp_path / "nowhere"), env=env)
+    assert missing.returncode == 1 and "isn't a folder" in missing.stderr
+    assert not (tmp_path / "nowhere").exists()
+
+
+def test_projects_command_flags_folders_missing_on_disk(db_path, tmp_path):
+    import os
+
+    from apo import db
+
+    conn, project, repo, decision_id, old, new = _renamed_folder(tmp_path, db)
+
+    result = run_cli("projects", env=dict(os.environ, APO_DB=str(db_path)))
+
+    assert result.returncode == 0, result.stderr
+    assert "missing" in result.stdout.lower()
+    assert f'apo repo-move "{old}" <new path>' in result.stdout
+
+
+def test_answering_into_a_missing_folder_says_so_instead_of_claiming_it_was_written(db_path, tmp_path):
+    import os
+
+    from apo import db
+
+    conn, project, repo, decision_id, old, new = _renamed_folder(tmp_path, db)
+
+    answer = run_cli("answer", str(decision_id), "--answer", "Use Fly.", env=dict(os.environ, APO_DB=str(db_path)))
+
+    assert answer.returncode == 0, answer.stderr
+    assert "Written to" not in answer.stdout
+    assert f'apo repo-move "{old}" <new path>' in answer.stdout
+    assert not old.exists()

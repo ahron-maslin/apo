@@ -1420,6 +1420,10 @@ form.settings-body { padding: 0; margin: 0; }
 .settings-inline .input { width: auto; min-width: 14rem; }
 .folder-list { list-style: none; margin: 0; padding: var(--s-2) var(--s-4); display: flex; flex-direction: column; gap: var(--s-1); }
 .folder-name { font-weight: 500; }
+.folder-list > li { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-1) 0; overflow-wrap: anywhere; }
+.folder-move > summary { font-size: var(--fs-sm); color: var(--text-3); }
+.folder-move > form { margin-top: var(--s-2); }
+.folder-move .field-hint { margin: var(--s-1) 0 0; }
 .rule-nudge { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-4); margin: 0 0 var(--s-5); font-size: var(--fs-sm); border-color: var(--accent-border); }
 @media (max-width: 720px) { .settings-row { grid-template-columns: minmax(0, 1fr); } }
 .linear-goals h3, .subsection-title { font-size: var(--fs-sm); font-weight: 600; margin: 0 0 var(--s-2); }

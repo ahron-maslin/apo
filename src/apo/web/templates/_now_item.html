@@ -127,6 +127,8 @@
       <a class="section-link" href="/settings">{{ icon("plug") }}Check the connection</a>
     {% elif item.kind == "folder" %}
       <p class="hint">Run <code>apo projects</code> for the merge command.</p>
+    {% elif item.kind == "missing_folder" %}
+      <a class="section-link" href="/projects/{{ item.project_id }}/settings#folders">{{ icon("folder") }}Set its new path</a>
     {% endif %}
 
     {% if item.kind == "transit" and not item.decision.live_session and not item.decision.dispatched and item.decision.repository_id is not none %}

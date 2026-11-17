@@ -987,6 +987,7 @@ def project_settings_page(request: Request, project_id: int, choose_linear: int 
         "linear_goals": _linear_goals_panel(conn, _project_row(conn, project_id), choose_linear),
         "rules": db.list_standing_rules(conn, project_id),
         "rule_suggestion": db.rule_suggestion(conn, project_id),
+        "missing_folder_ids": {f["id"] for f in db.missing_folders(conn) if f["project_id"] == project_id},
     })
 
 
@@ -1654,6 +1655,19 @@ def add_rule_route(project_id: int, text: str = Form(""), source_decision_id: st
     back = _safe_next(next, f"/projects/{project_id}/settings")
     try:
         db.add_standing_rule(conn, project_id, text, source_decision_id=_picked(source_decision_id))
+    except ValueError as exc:
+        return _with_param(back, "error", str(exc))
+    return RedirectResponse(back, status_code=303)
+
+
+@app.post("/projects/{project_id}/folders/{repository_id}/path")
+def relocate_folder_route(project_id: int, repository_id: int, path: str = Form("")):
+    """A folder renamed or moved on disk, pointed at where it is now."""
+    conn = db.get_connection()
+    _project_row(conn, project_id)
+    back = f"/projects/{project_id}/settings#folders"
+    try:
+        db.relocate_repository(conn, repository_id, path, project_id=project_id, source="dashboard")
     except ValueError as exc:
         return _with_param(back, "error", str(exc))
     return RedirectResponse(back, status_code=303)
