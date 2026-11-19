@@ -65,10 +65,6 @@ There's no `apo uninstall` yet. To remove apo by hand:
 5. `pipx uninstall getapo`
 6. If you don't want the data: delete the data folder and `~/.config/apo`. Your repositories keep their `.claude/decisions/` folders, which you can delete too.
 
-## Coming from ai-decision-orchestrator
-
-apo was called ai-decision-orchestrator (ADO) before 0.1.0. An existing install keeps working: the `ado` command is a deprecated alias for `apo`, `ADO_*` settings are still read, and if `~/.claude/ai-decision-orchestrator/` exists, apo keeps using the data in it and moves nothing. Run `apo init` once to replace the old MCP server, hooks and skill with apo's.
-
 ## Development
 
 ```

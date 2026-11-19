@@ -272,7 +272,7 @@ def test_a_stale_dashboard_answer_says_so(client, hooks, folder):
     assert "error=" in resp.headers["location"]
 
 
-def test_ado_init_makes_the_prompt_hooks_wait_for_an_answer():
+def test_apo_init_makes_the_prompt_hooks_wait_for_an_answer():
     from apo import installer
 
     hooks = {event: opts for event, _, opts in installer.SESSION_HOOKS if event in ("PermissionRequest", "PreToolUse")}

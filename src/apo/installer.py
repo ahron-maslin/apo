@@ -5,10 +5,9 @@ It creates the data folder, saves the answers it asks for in the settings file
 (CLAUDE_CONFIG_DIR, else ~/.claude): registers the MCP server `apo` at user scope,
 adds the hooks that call the installed `apo`, and copies in the `/decisions` skill.
 
-Run again, it replaces its own entries rather than adding more, and that includes the
-ones an older install left under the old names (the `ai-decision-orchestrator` MCP
-server, `ado session-*` hooks, the hook script and skill linked from a checkout). It
-never touches a hook, a skill or a setting it didn't write.
+Run again, it replaces its own entries rather than adding more, wherever an earlier
+install put them (a hook script or skill linked from a checkout included). It never
+touches a hook, a skill or a setting it didn't write.
 """
 import getpass
 import json
@@ -25,7 +24,6 @@ import apo
 from apo import claude_runtime, config
 
 MCP_NAME = "apo"
-LEGACY_MCP_NAME = "ai-decision-orchestrator"
 NUDGE_SCRIPT = "session-decisions-nudge.sh"
 SKILL_MARK = "<!-- Installed by apo"
 
@@ -117,15 +115,15 @@ def _backup(path: Path) -> Path:
 
 
 def is_our_hook(command: str) -> bool:
-    """A hook this installer, or an older one under the old name, wrote: the nudge
-    script, or `apo`/`ado` with one of the session subcommands, at any path."""
+    """A hook this installer wrote: the nudge script, or `apo` with one of the session
+    subcommands, at any path."""
     try:
         parts = shlex.split(command)
     except ValueError:
         return False
     if len(parts) == 1:
         return Path(parts[0]).name == NUDGE_SCRIPT
-    return len(parts) == 2 and Path(parts[0]).name in ("apo", "ado") and parts[1] in _OUR_SUBCOMMANDS
+    return len(parts) == 2 and Path(parts[0]).name == "apo" and parts[1] in _OUR_SUBCOMMANDS
 
 
 def _hook_entry(command: str, timeout: int | None = None, run_async: bool = False,
@@ -142,7 +140,7 @@ def _hook_entry(command: str, timeout: int | None = None, run_async: bool = Fals
 
 
 def merge_hooks(settings: dict, apo_bin: str, nudge_path: Path) -> dict:
-    """`settings` with every hook of ours (by is_our_hook, any path, either name)
+    """`settings` with every hook of ours (by is_our_hook, any path)
     removed and the current set added once. Everyone else's hooks stay as they were."""
     hooks = settings.setdefault("hooks", {})
     for event in list(hooks):
@@ -164,25 +162,8 @@ def merge_hooks(settings: dict, apo_bin: str, nudge_path: Path) -> dict:
     return settings
 
 
-def rename_permissions(settings: dict) -> dict:
-    """Allow-list entries for the old server's tools, moved to the new name."""
-    permissions = settings.get("permissions")
-    allow = permissions.get("allow") if isinstance(permissions, dict) else None
-    if not isinstance(allow, list):
-        return settings
-    old = f"mcp__{LEGACY_MCP_NAME}"
-    renamed = []
-    for rule in allow:
-        if isinstance(rule, str) and (rule == old or rule.startswith(old + "__")):
-            rule = f"mcp__{MCP_NAME}" + rule[len(old):]
-        if rule not in renamed:
-            renamed.append(rule)
-    permissions["allow"] = renamed
-    return settings
-
-
 def install_hooks(settings_path: Path, apo_bin: str, nudge_path: Path) -> str:
-    """Rewrites settings.json with our hooks and renamed permissions: backed up once
+    """Rewrites settings.json with our hooks: backed up once
     before the first change, written atomically, and left alone if it isn't JSON."""
     before_text = settings_path.read_text() if settings_path.exists() else None
     try:
@@ -192,7 +173,7 @@ def install_hooks(settings_path: Path, apo_bin: str, nudge_path: Path) -> str:
     if not isinstance(settings, dict):
         return f"skipped: {settings_path} doesn't hold a JSON object"
     before = json.loads(json.dumps(settings))
-    after = rename_permissions(merge_hooks(settings, apo_bin, nudge_path))
+    after = merge_hooks(settings, apo_bin, nudge_path)
     if after == before:
         return f"already up to date in {settings_path}"
     backup = _backup(settings_path) if before_text is not None else None
@@ -247,24 +228,19 @@ def _manual_mcp_command(apo_bin: str) -> str:
 
 def register_mcp_server(apo_bin: str) -> tuple[bool, str]:
     """`claude mcp add apo --scope user -- <apo> mcp`, after removing any earlier
-    registration under either name, so a re-run or a moved install updates the entry
-    instead of failing on it. Never raises: a missing `claude` or a failed add comes
+    registration, so a re-run or a moved install updates the entry instead of failing
+    on it. Never raises: a missing `claude` or a failed add comes
     back as a message."""
     claude = shutil.which(config.claude_bin())
     if claude is None:
         return False, f"`claude` isn't on PATH. Register the MCP server yourself:\n  {_manual_mcp_command(apo_bin)}"
-    replaced = []
-    for name in (LEGACY_MCP_NAME, MCP_NAME):
-        removed = subprocess.run([claude, "mcp", "remove", name, "--scope", "user"], capture_output=True, text=True)
-        if removed.returncode == 0 and name == LEGACY_MCP_NAME:
-            replaced.append(name)
+    subprocess.run([claude, "mcp", "remove", MCP_NAME, "--scope", "user"], capture_output=True, text=True)
     result = subprocess.run([claude, "mcp", "add", MCP_NAME, "--scope", "user", "--", apo_bin, "mcp"],
                             capture_output=True, text=True)
     if result.returncode != 0:
         detail = result.stderr.strip() or "claude mcp add failed"
         return False, f"{detail}\nRegister it yourself:\n  {_manual_mcp_command(apo_bin)}"
-    note = f" (replacing the old {replaced[0]} entry)" if replaced else ""
-    return True, f"registered as `{MCP_NAME}` at user scope{note}"
+    return True, f"registered as `{MCP_NAME}` at user scope"
 
 
 def _ask(prompt: str, args) -> str:

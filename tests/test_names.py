@@ -1,7 +1,6 @@
 """apo is the only name a person or an agent sees. The old names (ai-decision-orchestrator,
 ADO, Control Center, Switchboard) survive only where something existing depends on them:
-old settings, the old data folder, old POLICY.md files, old MCP and hook entries, browser
-settings saved under the old name, and the deprecated `ado` command."""
+POLICY.md files written under an earlier name, which repos still hold."""
 import re
 from pathlib import Path
 
@@ -11,11 +10,7 @@ PACKAGE = Path(apo.__file__).resolve().parent
 OLD = re.compile(r"Switchboard|Control Center|Decision Orchestrator|ai-decision-orchestrator|\bADO\b|\bado\b")
 # file -> the old names it may still contain, because something existing depends on them
 ALLOWED = {
-    "config.py": {"ai-decision-orchestrator", "ADO"},
     "repo_writer.py": {"Control Center"},
-    "installer.py": {"ai-decision-orchestrator", "ado", "ADO"},
-    "cli.py": {"ado"},
-    "base.html": {"ado"},
 }
 
 

@@ -1244,12 +1244,5 @@ def main(argv: list[str] | None = None) -> None:
     args.func(args)
 
 
-def legacy_main() -> None:
-    """`ado`, the old name, kept for a release or two so existing hooks and habits keep
-    working. The notice goes to stderr: a hook's stdout is what Claude Code reads."""
-    print("ado is deprecated and will be removed; use apo instead.", file=sys.stderr)
-    main()
-
-
 if __name__ == "__main__":
     main()

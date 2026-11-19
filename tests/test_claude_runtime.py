@@ -84,7 +84,7 @@ def _fake_claude(tmp_path, monkeypatch, script):
     monkeypatch.setenv("APO_CLAUDE_BIN", str(fake))
 
 
-def test_other_claude_profiles_are_named_in_ado_claude_config_dirs(tmp_path, monkeypatch):
+def test_other_claude_profiles_are_named_in_apo_claude_config_dirs(tmp_path, monkeypatch):
     current = Path(os.environ["CLAUDE_CONFIG_DIR"])
     monkeypatch.setenv("APO_CLAUDE_CONFIG_DIRS", os.pathsep.join([str(tmp_path / "work"), "", str(current), str(tmp_path / "work")]))
 

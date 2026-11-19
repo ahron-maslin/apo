@@ -1,4 +1,4 @@
-"""One search over everything ADO knows: items (question, context, answer…),
+"""One search over everything apo knows: items (question, context, answer…),
 session recaps and outcomes — substring matching (FTS5 trigram), kept current by
 triggers. Transcripts never enter the DB; "search transcripts too" greps them."""
 import json

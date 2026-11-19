@@ -77,10 +77,8 @@ def _accept_the_test_clients_host(monkeypatch):
 def _fresh_module_state():
     """What a long-running process keeps in memory between requests, reset so no test
     sees another's: Linear ids resolved under some credential, cached pull requests,
-    when a fleet page was last viewed, and which old
-    setting names have already been warned about."""
+    and when a fleet page was last viewed."""
     linear_client.clear_caches()
-    config._warned.clear()
     changelog._pr_cache.clear()
     app._last_viewed_at = 0.0
     app._stopping = False

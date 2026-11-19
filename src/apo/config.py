@@ -1,19 +1,15 @@
 """Where apo keeps its data, and its settings.
 
 Every setting is read when it's asked for, never at import: first from the
-environment, then from the settings file `apo init` writes (`config_file()`), then
-from the .env an older install wrote into ~/.claude/ai-decision-orchestrator/. Each
-setting is named APO_*, and still answers to the ADO_* name it had before the rename.
-A long-running process or a test sees a change at once, with nothing to re-import.
+environment, then from the settings file `apo init` writes (`config_file()`). Each
+setting is named APO_*. A long-running process or a test sees a change at once, with nothing to re-import.
 """
 import os
-import sys
 from pathlib import Path
 
 import platformdirs
 
 APP_NAME = "apo"
-LEGACY_NAME = "ai-decision-orchestrator"
 
 _FALSE = ("", "0", "false", "False", "no")
 
@@ -22,21 +18,9 @@ def default_data_dir() -> Path:
     return Path(platformdirs.user_data_dir(APP_NAME, appauthor=False))
 
 
-def legacy_data_dir() -> Path:
-    return Path.home() / ".claude" / LEGACY_NAME
-
-
 def data_dir() -> Path:
-    """The platform data folder, unless an older install's
-    ~/.claude/ai-decision-orchestrator exists and the new folder has no database yet:
-    then the old one, so an existing install keeps its DB, key and attachments
-    together. Nothing is ever moved. (On macOS the new folder doubles as the config
-    folder, so it can exist without holding any data.)"""
-    new = default_data_dir()
-    legacy = legacy_data_dir()
-    if legacy.is_dir() and not (new / "orchestrator.db").exists():
-        return legacy
-    return new
+    """The platform data folder. (On macOS it doubles as the config folder.)"""
+    return default_data_dir()
 
 
 def config_dir() -> Path:
@@ -48,12 +32,7 @@ def config_file() -> Path:
     return config_dir() / "config.env"
 
 
-def legacy_env_file() -> Path:
-    return legacy_data_dir() / ".env"
-
-
 _file_cache: dict[Path, tuple[tuple[int, int], dict[str, str]]] = {}
-_warned: set[str] = set()
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -81,29 +60,18 @@ def read_env_file(path: Path) -> dict[str, str]:
 
 
 def setting(name: str, default: str | None = None, bare: bool = False) -> str | None:
-    """The first of APO_<name>, ADO_<name> and, with `bare`, plain <name> that is set:
-    in the environment, then the settings file, then the old .env. A name that is set
-    but blank still counts, so a blank APO_X hides every fallback."""
-    names = (f"APO_{name}", f"ADO_{name}") + ((name,) if bare else ())
+    """The first of APO_<name> and, with `bare`, plain <name> that is set: in the
+    environment, then the settings file. A name that is set but blank still counts, so
+    a blank APO_X hides the fallback."""
+    names = (f"APO_{name}",) + ((name,) if bare else ())
     for key in names:
         if key in os.environ:
-            if key != names[0]:
-                _deprecated(key, names[0])
             return os.environ[key]
-    for path in (config_file(), legacy_env_file()):
-        values = read_env_file(path)
-        for key in names:
-            if key in values:
-                return values[key]
+    values = read_env_file(config_file())
+    for key in names:
+        if key in values:
+            return values[key]
     return default
-
-
-def _deprecated(old: str, new: str) -> None:
-    """On stderr, never stdout: a hook's stdout is what Claude Code reads."""
-    if old in _warned:
-        return
-    _warned.add(old)
-    print(f"apo: {old} is deprecated; set {new} instead.", file=sys.stderr)
 
 
 def _flag(name: str) -> bool:

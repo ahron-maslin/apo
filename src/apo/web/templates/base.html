@@ -8,12 +8,6 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234352e0'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.57 18.85A6.5 6.5 0 1 1 12.95 21.23L9.4 23Z'/%3E%3Cpath d='M22.7 9.1v13'/%3E%3C/g%3E%3C/svg%3E">
 <script>
   try {
-    ["theme", "notify"].forEach(function (k) {
-      var old = localStorage.getItem("ado-" + k);  // the name before apo
-      if (old === null) return;
-      if (localStorage.getItem("apo-" + k) === null) localStorage.setItem("apo-" + k, old);
-      localStorage.removeItem("ado-" + k);
-    });
     var t = localStorage.getItem("apo-theme");
     if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
   } catch (e) {}

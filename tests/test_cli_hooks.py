@@ -336,7 +336,7 @@ def test_a_usage_limit_stop_needs_you_when_auto_continue_is_off(db_path, tmp_pat
 
 
 def test_heartbeat_binds_a_filed_request_to_the_session_that_actually_filed_it(db_path, tmp_path):
-    """The PostToolUse payload for ADO's own create_* tool carries the real session id
+    """The PostToolUse payload for apo's own create_* tool carries the real session id
     and the new request's id — authoritative, unlike the MCP server's own guess."""
     from apo import db
 
@@ -349,7 +349,7 @@ def test_heartbeat_binds_a_filed_request_to_the_session_that_actually_filed_it(d
     )
 
     result = _post_tool_use(
-        env, "mcp__ai-decision-orchestrator__create_decision_request", {"project": "acme"},
+        env, "mcp__apo__create_decision_request", {"project": "acme"},
         [{"type": "text", "text": json.dumps({"id": request_id})}],
     )
 
@@ -362,7 +362,7 @@ def test_heartbeat_ignores_unparseable_create_tool_responses(db_path, tmp_path):
     env = dict(os.environ, APO_DB=str(db_path))
     _start(env, tmp_path)
     for response in ("not json", [{"type": "text", "text": "oops"}], {"weird": True}, None):
-        result = _post_tool_use(env, "mcp__ai-decision-orchestrator__create_action_request", {}, response)
+        result = _post_tool_use(env, "mcp__apo__create_action_request", {}, response)
         assert result.returncode == 0 and result.stdout.strip() == "{}"
 
 

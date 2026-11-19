@@ -126,7 +126,7 @@ def test_create_comment_posts_issue_id_and_body(linear_client_module, monkeypatc
     assert calls[0]["input"]["body"] == "The answer text"
 
 
-def test_ado_offline_blocks_graphql_entirely(monkeypatch, linear_client_module):
+def test_apo_offline_blocks_graphql_entirely(monkeypatch, linear_client_module):
     """Hard backstop for manual/scratch scripts, which run outside conftest's
     isolation and load the real .env. Blocking at _graphql (not just at
     is_configured) is deliberate: it also catches a script calling linear_client

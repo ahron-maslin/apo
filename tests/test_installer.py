@@ -71,13 +71,12 @@ def test_init_registers_the_mcp_server_as_apo_at_user_scope(profile, claude):
     assert ["mcp", "add", "apo", "--scope", "user", "--", APO, "mcp"] in claude()
 
 
-def test_init_replaces_an_old_registration_instead_of_adding_a_second(profile, claude):
+def test_init_replaces_its_registration_instead_of_adding_a_second(profile, claude):
     installer.run(_args())
 
     calls = claude()
     removes = [c for c in calls if c[:2] == ["mcp", "remove"]]
-    assert ["mcp", "remove", "ai-decision-orchestrator", "--scope", "user"] in removes
-    assert ["mcp", "remove", "apo", "--scope", "user"] in removes
+    assert removes == [["mcp", "remove", "apo", "--scope", "user"]]
     assert calls.index(removes[-1]) < calls.index(["mcp", "add", "apo", "--scope", "user", "--", APO, "mcp"])
 
 
@@ -132,10 +131,10 @@ def test_init_replaces_an_older_installs_hooks_and_keeps_everyone_elses(profile,
         "hooks": {
             "SessionStart": [
                 {"hooks": [{"type": "command", "command": "/old/checkout/hooks/session-decisions-nudge.sh"}]},
-                {"hooks": [{"type": "command", "command": "/old/venv/bin/ado session-start"}]},
+                {"hooks": [{"type": "command", "command": "/old/venv/bin/apo session-start"}]},
                 {"hooks": [{"type": "command", "command": "~/bin/my-own-hook.sh"}]},
             ],
-            "PostToolUse": [{"hooks": [{"type": "command", "command": "/old/venv/bin/ado session-heartbeat", "async": True}]}],
+            "PostToolUse": [{"hooks": [{"type": "command", "command": "/old/venv/bin/apo session-heartbeat", "async": True}]}],
             "Stop": [{"hooks": [{"type": "command", "command": "/usr/local/bin/apo session-stop", "timeout": 2},
                                 {"type": "command", "command": "say done"}]}],
         },
@@ -172,17 +171,14 @@ def test_a_settings_file_that_isnt_json_is_left_alone(profile, claude, capsys):
     assert "settings.json" in capsys.readouterr().out
 
 
-def test_permissions_under_the_old_server_name_move_to_the_new_one(profile, claude):
+def test_init_leaves_permissions_alone(profile, claude):
+    allow = ["mcp__apo__create_decision_request", "Bash(ls:*)", "mcp__other__thing"]
     profile.mkdir(parents=True, exist_ok=True)
-    (profile / "settings.json").write_text(json.dumps({"permissions": {"allow": [
-        "mcp__ai-decision-orchestrator__create_decision_request", "mcp__ai-decision-orchestrator", "Bash(ls:*)",
-        "mcp__apo__list_tasks",
-    ]}}))
+    (profile / "settings.json").write_text(json.dumps({"permissions": {"allow": allow}}))
 
     installer.run(_args())
 
-    assert _settings(profile)["permissions"]["allow"] == [
-        "mcp__apo__create_decision_request", "mcp__apo", "Bash(ls:*)", "mcp__apo__list_tasks"]
+    assert _settings(profile)["permissions"]["allow"] == allow
 
 
 def test_init_installs_the_decisions_skill_as_a_copy(profile, claude):
@@ -229,18 +225,6 @@ def test_init_creates_a_private_data_folder(claude, monkeypatch):
     data = config.data_dir()
     assert data == config.default_data_dir() and data.is_dir()
     assert stat.S_IMODE(data.stat().st_mode) == 0o700
-
-
-def test_init_keeps_an_older_installs_data_folder_where_it_is(claude, monkeypatch):
-    monkeypatch.delenv("APO_DB", raising=False)
-    legacy = config.legacy_data_dir()
-    legacy.mkdir(parents=True)
-    (legacy / "orchestrator.db").write_bytes(b"data")
-
-    installer.run(_args())
-
-    assert not config.default_data_dir().exists()
-    assert (legacy / "orchestrator.db").read_bytes() == b"data"
 
 
 def test_the_answers_are_saved_to_a_private_settings_file(claude, tmp_path):

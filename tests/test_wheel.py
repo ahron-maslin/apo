@@ -72,7 +72,7 @@ def test_the_wheel_carries_the_package_data(wheel):
     assert "License-Expression: MIT" in metadata
     assert {n.rsplit("/", 1)[-1] for n in names if "/licenses/" in n} == {"LICENSE", "THIRD_PARTY_NOTICES.md"}
     entry_points = zipfile.ZipFile(wheel).read(next(n for n in names if n.endswith("entry_points.txt"))).decode()
-    assert "apo = apo.cli:main" in entry_points and "ado = apo.cli:legacy_main" in entry_points
+    assert "apo = apo.cli:main" in entry_points and "ado =" not in entry_points
 
 
 @pytest.mark.skipif(not _online(), reason="installing the wheel's dependencies needs PyPI")
