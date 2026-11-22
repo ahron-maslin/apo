@@ -249,6 +249,16 @@
         <h2>Progress</h2>
         {% set answered = decision.answer_text %}
         {% set resolved = decision.status == 'resolved' %}
+        {% set cancelled = decision.status == 'cancelled' %}
+        {% set cancelled_step %}
+          <li class="is-done">
+            <span class="step-marker">{{ icon("x") }}</span>
+            <div>
+              <div class="step-title">Cancelled</div>
+              <div class="step-meta">{% if decision.resolved_at %}<time datetime="{{ decision.resolved_at }}">{{ decision.resolved_at | ago }}</time>{% endif %}{% if decision.cancel_reason %}{% if decision.resolved_at %} · {% endif %}{{ decision.cancel_reason }}{% endif %}</div>
+            </div>
+          </li>
+        {% endset %}
         <ol class="timeline">
           <li class="is-done">
             <span class="step-marker">{{ icon("check") }}</span>
@@ -280,6 +290,9 @@
             </div>
           </li>
           {% endif %}
+          {% if cancelled %}
+          {{ cancelled_step }}
+          {% else %}
           <li class="{{ 'is-done' if resolved else '' }}">
             <span class="step-marker">{{ icon("check") }}</span>
             <div>
@@ -287,6 +300,18 @@
               {% if resolved and decision.resolved_at %}<div class="step-meta"><time datetime="{{ decision.resolved_at }}">{{ decision.resolved_at | ago }}</time>{% if decision.answer_source == "human" or decision.answer_source == "dashboard" %} · by you{% endif %}</div>{% endif %}
             </div>
           </li>
+          {% endif %}
+          {% elif cancelled %}
+          {% if answered %}
+          <li class="is-done">
+            <span class="step-marker">{{ icon("check") }}</span>
+            <div>
+              <div class="step-title">{{ "Confirmed" if is_action else "Answered" }}</div>
+              {% if decision.answered_at %}<div class="step-meta"><time datetime="{{ decision.answered_at }}">{{ decision.answered_at | ago }}</time></div>{% endif %}
+            </div>
+          </li>
+          {% endif %}
+          {{ cancelled_step }}
           {% else %}
           <li class="{{ 'is-done' if answered else 'is-current' }}">
             <span class="step-marker">{{ icon("check") }}</span>
