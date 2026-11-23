@@ -2597,7 +2597,37 @@ def api_create_decision(payload: dict):
 def api_list_decisions(project: str | None = None, status: str | None = None):
     conn = db.get_connection()
     rows = db.list_decision_requests(conn, project_name=project, status=status)
-    return [dict(row) for row in rows]
+    return db.with_work_state(conn, [dict(row) for row in rows])
+
+
+@app.get("/api/outcomes")
+def api_list_outcomes(project: str | None = None, status: str | None = None):
+    """Goals with their steps. status: one of OUTCOME_STATUSES, or "all"; by default
+    the live ones (active, paused), as the dashboard shows them."""
+    if status == "all":
+        statuses = db.OUTCOME_STATUSES
+    elif status is None:
+        statuses = ("active", "paused")
+    elif status in db.OUTCOME_STATUSES:
+        statuses = (status,)
+    else:
+        raise HTTPException(status_code=400, detail=f"status must be all or one of {', '.join(db.OUTCOME_STATUSES)}")
+    conn = db.get_connection()
+    project_id = None
+    if project:
+        found = db.find_project(conn, project)
+        if found is None:
+            return []
+        project_id = found["id"]
+    return [
+        {"id": o["id"], "project": o["project_name"], "title": o["title"], "status": o["status"],
+         "done_when": o["done_when"], "description": o["description"], "due_on": o["due_on"],
+         "created_at": o["created_at"], "updated_at": o["updated_at"], "achieved_at": o["achieved_at"],
+         "done": o["progress"]["done"], "total": o["progress"]["total"],
+         "steps": [{"id": s["id"], "title": s["title"], "owner": s["owner"], "kind": s["kind"], "status": s["status"],
+                    "done": s["done"], "blocked_by": s["blocked_by"]} for s in o["progress"]["steps"]]}
+        for o in db.list_outcomes(conn, project_id=project_id, statuses=statuses)
+    ]
 
 
 @app.patch("/api/decisions/{decision_id}")

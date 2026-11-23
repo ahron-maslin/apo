@@ -2282,19 +2282,24 @@ def work_location_phrase(location: dict | None) -> str | None:
     return f"{where} — {'merged' if location['merged'] else 'not merged'} into `{default}`"
 
 
+def with_work_state(conn: sqlite3.Connection, items: list[dict], project_id: int | None = None) -> list[dict]:
+    """Adds blocked_by (open_blockers) and claim_stale (in stuck_claims) to each item,
+    in place. project_id only narrows the stuck-claims lookup."""
+    stale = {t["id"] for t in stuck_claims(conn, project_id)}
+    for item in items:
+        item["blocked_by"] = open_blockers(conn, item["id"])
+        item["claim_stale"] = item["id"] in stale
+    return items
+
+
 def list_tasks(conn: sqlite3.Connection, project_id: int) -> list[dict]:
-    """Agent tasks not done yet, ready ones first."""
+    """Agent tasks not done yet, ready ones first, with_work_state."""
     rows = conn.execute(
         "SELECT id FROM decision_requests WHERE project_id = ? AND kind = 'task' AND status IN ('open', 'in_progress') "
         "ORDER BY status = 'in_progress', work_rank IS NULL, work_rank, COALESCE(outcome_id, 0), COALESCE(sort_order, 0), id",
         (project_id,),
     ).fetchall()
-    tasks = []
-    for row in rows:
-        task = get_decision_request(conn, row["id"])
-        task["blocked_by"] = open_blockers(conn, task["id"])
-        tasks.append(task)
-    return tasks
+    return with_work_state(conn, [get_decision_request(conn, row["id"]) for row in rows], project_id)
 
 
 def cancel_request(conn: sqlite3.Connection, item_id: int, reason: str) -> bool:

@@ -375,11 +375,10 @@ def list_tasks(project: str | None = None) -> list[dict]:
     proj = _project_for(conn, project)
     if proj is None:
         return []
-    stale = {t["id"] for t in db.stuck_claims(conn, proj["id"])}
     return [
         {"id": t["id"], "title": t["title"], "detail": t["question"], "status": t["status"],
          "claimed_by_session_id": t["claimed_by_session_id"], "outcome_id": t["outcome_id"],
-         "blocked_by": t["blocked_by"], "claim_stale": t["id"] in stale}
+         "blocked_by": t["blocked_by"], "claim_stale": t["claim_stale"]}
         for t in db.list_tasks(conn, proj["id"])
     ]
 
