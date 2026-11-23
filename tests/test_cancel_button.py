@@ -60,3 +60,33 @@ def test_now_cards_offer_cancel_and_come_back_to_now(client, tmp_path):
         form = html.split(f'action="/items/{item}/cancel"', 1)
         assert len(form) == 2, f"no cancel form for #{item}"
         assert 'name="next" value="/"' in form[1].split("</form>", 1)[0]
+
+
+def _progress(html):
+    return html.split("<h2>Progress</h2>", 1)[1].split("</section>", 1)[0]
+
+
+@pytest.mark.parametrize("kind", ["decision", "action"])
+def test_a_cancelled_items_progress_says_cancelled_with_the_reason_not_waiting_on_you(client, tmp_path, kind):
+    conn = db.get_connection()
+    item = _file(conn, tmp_path, kind=kind)
+    db.cancel_request(conn, item, "Not relevant any more")
+
+    progress = _progress(client.get(f"/decisions/{item}").text)
+
+    assert "Waiting on you" not in progress
+    assert "Answer below" not in progress
+    assert "Cancelled" in progress and "Not relevant any more" in progress
+    assert "is-current" not in progress
+
+
+@pytest.mark.parametrize("kind", ["task", "wait"])
+def test_a_cancelled_task_or_waits_progress_ends_cancelled(client, tmp_path, kind):
+    conn = db.get_connection()
+    item = _file(conn, tmp_path, kind=kind, requested_by="human")
+    db.cancel_request(conn, item, "Plan changed")
+
+    progress = _progress(client.get(f"/decisions/{item}").text)
+
+    assert "Cancelled" in progress and "Plan changed" in progress
+    assert "is-current" not in progress
