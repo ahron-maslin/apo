@@ -68,7 +68,7 @@ def test_the_wheel_carries_the_package_data(wheel):
         assert path in names, path
     assert not any(n.startswith(("tests/", "docs/", "scripts/", "site/")) for n in names)
     metadata = zipfile.ZipFile(wheel).read(next(n for n in names if n.endswith("METADATA"))).decode()
-    assert "Name: getapo" in metadata and "Version: 0.1.0" in metadata
+    assert "Name: getapo" in metadata and "Version: 0.2.0" in metadata
     assert "License-Expression: MIT" in metadata
     assert {n.rsplit("/", 1)[-1] for n in names if "/licenses/" in n} == {"LICENSE", "THIRD_PARTY_NOTICES.md"}
     entry_points = zipfile.ZipFile(wheel).read(next(n for n in names if n.endswith("entry_points.txt"))).decode()
