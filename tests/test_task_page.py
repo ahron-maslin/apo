@@ -138,6 +138,52 @@ def test_starting_a_ready_task_in_the_background(client, project, launches):
     assert "claude attach 3f2a9c1b" in client.get(f"/decisions/{task_id}").text
 
 
+def _agents_link(html):
+    return re.search(r'<a [^>]*class="[^"]*watch-agent[^"]*"[^>]*href="([^"]+)"|'
+                     r'<a [^>]*href="([^"]+)"[^>]*class="[^"]*watch-agent', html)
+
+
+def _watch_href(html):
+    match = _agents_link(html)
+    assert match, "no link to where the agent is working"
+    return match.group(1) or match.group(2)
+
+
+def test_a_started_task_links_to_the_agents_tab_before_its_session_shows_up(client, project, launches):
+    p, (_, dash) = project
+    task_id = db.create_task(db.get_connection(), project_id=p["id"], title="Station Review", repository_id=dash["id"])
+    client.post(f"/decisions/{task_id}/start")
+
+    assert _watch_href(client.get(f"/decisions/{task_id}").text) == f"/projects/{p['id']}/agents"
+
+
+def test_a_started_task_links_to_its_sessions_card_once_it_is_running(client, project, launches):
+    p, (_, dash) = project
+    conn = db.get_connection()
+    task_id = db.create_task(conn, project_id=p["id"], title="Station Review", repository_id=dash["id"])
+    client.post(f"/decisions/{task_id}/start")
+    db.register_session(conn, "bg-1", dash["local_path"])
+    db.reconcile_live_sessions(conn, [{"id": "3f2a9c1b", "kind": "background", "sessionId": "bg-1",
+                                       "cwd": dash["local_path"], "status": "busy"}])
+    session = db.get_session(conn, "bg-1")
+
+    assert _watch_href(client.get(f"/decisions/{task_id}").text) == f"/projects/{p['id']}/agents#session-card-{session['id']}"
+
+
+def test_a_started_task_whose_session_ended_links_to_that_session(client, project, launches):
+    p, (_, dash) = project
+    conn = db.get_connection()
+    task_id = db.create_task(conn, project_id=p["id"], title="Station Review", repository_id=dash["id"])
+    client.post(f"/decisions/{task_id}/start")
+    db.register_session(conn, "bg-1", dash["local_path"])
+    db.reconcile_live_sessions(conn, [{"id": "3f2a9c1b", "kind": "background", "sessionId": "bg-1",
+                                       "cwd": dash["local_path"], "status": "busy"}])
+    db.session_end(conn, "bg-1", "other")
+    session = db.get_session(conn, "bg-1")
+
+    assert _watch_href(client.get(f"/decisions/{task_id}").text) == f"/sessions/{session['id']}"
+
+
 def test_a_task_without_a_folder_cant_be_started(client, project, launches):
     p, _ = project
     task_id = db.create_task(db.get_connection(), project_id=p["id"], title="Station Review")

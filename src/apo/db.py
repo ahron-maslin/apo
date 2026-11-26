@@ -3918,6 +3918,16 @@ def dispatch_in_flight(conn: sqlite3.Connection, decision: dict) -> bool:
     ).fetchone() is None
 
 
+def dispatched_session(conn: sqlite3.Connection, decision: dict) -> dict | None:
+    """The session a background start on this item became, once `claude agents` has
+    reported it under the agent id the start returned."""
+    if not decision.get("dispatch_agent_id"):
+        return None
+    row = conn.execute("SELECT * FROM sessions WHERE agent_id = ? ORDER BY last_seen_at DESC LIMIT 1",
+                       (decision["dispatch_agent_id"],)).fetchone()
+    return dict(row) if row else None
+
+
 def get_session(conn: sqlite3.Connection, claude_session_id: str) -> dict | None:
     row = conn.execute("SELECT * FROM sessions WHERE claude_session_id = ?", (claude_session_id,)).fetchone()
     return dict(row) if row else None
