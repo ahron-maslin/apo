@@ -118,8 +118,9 @@
           {% if decision.status == 'answered' and decision.dispatched_at %}
             <p class="delivery">
               {{ icon("terminal") }}
-              <span>Applying in background since {{ decision.dispatched_at | ago }}{% if decision.dispatch_agent_id %} —
-                <code>claude attach {{ decision.dispatch_agent_id }}</code> to watch it{% endif %}.</span>
+              <span>Applying in background since {{ decision.dispatched_at | ago }} —
+                <a class="watch-agent" href="{{ watch_href }}">watch it in Agents</a>{% if decision.dispatch_agent_id %},
+                or <code>claude attach {{ decision.dispatch_agent_id }}</code>{% endif %}.</span>
             </p>
           {% endif %}
           {% if apply and not apply.error and transit and not transit.live_session %}

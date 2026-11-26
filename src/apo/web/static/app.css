@@ -518,6 +518,7 @@ a.badge:hover { border-color: var(--tone); }
   transition: border-color var(--dur) ease, box-shadow var(--dur) ease;
 }
 .session-card:hover { border-color: var(--border-strong); }
+.session-card:target { border-color: var(--accent-border); box-shadow: var(--shadow-sm), 0 0 0 3px var(--accent-soft); scroll-margin-top: var(--s-8); }
 .session-card.status-blocked_decision { border-color: var(--warning-border); box-shadow: var(--shadow-sm), 0 0 0 3px color-mix(in srgb, var(--warning-soft) 70%, transparent); }
 .session-card.status-blocked_action { border-color: var(--violet-border); box-shadow: var(--shadow-sm), 0 0 0 3px color-mix(in srgb, var(--violet-soft) 70%, transparent); }
 .session-card.status-ended { background: transparent; box-shadow: none; }

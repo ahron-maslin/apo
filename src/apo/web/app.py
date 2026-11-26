@@ -2376,6 +2376,7 @@ def decision_detail(request: Request, decision_id: int, unverified: str | None =
             "effort_text": db.effort_text(db.task_effort(conn, decision_id)),
             "claim_stale": decision["kind"] == "task" and any(t["id"] == decision_id for t in db.stuck_claims(conn)),
             "dispatch_in_flight": db.dispatch_in_flight(conn, decision),
+            "watch_href": _watch_href(conn, decision),
             "folders": folders,
             "dependencies": db.item_dependencies(conn, decision_id),
             "dependency_candidates": db.dependency_candidates(conn, decision_id)
@@ -2385,6 +2386,18 @@ def decision_detail(request: Request, decision_id: int, unverified: str | None =
             "folder_default": repository["id"] if repository else (db.default_repository(conn, decision["project_id"]) or {}).get("id"),
         },
     )
+
+
+def _watch_href(conn, decision: dict) -> str | None:
+    """Where the background session started on this item is working: its card on the
+    project's Agents tab, or its own page once it has ended."""
+    if not decision.get("dispatched_at"):
+        return None
+    session = db.dispatched_session(conn, decision)
+    if session and session["status"] == "ended":
+        return f"/sessions/{session['id']}"
+    agents = f"/projects/{decision['project_id']}/agents"
+    return f"{agents}#session-card-{session['id']}" if session else agents
 
 
 def _rule_draft(decision: dict) -> str | None:
