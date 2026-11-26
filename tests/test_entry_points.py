@@ -27,7 +27,7 @@ def test_version(db_path):
     result = _run(["-m", "apo", "--version"], _env(db_path))
 
     assert result.stdout.strip() == f"apo {apo.__version__}"
-    assert apo.__version__ == "0.2.0"
+    assert apo.__version__ == "0.3.0"
 
 
 def test_there_is_no_ado_command_any_more():
