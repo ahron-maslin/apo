@@ -2500,7 +2500,8 @@ async def answer_decision(
     if not db.answer_decision_request(conn, decision_id, text, answer_kind=kind, answer_option=chosen):
         db.clear_undo(conn, decision_id)
         return RedirectResponse(back, status_code=303)
-    return _with_undo(RedirectResponse(back, status_code=303), decision_id, "Answer sent")
+    return _with_undo(RedirectResponse(back, status_code=303), decision_id,
+                      "Answer sent — it's been written to the repo for the next session to pick up")
 
 
 def _attachment_json(attachment: dict) -> dict:

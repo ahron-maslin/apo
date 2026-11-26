@@ -37,8 +37,7 @@
      {% if composer_thumb_compact %}data-thumb-size="compact"{% endif %}>
   {% if composer_editable %}
     <form method="post" action="/decisions/{{ composer_decision_id }}/answer" data-enhance="indicate" data-secret-check
-          data-loading-text="Sending…" data-flash="Answer sent — it's been written to the repo for the next session to pick up."
-          data-flash-path="/decisions/{{ composer_decision_id }}">
+          data-loading-text="Sending…">
       {% if composer_next %}<input type="hidden" name="next" value="{{ composer_next }}">{% endif %}
       {% set d = composer_decision %}
       {% set is_action_composer = d and d.kind == "action" %}

@@ -125,6 +125,26 @@ def test_clicking_the_first_option_answers_with_it(server, tmp_path):
     assert db.get_decision_request(db.get_connection(), decision_id)["answer_text"].startswith("Chose option 1: Postgres")
 
 
+def test_answering_shows_one_toast_with_the_full_message_and_undo(server, tmp_path):
+    """The form queued its own "Answer sent — written to the repo" toast and the server
+    sent an "Answer sent." Undo toast, so every answer showed two."""
+    conn = db.get_connection()
+    decision_id = db.create_decision_request(conn, project_id=_project(conn, tmp_path)["id"], title="Queue",
+                                             question="Which?", options=[{"label": "Postgres"}, {"label": "SQLite"}])
+
+    async def act(js):
+        await js('document.querySelector(\'button[name="option"][value="0"]\').click()')
+        await asyncio.sleep(2)
+        return await js("Array.from(document.querySelectorAll('#app-toast-stack .toast'))"
+                        ".map(t => ({text: t.querySelector('.toast-msg').textContent, undo: !!t.querySelector('.toast-undo')}))")
+
+    toasts = _in_browser(f"{server}/decisions/{decision_id}", 'button[name="option"][value="0"]', act)
+
+    assert len(toasts) == 1, toasts
+    assert toasts[0]["undo"]
+    assert "written to the repo" in toasts[0]["text"]
+
+
 def test_clicking_done_on_an_action_marks_it_done(server, tmp_path):
     conn = db.get_connection()
     action_id = db.create_action_request(conn, project_id=_project(conn, tmp_path)["id"], title="Add DNS",

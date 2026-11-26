@@ -67,27 +67,6 @@
     });
   }
 
-  // A message to show after a POST → redirect lands, keyed to the page it
-  // should land on so an unrelated page (or an error response) never shows it.
-  var FLASH_KEY = "apo-flash";
-
-  function setFlash(message, path) {
-    try { sessionStorage.setItem(FLASH_KEY, JSON.stringify({ message: message, path: path })); } catch (e) {}
-  }
-
-  function consumeFlash() {
-    var raw;
-    try {
-      raw = sessionStorage.getItem(FLASH_KEY);
-      sessionStorage.removeItem(FLASH_KEY);
-    } catch (e) { return; }
-    if (!raw) return;
-    try {
-      var flash = JSON.parse(raw);
-      if (!flash.path || flash.path === location.pathname) toast(flash.message, "success");
-    } catch (e) {}
-  }
-
   // Done, Cancel, Snooze and answers leave a short-lived cookie naming the item; show an
   // Undo toast for it once, wherever the redirect landed.
   function consumeUndo() {
@@ -174,7 +153,6 @@
       // After the browser has built the form data: a button disabled during the
       // submit event is left out of it, and the clicked button IS the answer.
       setTimeout(function () { setLoading(button, opts.loadingText || form.dataset.loadingText); }, 0);
-      if (form.dataset.flash) setFlash(form.dataset.flash, form.dataset.flashPath);
       // No preventDefault: the browser's normal POST+redirect navigation still
       // happens, this just gives the user feedback before the page unloads.
     });
@@ -1163,7 +1141,6 @@
     ensureLiveRegions();
     initThemeToggle();
     autoEnhance(document);
-    consumeFlash();
     consumeUndo();
     openHashTarget();
   });

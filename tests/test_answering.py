@@ -119,6 +119,26 @@ def test_the_server_refuses_a_secret_shaped_answer_unless_confirmed(db_path):
     assert db.get_decision_request(conn, decision_id)["answer_text"].startswith("sk_live_")
 
 
+def test_an_answer_leaves_one_undo_toast_that_says_where_it_went(db_path):
+    """The Undo toast is the only confirmation: the form no longer queues a second one."""
+    import json
+    from urllib.parse import unquote
+
+    from fastapi.testclient import TestClient
+
+    from apo.web import app
+
+    client = TestClient(app.app)
+    conn = db.get_connection()
+    decision_id = _decision(conn)
+    page = client.get(f"/decisions/{decision_id}").text
+    assert "data-flash=" not in page
+
+    r = client.post(f"/decisions/{decision_id}/answer", data={"answer_text": "Postgres"}, follow_redirects=False)
+    label = json.loads(unquote(r.cookies["apo_undo"]))["label"]
+    assert label.startswith("Answer sent") and "written to the repo" in label
+
+
 def test_answer_forms_carry_the_secret_check(db_path):
     from fastapi.testclient import TestClient
 
