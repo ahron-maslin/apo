@@ -2,6 +2,7 @@
 start one on a work item, stop one. Only answers given locally may
 start an agent on their own — a Linear comment needs one dashboard click first,
 which is the boundary that retired the old dispatcher."""
+import re
 import stat
 from pathlib import Path
 
@@ -140,6 +141,11 @@ def test_apply_route_launches_and_records_the_dispatch(client, fake_claude, tmp_
     verbs = [e["verb"] for e in db.list_events(conn, decision_id=decision_id)]
     assert "delivery.dispatched" in verbs
     assert "Applying in background" in client.get(f"/decisions/{decision_id}").text
+    db.register_session(conn, "sess-1", str(tmp_path))
+    db.reconcile_live_sessions(conn, [{"id": "3f2a9c1b", "kind": "background", "sessionId": "sess-1",
+                                       "cwd": str(tmp_path), "status": "busy"}])
+    card = f'/projects/{decision["project_id"]}/agents#session-card-{db.get_session(conn, "sess-1")["id"]}'
+    assert re.search(rf'<a class="watch-agent" href="{card}"', client.get(f"/decisions/{decision_id}").text)
 
 
 def test_apply_route_does_not_launch_twice(client, fake_claude, tmp_path):
